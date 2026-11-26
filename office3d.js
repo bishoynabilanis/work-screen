@@ -956,17 +956,17 @@
     var len = ctx.sampleRate * 2, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0), last = 0;
     for (var i = 0; i < len; i++) { var w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
     var src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
-    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520;
-    var gn = ctx.createGain(); gn.gain.value = 0.0; gn.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 1.5);
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260;
+    var gn = ctx.createGain(); gn.gain.value = 0.0; gn.gain.linearRampToValueAtTime(0.022, ctx.currentTime + 3);
     src.connect(lp); lp.connect(gn); gn.connect(ctx.destination); src.start();
     ambient.nodes = { src: src, gn: gn };
     var nb = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate), nd = nb.getChannelData(0);
     for (var j = 0; j < nd.length; j++) { nd[j] = (Math.random() * 2 - 1) * Math.exp(-j / (nd.length * 0.18)); }
     (function click() {
       if (!ambient.on) { return; }
-      var s2 = ctx.createBufferSource(); s2.buffer = nb; var hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 1800 + Math.random() * 1800; hp.Q.value = 1.2;
-      var g2 = ctx.createGain(); g2.gain.value = 0.05 + Math.random() * 0.06; s2.connect(hp); hp.connect(g2); g2.connect(ctx.destination); s2.start();
-      ambient.timer = setTimeout(click, 60 + Math.random() * (Math.random() < 0.25 ? 900 : 260));
+      var s2 = ctx.createBufferSource(); s2.buffer = nb; var hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 1400 + Math.random() * 900; hp.Q.value = 1.2;
+      var g2 = ctx.createGain(); g2.gain.value = 0.006 + Math.random() * 0.008; s2.connect(hp); hp.connect(g2); g2.connect(ctx.destination); s2.start();
+      ambient.timer = setTimeout(click, 500 + Math.random() * 2200);
     })();
     return true;
   }
