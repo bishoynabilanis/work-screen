@@ -959,7 +959,7 @@
 
 
   // ---- Live layer: free realtime events over ntfy.sh (plain-language statuses only) ----
-  var LIVE_TOPIC = 'ws-bishoy-b9a5db4bf02c9c9403c819ad4d939761';
+  var LIVE_TOPIC = 'ws-bishoy-20c71950930763d94e43b329297e34fe';
   var LIVE_BASE = 'https://ntfy.sh/' + LIVE_TOPIC;
   var liveEvents = [];
   var liveSeen = {};
