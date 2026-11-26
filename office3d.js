@@ -471,7 +471,7 @@
     function chip(label, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'o3-chip'; b.textContent = label; b.addEventListener('click', fn); chipsEl.appendChild(b); }
     chip('آخر التسليمات', function () { var h = document.getElementById('handoffsHeading'); if (h) { h.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
     chip('الكل', function () { setFloor(0, true); flyTo(new THREE.Vector3(12.5, 0, 9), 1); });
-    chip('المديرة', function () { if (floorSel && floorSel !== 1) { setFloor(1, true); } flyTo(new THREE.Vector3(11.5, 0, -3.6), 3.2); });
+    chip('المديرة', function () { if (floorSel && floorSel !== 4) { setFloor(4, true); } flyTo(new THREE.Vector3(11.5, 0, -3.6), 3.2); });
     depts.forEach(function (d) {
       if (!BLOCKS[d.id]) { return; }
       chip(String(d.name || d.id).replace(/^قسم /, ''), function () {
@@ -508,8 +508,8 @@
   }
 
   // ---------- floors ----------
-  var FLOOR = { mgr: 1, trend: 1, video: 1, content: 2, jessica: 2, seo: 3, tools: 3, mail: 3, qa: 3 };
-  var FLOOR_VIEW = { 1: [18, 0, -1, 1.3], 2: [4, 0, 6, 1.2], 3: [12, 0, 14, 1.0] };
+  var FLOOR = { mgr: 4, trend: 1, video: 1, content: 2, jessica: 2, seo: 3, tools: 3, mail: 3, qa: 3 };
+  var FLOOR_VIEW = { 1: [18, 0, -1, 1.3], 2: [4, 0, 6, 1.2], 3: [12, 0, 14, 1.0], 4: [11.5, 0, -3.9, 2.3] };
   function tagDept(id, n0) {
     var arr = deptObjs[id] = deptObjs[id] || [];
     for (var i = n0; i < scene.children.length; i++) { arr.push(scene.children[i]); }
@@ -1153,9 +1153,9 @@
   document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && isFs()) { setFs(false); } });
   (host.querySelector('.o3-stage') || host).appendChild(fsBtn);
   var floorBar = document.createElement('div'); floorBar.className = 'o3-floors';
-  [[0, 'كل الأدوار'], [1, 'الدور 1'], [2, 'الدور 2'], [3, 'الدور 3']].forEach(function (p) {
+  [[0, 'كل الأدوار'], [1, 'الدور 1'], [2, 'الدور 2'], [3, 'الدور 3'], [4, 'مكتب المديرة']].forEach(function (p) {
     var b = document.createElement('button'); b.type = 'button'; b.textContent = p[1];
-    b.title = p[0] === 1 ? 'الإدارة، الترند، الفيديو' : p[0] === 2 ? 'المحتوى، جيسيكا' : p[0] === 3 ? 'السيو، الأدوات، الإيميل، المراجعة' : 'كل الأقسام';
+    b.title = p[0] === 4 ? 'مكتب المديرة لوحدها، معزول عن الموظفين' : p[0] === 1 ? 'الترند، الفيديو' : p[0] === 2 ? 'المحتوى، جيسيكا' : p[0] === 3 ? 'السيو، الأدوات، الإيميل، المراجعة' : 'كل الأقسام';
     b.addEventListener('click', function () { userTouch(); setCamMode('free'); setFloor(p[0]); floorCap.textContent = p[0] ? b.title : ''; });
     floorBtns[p[0]] = b; floorBar.appendChild(b);
   });
