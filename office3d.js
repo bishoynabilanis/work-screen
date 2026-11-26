@@ -98,12 +98,13 @@
   scene.add(carpet);
 
   // back walls with windows
-  function wallWithWindows(len, axis) {
+  function wallWithWindows(len, axis, skip) {
     var g = new THREE.Group();
     var wall = box(len, 5.2, 0.4, 0xf8f8f6);
     g.add(wall);
     var n = Math.floor(len / 4.2);
     for (var i = 0; i < n; i++) {
+      if (skip && skip.indexOf(i) >= 0) { continue; }
       var win = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.2), new THREE.MeshBasicMaterial({ color: 0xbfe3ff }));
       win.position.set(-len / 2 + 2.4 + i * 4.2, 0.2, 0.22);
       g.add(win); winMats.push(win.material);
@@ -120,7 +121,7 @@
     }
     return g;
   }
-  var wallBack = wallWithWindows(34, 'x');
+  var wallBack = wallWithWindows(34, 'x', [1, 2, 3]);
   wallBack.position.set(11.5, 2.6, -7.3);
   scene.add(wallBack);
   var wallLeft = wallWithWindows(32, 'z');
@@ -369,6 +370,7 @@
       r.desk.screens.forEach(function (sc) { sc.material.color.setHex(col); });
       r.label.dataset.state = r.state;
     });
+    try { updateBoard(feed); } catch (e) { noteErr(e, 'board'); }
     buildChips(feed);
     firstFeedDone = true;
   }
@@ -474,6 +476,12 @@
     ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
     var hits = ray.intersectObjects(pickables, false);
+    var bh = ray.intersectObject(boardMesh, false);
+    if (bh.length && (!hits.length || bh[0].distance < hits[0].distance)) {
+      var pr = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85;
+      flyTo(new THREE.Vector3(2.46, 0, -9.9), pr ? 1.9 : 2.7);
+      return;
+    }
     if (hits.length && typeof window.__openSheet === 'function') {
       var id = hits[0].object.userData.id;
       window.__openSheet(id === 'mgr' ? '__manager__' : id);
@@ -758,6 +766,114 @@
       fetch('feed.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (f) { safeUpdate(f); }).catch(function () { failScene(); });
     }
   }, 3500);
+  // ---------- achievements board on the back wall ----------
+  var boardCanvas = document.createElement('canvas'); boardCanvas.width = 1480; boardCanvas.height = 720;
+  var boardTex = new THREE.CanvasTexture(boardCanvas);
+  if (THREE.sRGBEncoding) { boardTex.encoding = THREE.sRGBEncoding; }
+  var boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(9.3, 4.52), new THREE.MeshBasicMaterial({ map: boardTex }));
+  boardMesh.position.set(5.3, 2.6, -7.04); scene.add(boardMesh);
+  var boardFrame = box(9.6, 4.8, 0.1, 0x2b2f38); boardFrame.position.set(5.3, 2.6, -7.1); scene.add(boardFrame);
+  var boardSig = '';
+  function dubaiDay(d) { try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dubai' }).format(d); } catch (e) { return d.toDateString(); } }
+  function toArNum(n) { try { return new Intl.NumberFormat('ar-EG').format(n); } catch (e) { return String(n); } }
+  function updateBoard(feed) {
+    var today = dubaiDay(new Date());
+    var staff = Array.isArray(feed.staff) ? feed.staff : [];
+    var doneToday = 0;
+    staff.forEach(function (st) {
+      if (stateKey(st.state) === 'done') { var d = st.time ? new Date(st.time) : null; if (d && !isNaN(d) && dubaiDay(d) === today) { doneToday++; } }
+    });
+    var hs = (Array.isArray(feed.handoffs) ? feed.handoffs : []).filter(function (h) { var d = h && h.time ? new Date(h.time) : null; return d && !isNaN(d); });
+    hs.sort(function (a, b) { return new Date(b.time) - new Date(a.time); });
+    var hsToday = hs.filter(function (h) { return dubaiDay(new Date(h.time)) === today; });
+    var cnt = {}, best = null;
+    hsToday.forEach(function (h) { [String(h.from), String(h.to)].forEach(function (id) { cnt[id] = (cnt[id] || 0) + 1; }); });
+    Object.keys(cnt).forEach(function (id) { if (people[id] && (!best || cnt[id] > cnt[best])) { best = id; } });
+    var busiest = null;
+    if (best) { busiest = { name: people[best].nameText, role: people[best].roleText, note: toArNum(cnt[best]) + ' تسليمات النهاردة' }; }
+    else {
+      var run = staff.filter(function (st) { return stateKey(st.state) === 'running' && st.time; });
+      run.sort(function (a, b) { return new Date(b.time) - new Date(a.time); });
+      if (run[0]) { busiest = { name: String(run[0].name || ''), role: String(run[0].title || ''), note: 'شغال دلوقتي' }; }
+    }
+    var last3 = hs.slice(0, 3).map(function (h) {
+      var a = people[String(h.from)], b = people[String(h.to)];
+      return (a ? a.nameText : '؟') + '  ←  ' + (b ? b.nameText : '؟') + (h.label ? '  ·  ' + String(h.label).slice(0, 22) : '');
+    });
+    var sig = [doneToday, hsToday.length, busiest ? busiest.name + busiest.note : '', last3.join('|'), today].join('#');
+    if (sig === boardSig) { return; }
+    boardSig = sig;
+    drawBoard(doneToday, hsToday.length, busiest, last3);
+  }
+  function drawBoard(done, hsN, busiest, last3) {
+    var c = boardCanvas.getContext('2d'), W = 1480, H = 720;
+    c.clearRect(0, 0, W, H);
+    var g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1f2a3a'); g.addColorStop(1, '#141b27');
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    c.strokeStyle = '#f4511e'; c.lineWidth = 8; c.strokeRect(8, 8, W - 16, H - 16);
+    c.direction = 'rtl'; c.textAlign = 'right'; c.textBaseline = 'alphabetic';
+    var F = 'system-ui, "Segoe UI", Tahoma, Arial, sans-serif';
+    c.fillStyle = '#ffd98a'; c.font = '800 54px ' + F; c.fillText('🏆 لوحة الإنجازات', W - 50, 90);
+    c.fillStyle = '#4ade80'; c.beginPath(); c.arc(60, 68, 10, 0, 7); c.fill();
+    c.textAlign = 'left'; c.direction = 'ltr'; c.fillStyle = '#8fa0b5'; c.font = '700 26px ' + F; c.fillText('LIVE', 82, 77);
+    c.textAlign = 'right'; c.direction = 'rtl';
+    function card(x, w, title) { c.fillStyle = 'rgba(255,255,255,0.07)'; c.beginPath(); if (c.roundRect) { c.roundRect(x, 125, w, 555, 22); } else { c.rect(x, 125, w, 555); } c.fill(); c.fillStyle = '#9fb3c8'; c.font = '700 32px ' + F; c.fillText(title, x + w - 26, 175); }
+    // right card: done today
+    card(790, 650, 'مهام خلصت النهاردة');
+    c.fillStyle = '#4ade80'; c.font = '900 210px ' + F; c.textAlign = 'center'; c.fillText(toArNum(done), 1115, 400);
+    c.fillStyle = '#cfe0f2'; c.font = '700 34px ' + F; c.fillText('تسليمات النهاردة: ' + toArNum(hsN), 1115, 480);
+    c.textAlign = 'right';
+    c.fillStyle = '#9fb3c8'; c.font = '700 30px ' + F; c.fillText('أنشط موظف', 1414, 560);
+    c.fillStyle = '#ffd98a'; c.font = '800 44px ' + F; c.fillText(busiest ? busiest.name : '—', 1414, 618);
+    c.fillStyle = '#cfe0f2'; c.font = '600 28px ' + F; c.fillText(busiest ? (busiest.role + ' · ' + busiest.note) : 'لسه محدش اتحرك', 1414, 660);
+    // left card: last 3 handoffs
+    card(40, 720, 'آخر 3 تسليمات');
+    c.font = '700 34px ' + F;
+    if (!last3.length) { c.fillStyle = '#7d8da1'; c.fillText('مفيش تسليمات لسه', 720, 300); }
+    last3.forEach(function (t, i) {
+      var y = 250 + i * 130;
+      c.fillStyle = 'rgba(58,160,255,0.16)'; c.fillRect(70, y - 52, 660, 100);
+      c.fillStyle = '#58b0ff'; c.font = '900 40px ' + F; c.fillText(toArNum(i + 1), 712, y + 10);
+      c.fillStyle = '#ffffff'; c.font = '700 33px ' + F; c.fillText(t, 650, y + 10);
+    });
+    boardTex.needsUpdate = true;
+  }
+  drawBoard(0, 0, null, []);
+
+  // ---------- optional ambient office sound (synthesized in the browser, no audio files) ----------
+  var ambient = { ctx: null, on: false, nodes: null, timer: 0 };
+  function startAmbient() {
+    var AC = window.AudioContext || window.webkitAudioContext; if (!AC) { return false; }
+    if (!ambient.ctx) { ambient.ctx = new AC(); }
+    var ctx = ambient.ctx; if (ctx.state === 'suspended') { ctx.resume(); }
+    var len = ctx.sampleRate * 2, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0), last = 0;
+    for (var i = 0; i < len; i++) { var w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+    var src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520;
+    var gn = ctx.createGain(); gn.gain.value = 0.0; gn.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 1.5);
+    src.connect(lp); lp.connect(gn); gn.connect(ctx.destination); src.start();
+    ambient.nodes = { src: src, gn: gn };
+    var nb = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate), nd = nb.getChannelData(0);
+    for (var j = 0; j < nd.length; j++) { nd[j] = (Math.random() * 2 - 1) * Math.exp(-j / (nd.length * 0.18)); }
+    (function click() {
+      if (!ambient.on) { return; }
+      var s2 = ctx.createBufferSource(); s2.buffer = nb; var hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 1800 + Math.random() * 1800; hp.Q.value = 1.2;
+      var g2 = ctx.createGain(); g2.gain.value = 0.05 + Math.random() * 0.06; s2.connect(hp); hp.connect(g2); g2.connect(ctx.destination); s2.start();
+      ambient.timer = setTimeout(click, 60 + Math.random() * (Math.random() < 0.25 ? 900 : 260));
+    })();
+    return true;
+  }
+  function stopAmbient() {
+    clearTimeout(ambient.timer);
+    if (ambient.nodes) { var n = ambient.nodes; ambient.nodes = null; try { n.gn.gain.linearRampToValueAtTime(0, ambient.ctx.currentTime + 0.4); setTimeout(function () { try { n.src.stop(); } catch (e) { /* ok */ } }, 500); } catch (e) { /* ok */ } }
+  }
+  var soundBtn = document.createElement('button'); soundBtn.type = 'button'; soundBtn.className = 'o3-sound'; soundBtn.textContent = '🔇'; soundBtn.setAttribute('aria-label', 'صوت المكتب');
+  soundBtn.addEventListener('click', function () {
+    if (!ambient.on) { ambient.on = true; if (startAmbient()) { soundBtn.textContent = '🔊'; soundBtn.classList.add('on'); } else { ambient.on = false; } }
+    else { ambient.on = false; stopAmbient(); soundBtn.textContent = '🔇'; soundBtn.classList.remove('on'); }
+  });
+  (host.querySelector('.o3-stage') || host).appendChild(soundBtn);
+
   window.Office3D = { ready: true, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
   if (hint) { hint.hidden = false; }
 })();
