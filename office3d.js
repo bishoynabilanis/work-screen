@@ -70,7 +70,7 @@
   var desiredTarget = target.clone();
   var desiredZoom = 1;
   var baseSpan = 30, initZoomDone = false;
-  var mgrWalls = [], camMode = 'free', followId = '', followT = 0, camBtns = {}, az = 0, azU = 0, azUT = 0, elU = 0.45, elUT = 0.45, camDir = { x: 0.7071, z: 0.7071 }, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
+  var floorSel = 0, deptObjs = {}, mgrWalls = [], camMode = 'free', followId = '', followT = 0, camBtns = {}, az = 0, azU = 0, azUT = 0, elU = 0.45, elUT = 0.45, camDir = { x: 0.7071, z: 0.7071 }, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
 
   function placeCamera() {
     var w = canvasWrap.clientWidth || 360, h = canvasWrap.clientHeight || 520;
@@ -350,10 +350,13 @@
       if (deptsBuilt[id]) { return; }
       var list = byDept[id].slice().sort(function (a, b) { return (a.level === 'lead' ? 0 : 1) - (b.level === 'lead' ? 0 : 1); });
       deptsBuilt[id] = list.length;
+      var n0 = scene.children.length;
       try { buildZone(id, list.length, names[id] || id); } catch (e) { noteErr(e, 'zone ' + id); }
       list.forEach(function (s, i) { try { makePersonAt(String(s.id), slotFor(id, i), id, false); } catch (e) { noteErr(e, 'p ' + s.id); } });
+      tagDept(id, n0);
     });
     if (!people['mgr']) {
+      var nm0 = scene.children.length;
       var mp = makePersonAt('mgr', { x: 11.5, z: -3.6 }, 'mgr', true);
       var tile = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.06, 3.6), mat(ACCENT.mgr)); tile.material.transparent = true; tile.material.opacity = 0.22;
       tile.position.set(11.5, 0.04, -3.9); scene.add(tile);
@@ -412,7 +415,9 @@
         var pl = new THREE.PointLight(0xffd9a8, 0.8, 9); pl.position.set(cxm, 3.2, czm); scene.add(pl);
       })();
     }
+    if (nm0 !== undefined) { tagDept('mgr', nm0); }
     built = true;
+    if (floorSel) { applyFloor(); }
   }
 
   function update(feed) {
@@ -465,11 +470,12 @@
     while (chipsEl.firstChild) { chipsEl.removeChild(chipsEl.firstChild); }
     function chip(label, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'o3-chip'; b.textContent = label; b.addEventListener('click', fn); chipsEl.appendChild(b); }
     chip('آخر التسليمات', function () { var h = document.getElementById('handoffsHeading'); if (h) { h.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
-    chip('الكل', function () { flyTo(new THREE.Vector3(12.5, 0, 9), 1); });
-    chip('المديرة', function () { flyTo(new THREE.Vector3(11.5, 0, -3.6), 3.2); });
+    chip('الكل', function () { setFloor(0, true); flyTo(new THREE.Vector3(12.5, 0, 9), 1); });
+    chip('المديرة', function () { if (floorSel && floorSel !== 1) { setFloor(1, true); } flyTo(new THREE.Vector3(11.5, 0, -3.6), 3.2); });
     depts.forEach(function (d) {
       if (!BLOCKS[d.id]) { return; }
       chip(String(d.name || d.id).replace(/^قسم /, ''), function () {
+        if (floorSel && FLOOR[d.id] && floorSel !== FLOOR[d.id]) { setFloor(FLOOR[d.id], true); }
         var z = zoneInfo[d.id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), d.id === 'qa' ? 1.7 : 2.4); }
       });
     });
@@ -501,6 +507,25 @@
     }, holdMs || 1200);
   }
 
+  // ---------- floors ----------
+  var FLOOR = { mgr: 1, trend: 1, video: 1, content: 2, jessica: 2, seo: 3, tools: 3, mail: 3, qa: 3 };
+  var FLOOR_VIEW = { 1: [18, 0, -1, 1.3], 2: [4, 0, 6, 1.2], 3: [12, 0, 14, 1.0] };
+  function tagDept(id, n0) {
+    var arr = deptObjs[id] = deptObjs[id] || [];
+    for (var i = n0; i < scene.children.length; i++) { arr.push(scene.children[i]); }
+  }
+  function deptVisible(id) { return !floorSel || !FLOOR[id] || FLOOR[id] === floorSel; }
+  function applyFloor() {
+    Object.keys(deptObjs).forEach(function (id) { var v = deptVisible(id); deptObjs[id].forEach(function (ob) { ob.visible = v; }); });
+    Object.keys(people).forEach(function (pid) { var r = people[pid]; r.hidden = !deptVisible(r.dept); });
+    Object.keys(zoneInfo).forEach(function (zid) { zoneInfo[zid].hidden = !deptVisible(zid); });
+  }
+  function setFloor(f, noFly) {
+    floorSel = f; applyFloor();
+    Object.keys(floorBtns).forEach(function (k) { floorBtns[k].classList.toggle('on', +k === f); });
+    if (!noFly) { var v = FLOOR_VIEW[f] || [12.5, 0, 9, 1]; flyTo(new THREE.Vector3(v[0], v[1], v[2]), v[3]); }
+  }
+  var floorBtns = {};
   // ---------- camera controls ----------
   var drag = null, pinch = null, moved = false;
   var el = renderer.domElement;
@@ -575,7 +600,7 @@
     var r = el.getBoundingClientRect();
     ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    var hits = ray.intersectObjects(pickables, false);
+    var hits = ray.intersectObjects(pickables, false).filter(function (h) { var pr0 = people[h.object.userData.id]; return !(pr0 && pr0.hidden); });
     var bh = ray.intersectObject(boardMesh, false);
     if (bh.length && (!hits.length || bh[0].distance < hits[0].distance)) {
       var pr = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85;
@@ -811,8 +836,8 @@
       var zi = zoneInfo[zid]; if (!zi.el) { return; }
       project({ x: zi.cx, z: zi.cz - zi.d / 2 + 0.6 }, 0.6, pt);
       zi.el.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-50%)';
-      zi.el.style.display = (!showNames && pt.vis) ? '' : 'none';
-      zi.rx = pt.x; zi.ry = pt.y; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = !showNames && pt.vis;
+      zi.el.style.display = (!showNames && pt.vis && !zi.hidden) ? '' : 'none';
+      zi.rx = pt.x; zi.ry = pt.y; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = !showNames && pt.vis && !zi.hidden;
     });
     Object.keys(people).forEach(function (id) {
       var r = people[id], pa = r.person.parts;
@@ -840,11 +865,11 @@
       project(headPos, 2.6, pt);
       var lb = r.label;
       lb.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-100%)';
-      lb.style.display = (pt.vis && (showNames || r.away)) ? '' : 'none';
+      lb.style.display = (pt.vis && !r.hidden && (showNames || r.away)) ? '' : 'none';
       lb.classList.toggle('show-role', showRole);
       lb.classList.toggle('is-away', !!r.away);
       var sb = lb.__s;
-      var showSt = pt.vis && !r.away && (r.state === 'running' || r.state === 'blocked' || showNames);
+      var showSt = pt.vis && !r.hidden && !r.away && (r.state === 'running' || r.state === 'blocked' || showNames);
       if (showSt && !showNames) {
         var bx = pt.x, by = pt.y - 4 - 6;
         for (var zk in zoneInfo) { var zz = zoneInfo[zk];
@@ -1127,6 +1152,16 @@
   fsBtn.addEventListener('click', function () { setFs(!isFs()); });
   document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && isFs()) { setFs(false); } });
   (host.querySelector('.o3-stage') || host).appendChild(fsBtn);
+  var floorBar = document.createElement('div'); floorBar.className = 'o3-floors';
+  [[0, 'كل الأدوار'], [1, 'الدور 1'], [2, 'الدور 2'], [3, 'الدور 3']].forEach(function (p) {
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = p[1];
+    b.title = p[0] === 1 ? 'الإدارة، الترند، الفيديو' : p[0] === 2 ? 'المحتوى، جيسيكا' : p[0] === 3 ? 'السيو، الأدوات، الإيميل، المراجعة' : 'كل الأقسام';
+    b.addEventListener('click', function () { userTouch(); setCamMode('free'); setFloor(p[0]); floorCap.textContent = p[0] ? b.title : ''; });
+    floorBtns[p[0]] = b; floorBar.appendChild(b);
+  });
+  var floorCap = document.createElement('span'); floorCap.className = 'o3-floor-cap'; floorBar.appendChild(floorCap);
+  floorBtns[0].classList.add('on');
+  (host.querySelector('.o3-stage') || host).appendChild(floorBar);
   camBtns.free.classList.add('on');
   (host.querySelector('.o3-stage') || host).appendChild(camBar);
   syncViewBtn();
@@ -1134,6 +1169,6 @@
 
   window.__o3dbg = { people: people, charTpl: charTpl };
   initCharacters();
-  window.Office3D = { ready: true, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
+  window.Office3D = { ready: true, setFloor: setFloor, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
   if (hint) { hint.hidden = false; }
 })();
