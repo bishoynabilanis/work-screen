@@ -70,7 +70,7 @@
   var desiredTarget = target.clone();
   var desiredZoom = 1;
   var baseSpan = 30, initZoomDone = false;
-  var camMode = 'free', followId = '', followT = 0, camBtns = {}, az = 0, azU = 0, azUT = 0, elU = 0.45, elUT = 0.45, camDir = { x: 0.7071, z: 0.7071 }, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
+  var mgrWalls = [], camMode = 'free', followId = '', followT = 0, camBtns = {}, az = 0, azU = 0, azUT = 0, elU = 0.45, elUT = 0.45, camDir = { x: 0.7071, z: 0.7071 }, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
 
   function placeCamera() {
     var w = canvasWrap.clientWidth || 360, h = canvasWrap.clientHeight || 520;
@@ -348,25 +348,55 @@
       var ml = document.createElement('button'); ml.type = 'button'; ml.className = 'o3-zone'; ml.textContent = 'مكتب المديرة'; ml.addEventListener('click', function () { flyTo(new THREE.Vector3(11.5, 0, -3.6), 3.2); }); labelLayer.appendChild(ml); zoneInfo.mgr.el = ml;
       plant(8.9, -2.2); plant(14.1, -2.2);
       tile.visible = false;
-      // separate glass office for the manager
+      // separate closed office for the manager (solid walls, door, own furniture; near walls fade when the camera looks through them)
       (function () {
-        var X0 = 8.3, X1 = 14.7, Z0 = -7.0, Z1 = -1.5, cxm = 11.5, czm = (Z0 + Z1) / 2;
-        var fl = new THREE.Mesh(new THREE.BoxGeometry(X1 - X0, 0.12, Z1 - Z0), mat(0xc79d6e)); fl.position.set(cxm, 0.06, czm); fl.receiveShadow = true; scene.add(fl);
-        var rug = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.03, 3.0), mat(0xf4511e)); rug.material.transparent = true; rug.material.opacity = 0.35; rug.position.set(cxm, 0.14, -3.7); scene.add(rug);
-        var glassM = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
-        var frameM = mat(0xf4511e);
-        function glass(x, z, w, rotY) {
-          var g = new THREE.Mesh(new THREE.PlaneGeometry(w, 3.4), glassM); g.position.set(x, 1.8, z); g.rotation.y = rotY; scene.add(g);
-          var top = new THREE.Mesh(new THREE.BoxGeometry(rotY ? 0.1 : w, 0.12, rotY ? w : 0.1), frameM); top.position.set(x, 3.5, z); scene.add(top);
-          var bot = top.clone(); bot.position.y = 0.16; scene.add(bot);
+        var X0 = 8.3, X1 = 14.7, Z0 = -7.0, Z1 = -1.5, cxm = 11.5, czm = (Z0 + Z1) / 2, H = 3.7, T = 0.22;
+        var fl = new THREE.Mesh(new THREE.BoxGeometry(X1 - X0, 0.12, Z1 - Z0), mat(0x8a5a3c)); fl.position.set(cxm, 0.06, czm); fl.receiveShadow = true; scene.add(fl);
+        var rug = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.03, 3.2), mat(0x2f3e5c)); rug.position.set(cxm, 0.14, -3.9); rug.receiveShadow = true; scene.add(rug);
+        var rug2 = new THREE.Mesh(new THREE.BoxGeometry(3.7, 0.035, 2.5), mat(0xd9b77a)); rug2.position.set(cxm, 0.15, -3.9); scene.add(rug2);
+        mgrWalls = [];
+        function wallM(nx, nz) { var m = new THREE.MeshLambertMaterial({ color: 0xf1ece2, transparent: true, opacity: 1 }); mgrWalls.push({ m: m, nx: nx, nz: nz }); return m; }
+        function wall(cx, cz, w, d, nx, nz, h, y0) {
+          var wm = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallM(nx, nz)); wm.position.set(cx, (y0 || 0) + h / 2, cz); wm.castShadow = false; scene.add(wm);
+          return wm;
         }
-        glass(X0, czm, Z1 - Z0, Math.PI / 2); glass(X1, czm, Z1 - Z0, Math.PI / 2);
-        glass((X0 + cxm - 0.9) / 2, Z1, cxm - 0.9 - X0, 0); glass((X1 + cxm + 0.9) / 2, Z1, X1 - cxm - 0.9, 0);
-        [[X0, Z1], [X1, Z1], [cxm - 0.9, Z1], [cxm + 0.9, Z1], [X0, Z0], [X1, Z0]].forEach(function (p) {
-          var post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.6, 0.14), frameM); post.position.set(p[0], 1.8, p[1]); post.castShadow = true; scene.add(post);
+        var trimM = mat(0x5b3a26), accentM = mat(0xf4511e);
+        // side walls and front wall with a door gap (door gap 1.3 wide at cxm)
+        wall(X0, czm, T, Z1 - Z0, -1, 0, H); wall(X1, czm, T, Z1 - Z0, 1, 0, H);
+        var gx0 = cxm - 0.75, gx1 = cxm + 0.75;
+        wall((X0 + gx0) / 2, Z1, gx0 - X0, T, 0, 1, H); wall((X1 + gx1) / 2, Z1, X1 - gx1, T, 0, 1, H);
+        wall(cxm, Z1, gx1 - gx0, T, 0, 1, H - 2.7, 2.7);
+        // baseboards, solid and always visible, so the room outline reads even when walls fade
+        [[X0, czm, 0.3, Z1 - Z0], [X1, czm, 0.3, Z1 - Z0], [(X0 + gx0) / 2, Z1, gx0 - X0, 0.3], [(X1 + gx1) / 2, Z1, X1 - gx1, 0.3]].forEach(function (b) {
+          var bb = new THREE.Mesh(new THREE.BoxGeometry(b[2], 0.4, b[3]), trimM); bb.position.set(b[0], 0.32, b[1]); scene.add(bb);
         });
-        var sign = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.5, 0.08), new THREE.MeshBasicMaterial({ color: 0xffb08a })); sign.position.set(cxm, 3.9, Z1); scene.add(sign);
-        var pl = new THREE.PointLight(0xffd9a8, 0.7, 9); pl.position.set(cxm, 3.2, czm); scene.add(pl);
+        // door frame and open door leaf
+        var f1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.75, 0.3), trimM); f1.position.set(gx0, 1.45, Z1); scene.add(f1);
+        var f2 = f1.clone(); f2.position.x = gx1; scene.add(f2);
+        var lin = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.12, 0.3), trimM); lin.position.set(cxm, 2.82, Z1); scene.add(lin);
+        var leaf = new THREE.Mesh(new THREE.BoxGeometry(1.35, 2.6, 0.07), mat(0xb8845a)); leaf.geometry.translate(0.675, 0, 0);
+        leaf.position.set(gx0 + 0.05, 1.4, Z1 + 0.05); leaf.rotation.y = -1.15; leaf.castShadow = true; scene.add(leaf);
+        var knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0xe8c15a)); knob.position.set(1.2, 0, 0.06); leaf.add(knob);
+        var sign = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.42, 0.06), accentM); sign.position.set(cxm, 3.3, Z1 + 0.16); scene.add(sign);
+        // furniture: bookshelf (left wall), sofa + coffee table (right side), credenza, wall art, floor lamp
+        var shelf = new THREE.Group(); var shBody = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.6, 3.2), mat(0x6b4a30)); shBody.position.set(0, 1.3, 0); shelf.add(shBody);
+        var bc = [0xd04a3a, 0x3a7bd0, 0xe0b040, 0x3fa070, 0x8a5ac0, 0xf2f2ec];
+        for (var r = 0; r < 4; r++) { for (var k = 0; k < 11; k++) { var bk = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.46, 0.2), mat(bc[(r * 3 + k) % bc.length])); bk.position.set(0.12, 0.45 + r * 0.6, -1.4 + k * 0.28); shelf.add(bk); } }
+        shelf.position.set(X0 + 0.45, 0, -4.9); scene.add(shelf);
+        var sofa = new THREE.Group(), sm = mat(0x4a5a78);
+        var sb = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.5, 1.0), sm); sb.position.y = 0.4; sofa.add(sb);
+        var sk = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.8, 0.28), sm); sk.position.set(0, 0.8, 0.4); sofa.add(sk);
+        [-1.3, 1.3].forEach(function (x) { var ar = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.7, 1.0), sm); ar.position.set(x, 0.55, 0); sofa.add(ar); });
+        sofa.position.set(X1 - 0.9, 0, -5.6); sofa.rotation.y = -Math.PI / 2; scene.add(sofa);
+        var ctab = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.12, 20), mat(0xe9dfcf)); ctab.position.set(X1 - 2.5, 0.5, -5.6); scene.add(ctab);
+        var cleg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 8), trimM); cleg.position.set(X1 - 2.5, 0.25, -5.6); scene.add(cleg);
+        var cred = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.9, 0.5), mat(0x6b4a30)); cred.position.set(cxm + 0.3, 0.45, Z0 + 0.5); scene.add(cred);
+        var art = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.2, 0.06), mat(0xf4511e)); art.position.set(cxm + 0.3, 2.3, Z0 + 0.35); scene.add(art);
+        var art2 = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.9, 0.08), mat(0xffe9d2)); art2.position.set(cxm + 0.3, 2.3, Z0 + 0.33); scene.add(art2);
+        var lampP = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.0, 6), mat(0x333333)); lampP.position.set(X1 - 0.6, 1.0, -2.4); scene.add(lampP);
+        var lampH = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.4, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe0a8, side: THREE.DoubleSide })); lampH.position.set(X1 - 0.6, 2.1, -2.4); scene.add(lampH);
+        plant(X0 + 0.8, -2.4);
+        var pl = new THREE.PointLight(0xffd9a8, 0.8, 9); pl.position.set(cxm, 3.2, czm); scene.add(pl);
       })();
     }
     built = true;
@@ -753,6 +783,7 @@
         if (fp) { var pp = fp.away ? fp.person.group.position : fp.seat; desiredTarget.set(pp.x, 0, pp.z); desiredZoom = 2.6; elUT = 0.4; azUT += (0.9 - azUT) * dt * 0.3; }
       }
     }
+    mgrWalls.forEach(function (w) { var v = (camDir.x * w.nx + camDir.z * w.nz) > 0.12 ? 0.3 : 1; w.m.opacity += (v - w.m.opacity) * Math.min(1, dt * 6); w.m.depthWrite = w.m.opacity > 0.95; });
     azU += (azUT - azU) * Math.min(1, dt * 9); elU += (elUT - elU) * Math.min(1, dt * 9);
     // slow orbit when idle in the wide view
     var idle = !cine && !cineHome && ptCount() === 0 && performance.now() - lastTouch > 20000 && zoom < 2.2;
