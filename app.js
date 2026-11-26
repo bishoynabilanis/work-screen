@@ -649,12 +649,23 @@
     return parts.join('|');
   }
 
+  var liveClockFmt = null;
   function renderLastUpdated() {
-    var date = toDate(lastFeedUpdated);
-    if (!date && lastSuccessAt) {
-      date = new Date(lastSuccessAt);
+    try {
+      if (!liveClockFmt) { liveClockFmt = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }); }
+      els.lastUpdated.textContent = liveClockFmt.format(new Date());
+    } catch (e) {
+      els.lastUpdated.textContent = new Date().toLocaleTimeString('en-GB');
     }
-    els.lastUpdated.textContent = date ? formatAbsolute(date) : '—';
+    var lab = els.lastUpdated.parentNode && els.lastUpdated.parentNode.querySelector('.updated-label');
+    if (lab && lab.textContent !== 'مباشر') { lab.textContent = 'مباشر'; }
+    var box = els.lastUpdated.parentNode;
+    if (box && !box.classList.contains('is-live')) { box.classList.add('is-live'); }
+  }
+  function flashLive() {
+    var box = els.lastUpdated && els.lastUpdated.parentNode;
+    if (!box) { return; }
+    box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash');
   }
 
   function renderHandoffList() {
@@ -1027,6 +1038,7 @@
     }
 
     renderLastUpdated();
+    flashLive();
     renderHandoffList();
     queueHandoffs(data);
     refreshSheet();
@@ -1295,6 +1307,8 @@
     startLive();
     window.setInterval(refresh, POLL_MS);
     window.setInterval(tick, TICK_MS);
+    renderLastUpdated();
+    window.setInterval(renderLastUpdated, 1000);
   }
 
   init();
