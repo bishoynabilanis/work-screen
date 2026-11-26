@@ -345,8 +345,29 @@
       var tile = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.06, 3.6), mat(ACCENT.mgr)); tile.material.transparent = true; tile.material.opacity = 0.22;
       tile.position.set(11.5, 0.04, -3.9); scene.add(tile);
       zoneInfo.mgr = { cx: 11.5, cz: -3.9, w: 5.2, d: 3.6, name: 'المديرة' };
-      var ml = document.createElement('button'); ml.type = 'button'; ml.className = 'o3-zone'; ml.textContent = 'المديرة'; ml.addEventListener('click', function () { flyTo(new THREE.Vector3(11.5, 0, -3.6), 3.2); }); labelLayer.appendChild(ml); zoneInfo.mgr.el = ml;
-      plant(8.6, -3.4); plant(14.4, -3.4);
+      var ml = document.createElement('button'); ml.type = 'button'; ml.className = 'o3-zone'; ml.textContent = 'مكتب المديرة'; ml.addEventListener('click', function () { flyTo(new THREE.Vector3(11.5, 0, -3.6), 3.2); }); labelLayer.appendChild(ml); zoneInfo.mgr.el = ml;
+      plant(8.9, -2.2); plant(14.1, -2.2);
+      tile.visible = false;
+      // separate glass office for the manager
+      (function () {
+        var X0 = 8.3, X1 = 14.7, Z0 = -7.0, Z1 = -1.5, cxm = 11.5, czm = (Z0 + Z1) / 2;
+        var fl = new THREE.Mesh(new THREE.BoxGeometry(X1 - X0, 0.12, Z1 - Z0), mat(0xc79d6e)); fl.position.set(cxm, 0.06, czm); fl.receiveShadow = true; scene.add(fl);
+        var rug = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.03, 3.0), mat(0xf4511e)); rug.material.transparent = true; rug.material.opacity = 0.35; rug.position.set(cxm, 0.14, -3.7); scene.add(rug);
+        var glassM = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+        var frameM = mat(0xf4511e);
+        function glass(x, z, w, rotY) {
+          var g = new THREE.Mesh(new THREE.PlaneGeometry(w, 3.4), glassM); g.position.set(x, 1.8, z); g.rotation.y = rotY; scene.add(g);
+          var top = new THREE.Mesh(new THREE.BoxGeometry(rotY ? 0.1 : w, 0.12, rotY ? w : 0.1), frameM); top.position.set(x, 3.5, z); scene.add(top);
+          var bot = top.clone(); bot.position.y = 0.16; scene.add(bot);
+        }
+        glass(X0, czm, Z1 - Z0, Math.PI / 2); glass(X1, czm, Z1 - Z0, Math.PI / 2);
+        glass((X0 + cxm - 0.9) / 2, Z1, cxm - 0.9 - X0, 0); glass((X1 + cxm + 0.9) / 2, Z1, X1 - cxm - 0.9, 0);
+        [[X0, Z1], [X1, Z1], [cxm - 0.9, Z1], [cxm + 0.9, Z1], [X0, Z0], [X1, Z0]].forEach(function (p) {
+          var post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.6, 0.14), frameM); post.position.set(p[0], 1.8, p[1]); post.castShadow = true; scene.add(post);
+        });
+        var sign = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.5, 0.08), new THREE.MeshBasicMaterial({ color: 0xffb08a })); sign.position.set(cxm, 3.9, Z1); scene.add(sign);
+        var pl = new THREE.PointLight(0xffd9a8, 0.7, 9); pl.position.set(cxm, 3.2, czm); scene.add(pl);
+      })();
     }
     built = true;
   }
