@@ -1408,3 +1408,4 @@ html.o3-on .o3-active .o3-stage { min-height: 320px; }
 .o3-sound.on { background: #4ade80; }
 
 .o3-view { right: 54px; }
+@media (max-aspect-ratio: 1/1) and (max-width: 600px) { html.o3-on .o3-active .o3-stage { height: min(calc(100dvh - var(--hh, 64px) - 52px), 125vw, 900px); } }
