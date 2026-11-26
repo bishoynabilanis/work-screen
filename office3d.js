@@ -481,8 +481,54 @@
   labelLayer.appendChild(bubbleEl);
   var bubbleFor = null;
 
+  // ---------- envelope that travels along a curve ----------
+  var envelopes = [];
+  function makeEnvelope() {
+    var g = new THREE.Group();
+    var body = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.42), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    g.add(body);
+    var flap = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.2, 3), new THREE.MeshBasicMaterial({ color: 0xffd9c9 }));
+    flap.rotation.x = Math.PI / 2; flap.rotation.z = Math.PI; flap.position.set(0, 0.04, -0.1); flap.scale.set(1.1, 1, 0.9);
+    g.add(flap);
+    var seal = new THREE.Mesh(new THREE.CircleGeometry(0.07, 12), new THREE.MeshBasicMaterial({ color: 0xf4511e, side: THREE.DoubleSide }));
+    seal.rotation.x = -Math.PI / 2; seal.position.set(0, 0.075, 0.03); g.add(seal);
+    var glow = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 20), new THREE.MeshBasicMaterial({ color: 0xf4511e, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+    glow.rotation.x = -Math.PI / 2; glow.position.y = -0.02; g.add(glow);
+    g.scale.setScalar(2.4);
+    return g;
+  }
+  function sendEnvelope(from, to) {
+    var a = new THREE.Vector3(from.seat.x, 1.3, from.seat.z + 0.9);
+    var b = new THREE.Vector3(to.seat.x, 1.3, to.seat.z + 0.9);
+    var mid = a.clone().add(b).multiplyScalar(0.5); mid.y = 4.8 + a.distanceTo(b) * 0.12;
+    var curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+    var m = makeEnvelope(); m.position.copy(a); scene.add(m);
+    var dur = Math.max(1600, Math.min(3200, 900 + a.distanceTo(b) * 90));
+    return new Promise(function (resolve) {
+      envelopes.push({ mesh: m, curve: curve, t0: performance.now(), dur: dur, done: function () { to.received = true; setTimeout(function () { to.received = false; }, 1200); resolve(); } });
+    });
+  }
+  function stepEnvelopes() {
+    if (!envelopes.length) { return; }
+    var now = performance.now();
+    envelopes = envelopes.filter(function (e) {
+      var k = (now - e.t0) / e.dur;
+      if (k >= 1) { scene.remove(e.mesh); e.done(); return false; }
+      var ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      var pt = e.curve.getPoint(ease);
+      e.mesh.position.copy(pt);
+      var tg = e.curve.getTangent(ease);
+      e.mesh.rotation.y = Math.atan2(tg.x, tg.z) + Math.PI / 2;
+      e.mesh.rotation.z = Math.sin(k * Math.PI * 2) * 0.25;
+      var sc = 2.4 * (k < 0.08 ? k / 0.08 : (k > 0.92 ? (1 - k) / 0.08 : 1));
+      e.mesh.scale.setScalar(Math.max(0.01, sc));
+      return true;
+    });
+  }
+
   function walk(item) {
     var from = people[String(item.from)], to = people[String(item.to)];
+    if (from && to && from !== to) { sendEnvelope(from, to); }
     if (!from || !to || from === to || from.away) { return Promise.resolve(); }
     from.away = true;
     var g = from.person.group;
@@ -571,6 +617,7 @@
       project(bubbleFor.person.group.position, 3.6, pt);
       bubbleEl.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-100%)';
     }
+    stepEnvelopes();
     renderer.render(scene, camera);
   }
 
