@@ -267,41 +267,132 @@
     return node;
   }
 
-  function buildCharacter() {
-    var svg = svgNode('svg', {
-      viewBox: '0 0 120 120',
-      class: 'character',
-      'aria-hidden': 'true',
-      focusable: 'false'
-    });
+  var SHIRTS = ['#3b5b7a', '#6b3f4f', '#2f6b5b', '#7a5a2f', '#4b4a7a', '#7d828c', '#a3472f', '#2e3a4b', '#556b3a', '#8a4b6b'];
+  var SKINS = ['#e3b08a', '#d29a72', '#c58b62', '#edc29d', '#b97d57'];
+  var HAIRS = ['#1c1a19', '#2a1d16', '#3a2a20', '#161616', '#4a3526'];
+  var clipCounter = 0;
 
-    svg.appendChild(svgNode('ellipse', { class: 'char-shadow', cx: '60', cy: '113', rx: '33', ry: '5' }));
-    svg.appendChild(svgNode('rect', { class: 'char-chair', x: '35', y: '56', width: '50', height: '52', rx: '16' }));
+  function hashStr(str) {
+    var h = 7;
+    for (var i = 0; i < str.length; i += 1) {
+      h = (h * 31 + str.charCodeAt(i)) % 100003;
+    }
+    return h;
+  }
+
+  function faceId(id) {
+    return id === MANAGER_ID ? 'mgr' : String(id).replace(/[^a-z0-9_-]/gi, '');
+  }
+
+  function addFace(parent, id, cx, cy, r) {
+    var skin = SKINS[hashStr(id + 'k') % SKINS.length];
+    var hair = HAIRS[hashStr(id + 'h') % HAIRS.length];
+    parent.appendChild(svgNode('circle', { cx: cx, cy: cy, r: r, style: 'fill:' + skin }));
+    parent.appendChild(svgNode('path', { d: 'M' + (cx - r) + ' ' + cy + 'a' + r + ' ' + r + ' 0 0 1 ' + (2 * r) + ' 0c-2-' + (r * 0.55) + '-' + (r * 0.5) + '-' + (r * 0.85) + '-' + r + '-' + (r * 0.85) + 's-' + (r * 0.98) + ' ' + (r * 0.3) + '-' + r + ' ' + (r * 0.85) + 'z', style: 'fill:' + hair }));
+    var clipId = 'fc' + (clipCounter += 1);
+    var clip = svgNode('clipPath', { id: clipId });
+    clip.appendChild(svgNode('circle', { cx: cx, cy: cy, r: r }));
+    parent.appendChild(clip);
+    var img = svgNode('image', {
+      x: cx - r, y: cy - r, width: 2 * r, height: 2 * r,
+      'clip-path': 'url(#' + clipId + ')', preserveAspectRatio: 'xMidYMid slice'
+    });
+    img.style.opacity = '0';
+    img.addEventListener('load', function () { img.style.opacity = '1'; });
+    img.setAttribute('href', 'faces/' + faceId(id) + '.jpg');
+    parent.appendChild(img);
+    parent.appendChild(svgNode('circle', { cx: cx, cy: cy, r: r, style: 'fill:none;stroke:rgba(255,255,255,0.18);stroke-width:1' }));
+  }
+
+  function buildCharacter(person) {
+    var pid = person && person.id ? String(person.id) : 'x';
+    var h = hashStr(pid);
+    var shirt = SHIRTS[h % SHIRTS.length];
+    var svg = svgNode('svg', { viewBox: '0 0 120 120', class: 'character', 'aria-hidden': 'true', focusable: 'false' });
+
+    var defs = svgNode('defs');
+    var gid = 'sg' + (clipCounter += 1);
+    var grad = svgNode('linearGradient', { id: gid, x1: '0', y1: '0', x2: '0', y2: '1' });
+    grad.appendChild(svgNode('stop', { offset: '0', 'stop-color': shirt }));
+    grad.appendChild(svgNode('stop', { offset: '1', 'stop-color': '#14161a' }));
+    defs.appendChild(grad);
+    var wid = 'wd' + (clipCounter += 1);
+    var wood = svgNode('linearGradient', { id: wid, x1: '0', y1: '0', x2: '0', y2: '1' });
+    wood.appendChild(svgNode('stop', { offset: '0', 'stop-color': '#b98a5e' }));
+    wood.appendChild(svgNode('stop', { offset: '1', 'stop-color': '#7a5638' }));
+    defs.appendChild(wood);
+    svg.appendChild(defs);
+
+    svg.appendChild(svgNode('ellipse', { class: 'char-shadow', cx: '60', cy: '113', rx: '40', ry: '5' }));
+    svg.appendChild(svgNode('rect', { x: '37', y: '44', width: '46', height: '58', rx: '14', style: 'fill:#1b1d22;stroke:rgba(255,255,255,0.08);stroke-width:1' }));
 
     var body = svgNode('g', { class: 'char-body' });
-    body.appendChild(svgNode('rect', { class: 'char-torso', x: '43', y: '58', width: '34', height: '38', rx: '13' }));
-    body.appendChild(svgNode('rect', { class: 'char-neck', x: '56', y: '51', width: '8', height: '10', rx: '4' }));
-    body.appendChild(svgNode('circle', { class: 'char-head', cx: '60', cy: '40', r: '15' }));
-    body.appendChild(svgNode('path', { class: 'char-hair', d: 'M45 40a15 15 0 0 1 30 0c-2-9-8-13-15-13s-13 4-15 13z' }));
-    body.appendChild(svgNode('circle', { class: 'char-eye', cx: '54', cy: '41', r: '1.7' }));
-    body.appendChild(svgNode('circle', { class: 'char-eye', cx: '66', cy: '41', r: '1.7' }));
-    body.appendChild(svgNode('path', { class: 'char-mouth', d: 'M56 47q4 3 8 0' }));
-    body.appendChild(svgNode('rect', { class: 'char-pin', x: '57', y: '66', width: '6', height: '6', rx: '1.5' }));
+    body.appendChild(svgNode('path', { d: 'M34 100 L34 80 Q34 66 50 63 L70 63 Q86 66 86 80 L86 100 Z', style: 'fill:url(#' + gid + ')' }));
+    body.appendChild(svgNode('path', { d: 'M52 63 L60 75 L68 63 Z', style: 'fill:rgba(255,255,255,0.78)' }));
+    body.appendChild(svgNode('rect', { x: '55', y: '55', width: '10', height: '11', rx: '4', style: 'fill:' + SKINS[hashStr(pid + 'k') % SKINS.length] }));
+    var head = svgNode('g', { class: 'char-head' });
+    addFace(head, pid, 60, 40, 18);
+    body.appendChild(head);
 
-    var armLeft = svgNode('g', { class: 'char-arm char-arm-left' });
-    armLeft.appendChild(svgNode('rect', { x: '44', y: '74', width: '9', height: '18', rx: '4.5' }));
-    body.appendChild(armLeft);
-
-    var armRight = svgNode('g', { class: 'char-arm char-arm-right' });
-    armRight.appendChild(svgNode('rect', { x: '67', y: '74', width: '9', height: '18', rx: '4.5' }));
-    body.appendChild(armRight);
-
+    var armL = svgNode('g', { class: 'char-arm char-arm-left' });
+    armL.appendChild(svgNode('rect', { x: '35', y: '74', width: '10', height: '19', rx: '5', style: 'fill:' + shirt }));
+    armL.appendChild(svgNode('circle', { cx: '42', cy: '93', r: '4.2', style: 'fill:' + SKINS[hashStr(pid + 'k') % SKINS.length] }));
+    body.appendChild(armL);
+    var armR = svgNode('g', { class: 'char-arm char-arm-right' });
+    armR.appendChild(svgNode('rect', { x: '75', y: '74', width: '10', height: '19', rx: '5', style: 'fill:' + shirt }));
+    armR.appendChild(svgNode('circle', { cx: '78', cy: '93', r: '4.2', style: 'fill:' + SKINS[hashStr(pid + 'k') % SKINS.length] }));
+    body.appendChild(armR);
     svg.appendChild(body);
-    svg.appendChild(svgNode('rect', { class: 'char-desk', x: '16', y: '90', width: '88', height: '11', rx: '5' }));
-    svg.appendChild(svgNode('rect', { class: 'char-desk-front', x: '22', y: '99', width: '76', height: '12', rx: '4' }));
-    svg.appendChild(svgNode('rect', { class: 'char-laptop', x: '47', y: '79', width: '26', height: '13', rx: '3' }));
-    svg.appendChild(svgNode('rect', { class: 'char-screen', x: '50', y: '82', width: '20', height: '7', rx: '1.5' }));
 
+    // desk, monitor, keyboard, props
+    svg.appendChild(svgNode('rect', { x: '10', y: '92', width: '100', height: '9', rx: '3', style: 'fill:url(#' + wid + ');stroke:rgba(0,0,0,0.35);stroke-width:1' }));
+    svg.appendChild(svgNode('rect', { x: '14', y: '101', width: '92', height: '13', rx: '3', style: 'fill:#5b3f29;stroke:rgba(0,0,0,0.35);stroke-width:1' }));
+    svg.appendChild(svgNode('rect', { x: '56', y: '104', width: '8', height: '3', rx: '1.5', style: 'fill:#2c1f14' }));
+    svg.appendChild(svgNode('rect', { x: '55', y: '89', width: '10', height: '4', rx: '1', style: 'fill:#2a2d33' }));
+    svg.appendChild(svgNode('rect', { x: '43', y: '70', width: '34', height: '21', rx: '2.5', style: 'fill:#0f1115;stroke:#3a3e46;stroke-width:1.2' }));
+    svg.appendChild(svgNode('rect', { class: 'char-screen', x: '45.5', y: '72.5', width: '29', height: '16', rx: '1.5' }));
+    svg.appendChild(svgNode('rect', { class: 'char-lines', x: '48', y: '76', width: '16', height: '1.6', rx: '0.8' }));
+    svg.appendChild(svgNode('rect', { class: 'char-lines', x: '48', y: '80', width: '22', height: '1.6', rx: '0.8' }));
+    svg.appendChild(svgNode('rect', { class: 'char-lines', x: '48', y: '84', width: '12', height: '1.6', rx: '0.8' }));
+    svg.appendChild(svgNode('rect', { x: '44', y: '95.5', width: '32', height: '3.2', rx: '1.2', style: 'fill:#2a2d33' }));
+    if (h % 2 === 0) {
+      svg.appendChild(svgNode('rect', { x: '93', y: '84', width: '8', height: '8', rx: '1.8', style: 'fill:#e8e4dc' }));
+      svg.appendChild(svgNode('rect', { x: '100', y: '86', width: '3', height: '4', rx: '1.5', style: 'fill:none;stroke:#e8e4dc;stroke-width:1.2' }));
+    } else {
+      svg.appendChild(svgNode('rect', { x: '15', y: '85', width: '9', height: '7', rx: '2', style: 'fill:#9b5a3c' }));
+      svg.appendChild(svgNode('path', { d: 'M19.5 85 Q12 77 14 72 Q19 76 19.5 85 Q21 75 27 73 Q26 80 19.5 85', style: 'fill:#4f9a5b' }));
+    }
+    return svg;
+  }
+
+  function buildWalker(person) {
+    var pid = person && person.id ? String(person.id) : 'x';
+    var shirt = SHIRTS[hashStr(pid) % SHIRTS.length];
+    var skin = SKINS[hashStr(pid + 'k') % SKINS.length];
+    var svg = svgNode('svg', { viewBox: '0 0 60 110', class: 'walker-fig', 'aria-hidden': 'true', focusable: 'false' });
+    svg.appendChild(svgNode('ellipse', { cx: '30', cy: '106', rx: '16', ry: '3.5', style: 'fill:rgba(0,0,0,0.4)' }));
+    var legL = svgNode('g', { class: 'leg leg-a' });
+    legL.appendChild(svgNode('rect', { x: '20', y: '66', width: '9', height: '32', rx: '4', style: 'fill:#252a34' }));
+    legL.appendChild(svgNode('rect', { x: '18', y: '96', width: '13', height: '6', rx: '3', style: 'fill:#15161a' }));
+    var legR = svgNode('g', { class: 'leg leg-b' });
+    legR.appendChild(svgNode('rect', { x: '31', y: '66', width: '9', height: '32', rx: '4', style: 'fill:#2d333f' }));
+    legR.appendChild(svgNode('rect', { x: '29', y: '96', width: '13', height: '6', rx: '3', style: 'fill:#15161a' }));
+    svg.appendChild(legL);
+    svg.appendChild(legR);
+    var armA = svgNode('g', { class: 'arm arm-a' });
+    armA.appendChild(svgNode('rect', { x: '10', y: '38', width: '8', height: '28', rx: '4', style: 'fill:' + shirt }));
+    armA.appendChild(svgNode('circle', { cx: '14', cy: '67', r: '4', style: 'fill:' + skin }));
+    svg.appendChild(armA);
+    svg.appendChild(svgNode('rect', { x: '16', y: '36', width: '28', height: '36', rx: '10', style: 'fill:' + shirt }));
+    svg.appendChild(svgNode('path', { d: 'M25 36 L30 45 L35 36 Z', style: 'fill:rgba(255,255,255,0.78)' }));
+    var armB = svgNode('g', { class: 'arm arm-b' });
+    armB.appendChild(svgNode('rect', { x: '42', y: '38', width: '8', height: '28', rx: '4', style: 'fill:' + shirt }));
+    armB.appendChild(svgNode('circle', { cx: '46', cy: '67', r: '4', style: 'fill:' + skin }));
+    svg.appendChild(armB);
+    svg.appendChild(svgNode('rect', { x: '26', y: '29', width: '8', height: '9', rx: '3', style: 'fill:' + skin }));
+    var head = svgNode('g', { class: 'walker-head' });
+    addFace(head, pid, 30, 18, 15);
+    svg.appendChild(head);
     return svg;
   }
 
@@ -342,7 +433,7 @@
     }
 
     var figure = make('span', 'desk-figure');
-    figure.appendChild(buildCharacter());
+    figure.appendChild(buildCharacter(person));
     figure.appendChild(buildStateBadge());
     btn.appendChild(figure);
 
@@ -764,6 +855,9 @@
   }
 
   function walkHandoff(item) {
+    if (window.Office3D && window.Office3D.ready) {
+      return window.Office3D.walk(item).catch(function () { return null; });
+    }
     return new Promise(function (resolve) {
       var fromDesk = deskByStaff.get(item.from);
       var toDesk = deskByStaff.get(item.to);
@@ -786,22 +880,20 @@
         return;
       }
 
-      var size = 46;
+      var size = 48;
       var fromX = fromRect.left - officeRect.left + fromRect.width / 2;
       var fromY = fromRect.top - officeRect.top + fromRect.height / 2;
       var toX = toRect.left - officeRect.left + toRect.width / 2;
-      var toY = toRect.top - officeRect.top + toRect.height / 2;
+      var toY = toRect.top - officeRect.top + toRect.height * 0.72;
       var dx = toX - fromX;
       var dy = toY - fromY;
 
       var walker = make('div', 'walker');
       walker.style.left = fromX - size / 2 + 'px';
-      walker.style.top = fromY - size / 2 + 'px';
-
-      var character = fromFig.querySelector('.character');
-      if (character) {
-        walker.appendChild(character.cloneNode(true));
-      }
+      walker.style.top = fromY - 36 + 'px';
+      walker.classList.add(dx < 0 ? 'face-left' : 'face-right');
+      walker.appendChild(buildWalker({ id: item.from }));
+      toFig.classList.add('is-expecting');
       var paper = make('span', 'paper');
       paper.setAttribute('aria-hidden', 'true');
       walker.appendChild(paper);
@@ -816,23 +908,28 @@
       walker.classList.add('is-walking');
       walker.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
 
-      wait(1750)
+      wait(2500)
         .then(function () {
           walker.classList.remove('is-walking');
           walker.classList.add('is-pausing');
-          return wait(850);
+          toFig.classList.add('is-received');
+          return wait(1100);
         })
         .then(function () {
           walker.classList.remove('is-pausing');
           walker.classList.add('is-walking');
+          toFig.classList.remove('is-received');
+          walker.classList.add(dx < 0 ? 'face-right' : 'face-left');
+          walker.classList.remove(dx < 0 ? 'face-left' : 'face-right');
           walker.style.transform = 'translate(0px,0px)';
-          return wait(1750);
+          return wait(2500);
         })
         .then(function () {
           if (walker.parentNode) {
             walker.parentNode.removeChild(walker);
           }
           fromFig.classList.remove('is-away');
+          toFig.classList.remove('is-expecting');
           resolve();
         });
     });
@@ -913,6 +1010,9 @@
   function applyFeed(data) {
     if (!isObj(data)) {
       return;
+    }
+    if (window.Office3D && window.Office3D.ready) {
+      try { window.Office3D.update(data); } catch (e) { /* keep 2D */ }
     }
     currentFeed = data;
 
@@ -1148,6 +1248,7 @@
   }
 
   function init() {
+    window.__openSheet = openSheet;
     els.offlineBanner = byId('offlineBanner');
     els.lastUpdated = byId('lastUpdated');
     els.office = byId('office');
