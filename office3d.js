@@ -732,6 +732,7 @@
       } else {
         r.ring.material.opacity = 0.25;
       }
+      updateChar(r, dt, tt);
       if (r.received) { r.desk.group.position.y = Math.abs(Math.sin(time * 8)) * 0.05; } else { r.desk.group.position.y = 0; }
       // label
       var headPos = r.away ? r.person.group.position : r.seat;
@@ -892,6 +893,96 @@
   });
   (host.querySelector('.o3-stage') || host).appendChild(soundBtn);
 
+
+  // ---------- CC0 characters (Quaternius, Ultimate Animated Character Pack) ----------
+  var CHAR_KEYS = ['Suit_Male', 'Suit_Female', 'Casual_Male', 'Casual_Female'];
+  var charTpl = {}, charLoader = null, CHAR_SCALE = 0.62;
+  var CHAR_SIT = { y: -0.02, z: 0.0 };
+  function loadScriptTag(src, ok, bad) {
+    var sc = document.createElement('script'); sc.src = src; sc.async = true;
+    sc.onload = ok; sc.onerror = function () { if (bad) { bad(); } };
+    document.head.appendChild(sc);
+  }
+  function loadParts(key, n, ok, bad) {
+    if (n >= 3) { ok(); return; }
+    loadScriptTag('o3p_' + key + '_' + n + '.js?v=1', function () { loadParts(key, n + 1, ok, bad); }, bad);
+  }
+  function charKeyFor(id) { return id === 'mgr' ? 'Suit_Female' : CHAR_KEYS[hashStr(id + 'c') % CHAR_KEYS.length]; }
+  function initCharacters() {
+    if (window.__o3NoChars) { return; }
+    loadScriptTag('o3loaders.js?v=1', function () {
+      var L = window.O3Loaders; if (!L) { return; }
+      charLoader = new L.GLTFLoader(); charLoader.setMeshoptDecoder(L.MeshoptDecoder);
+      var i = 0;
+      (function next() {
+        if (i >= CHAR_KEYS.length) { return; }
+        var key = CHAR_KEYS[i++];
+        loadParts(key, 0, function () {
+          try {
+            var b64 = (window.O3Models || {})[key]; if (!b64) { next(); return; }
+            var bin = atob(b64), u = new Uint8Array(bin.length);
+            for (var k = 0; k < bin.length; k++) { u[k] = bin.charCodeAt(k); }
+            delete window.O3Models[key];
+            charLoader.parse(u.buffer, '', function (gltf) {
+              charTpl[key] = { scene: gltf.scene, clips: gltf.animations };
+              Object.keys(people).forEach(function (pid) { upgradePerson(people[pid]); });
+              next();
+            }, function (e) { noteErr(e, 'glb ' + key); next(); });
+          } catch (e) { noteErr(e, 'char ' + key); next(); }
+        }, next);
+      })();
+    });
+  }
+  function upgradePerson(rec) {
+    if (rec.char) { return; }
+    var key = charKeyFor(rec.id), tpl = charTpl[key]; if (!tpl) { return; }
+    var L = window.O3Loaders, inst = L.SkeletonUtils.clone(tpl.scene);
+    var h = hashStr(rec.id);
+    var cols = { Shirt: SHIRTS[h % SHIRTS.length], Skin: SKINS[hashStr(rec.id + 'k') % SKINS.length], Hair: HAIRS[hashStr(rec.id + 'h') % HAIRS.length] };
+    inst.traverse(function (o) {
+      if (!o.isMesh) { return; }
+      o.frustumCulled = false; o.castShadow = true; o.receiveShadow = false;
+      var arr = Array.isArray(o.material), ms = arr ? o.material : [o.material];
+      var nm = ms.map(function (m) {
+        var c = new THREE.MeshLambertMaterial({ color: m.color.clone() }); c.name = m.name; if (cols[m.name] !== undefined) { c.color.setHex(cols[m.name]); } return c;
+      });
+      o.material = arr ? nm : nm[0];
+    });
+    inst.scale.setScalar(CHAR_SCALE);
+    var g = rec.person.group;
+    g.children.forEach(function (c) { c.visible = false; });
+    g.add(inst);
+    var mixer = new THREE.AnimationMixer(inst), acts = {};
+    tpl.clips.forEach(function (cl) { acts[cl.name] = mixer.clipAction(cl); });
+    rec.char = inst; rec.mixer = mixer; rec.acts = acts; rec.cMode = ''; rec.fadeT = 0; rec.lastPos = g.position.clone();
+    setCharMode(rec, 'sit', true);
+  }
+  function setCharMode(r, mode, instant) {
+    if (r.cMode === mode || !r.acts) { return; }
+    var name = mode === 'sit' ? 'SitDown' : mode === 'walk' ? 'Walk' : mode === 'walkc' ? 'Walk_Carry' : 'Idle';
+    var a = r.acts[name]; if (!a) { return; }
+    var prev = r.cMode && r.acts[r.cMode === 'sit' ? 'SitDown' : r.cMode === 'walk' ? 'Walk' : r.cMode === 'walkc' ? 'Walk_Carry' : 'Idle'];
+    if (prev && prev !== a) { prev.fadeOut(0.25); }
+    a.reset();
+    if (mode === 'sit') { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.play(); a.time = a.getClip().duration; }
+    else { a.setLoop(THREE.LoopRepeat, Infinity); a.clampWhenFinished = false; a.fadeIn(instant ? 0 : 0.25).play(); }
+    r.cMode = mode; r.fadeT = 0.3;
+    if (mode === 'sit') { r.char.position.set(0, CHAR_SIT.y, CHAR_SIT.z); r.mixer.update(0.0001); } else { r.char.position.set(0, 0, 0); }
+  }
+  function updateChar(r, dt, tt) {
+    if (!r.char) { return; }
+    var g = r.person.group;
+    var moved = g.position.distanceToSquared(r.lastPos) > 1e-6; r.lastPos.copy(g.position);
+    var mode = r.away ? (moved ? (r.carry ? 'walkc' : 'walk') : 'idle') : 'sit';
+    setCharMode(r, mode);
+    if (mode !== 'sit' || r.fadeT > 0) { r.mixer.update(dt); r.fadeT = Math.max(0, r.fadeT - dt); }
+    if (mode === 'sit') {
+      if (r.state === 'running') { r.char.rotation.y = Math.sin(tt * 3.1) * 0.03; r.char.position.y = CHAR_SIT.y + Math.abs(Math.sin(tt * 8)) * 0.006; }
+      else if (r.state === 'waiting') { r.char.rotation.y = Math.sin(tt * 0.8) * 0.12; r.char.position.y = CHAR_SIT.y; }
+      else { r.char.rotation.y = 0; r.char.position.y = CHAR_SIT.y; }
+    } else { r.char.rotation.y = 0; }
+  }
+
   var shadowCount = -1;
   function applyShadows() {
     var n = Object.keys(people).length; if (n === shadowCount) { return; } shadowCount = n;
@@ -913,6 +1004,8 @@
   syncViewBtn();
   (host.querySelector('.o3-stage') || host).appendChild(viewBtn);
 
+  window.__o3dbg = { people: people, charTpl: charTpl };
+  initCharacters();
   window.Office3D = { ready: true, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
   if (hint) { hint.hidden = false; }
 })();
