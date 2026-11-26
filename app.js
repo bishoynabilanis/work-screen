@@ -957,6 +957,127 @@
     refreshSheet();
   }
 
+
+  // ---- Live layer: free realtime events over ntfy.sh (plain-language statuses only) ----
+  var LIVE_TOPIC = 'ws-bishoy-b9a5db4bf02c9c9403c819ad4d939761';
+  var LIVE_BASE = 'https://ntfy.sh/' + LIVE_TOPIC;
+  var liveEvents = [];
+  var liveSeen = {};
+  var baseFeed = null;
+  var liveSource = null;
+  var liveLastId = '';
+
+  function cleanText(v, n) {
+    return typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n || 200) : '';
+  }
+
+  function ingestLive(msg) {
+    if (!msg || msg.event !== 'message' || !msg.id || liveSeen[msg.id]) {
+      return false;
+    }
+    liveSeen[msg.id] = true;
+    liveLastId = msg.id;
+    var body;
+    try {
+      body = JSON.parse(msg.message);
+    } catch (e) {
+      return false;
+    }
+    if (!isObj(body)) {
+      return false;
+    }
+    var iso = new Date((msg.time || Math.floor(Date.now() / 1000)) * 1000).toISOString();
+    if (body.t === 'h') {
+      liveEvents.push({ t: 'h', from: cleanText(body.from, 40), to: cleanText(body.to, 40), label: cleanText(body.label, 80), time: iso });
+      return true;
+    }
+    if (body.t === 's') {
+      var ev = { t: 's', id: cleanText(body.id, 40), time: iso };
+      ['state', 'step', 'last', 'doing'].forEach(function (k) {
+        if (typeof body[k] === 'string') {
+          ev[k] = cleanText(body[k], k === 'state' ? 20 : 120);
+        }
+      });
+      liveEvents.push(ev);
+      return true;
+    }
+    return false;
+  }
+
+  function mergedFeed() {
+    if (!baseFeed) {
+      return null;
+    }
+    var f = JSON.parse(JSON.stringify(baseFeed));
+    var baseMs = Date.parse(f.updated) || 0;
+    var newest = baseMs;
+    var staff = Array.isArray(f.staff) ? f.staff : [];
+    f.handoffs = Array.isArray(f.handoffs) ? f.handoffs : [];
+    liveEvents.forEach(function (ev) {
+      var ms = Date.parse(ev.time) || 0;
+      if (ms <= baseMs) {
+        return;
+      }
+      if (ms > newest) {
+        newest = ms;
+      }
+      if (ev.t === 'h') {
+        f.handoffs.push({ from: ev.from, to: ev.to, label: ev.label, time: ev.time });
+        return;
+      }
+      if (ev.id === 'mgr') {
+        f.assistant = f.assistant || {};
+        if (ev.state) { f.assistant.state = ev.state; }
+        if (ev.doing) { f.assistant.doing = ev.doing; }
+        return;
+      }
+      for (var i = 0; i < staff.length; i++) {
+        if (staff[i].id === ev.id) {
+          ['state', 'step', 'last'].forEach(function (k) {
+            if (ev[k]) { staff[i][k] = ev[k]; }
+          });
+          staff[i].time = ev.time;
+        }
+      }
+    });
+    f.updated = new Date(newest).toISOString();
+    return f;
+  }
+
+  function applyMerged() {
+    var m = mergedFeed();
+    if (m) {
+      applyFeed(m);
+    }
+  }
+
+  function startLive() {
+    if (typeof EventSource === 'undefined') {
+      return;
+    }
+    fetch(LIVE_BASE + '/json?poll=1&since=12h', { cache: 'no-store' })
+      .then(function (r) { return r.text(); })
+      .then(function (txt) {
+        txt.split('\n').forEach(function (line) {
+          if (line.trim()) {
+            try { ingestLive(JSON.parse(line)); } catch (e) { /* skip */ }
+          }
+        });
+        applyMerged();
+      })
+      .catch(function () { return null; })
+      .then(function () {
+        liveSource = new EventSource(LIVE_BASE + '/sse' + (liveLastId ? '?since=' + liveLastId : ''));
+        liveSource.onmessage = function (e) {
+          try {
+            if (ingestLive(JSON.parse(e.data))) {
+              applyMerged();
+            }
+          } catch (err) { /* skip */ }
+        };
+      });
+  }
+
   function refresh() {
     if (refreshing) {
       return;
@@ -988,7 +1109,8 @@
         });
       })
       .then(function (result) {
-        applyFeed(result.data);
+        baseFeed = result.data;
+        applyMerged();
         lastSuccessAt = Date.now();
         networkFailed = result.servedFromCache;
         updateOffline();
@@ -1065,6 +1187,7 @@
 
     updateOffline();
     refresh();
+    startLive();
     window.setInterval(refresh, POLL_MS);
     window.setInterval(tick, TICK_MS);
   }
