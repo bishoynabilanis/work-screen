@@ -318,6 +318,11 @@
     if (!built || Object.keys(deptsBuilt).length === 0) { build(feed); }
     var staff = Array.isArray(feed.staff) ? feed.staff : [];
     staff.forEach(function (s) {
+      if (s && s.id && !people[String(s.id)] && BLOCKS[s.dept] && deptsBuilt[s.dept]) {
+        try { makePersonAt(String(s.id), slotFor(s.dept, deptsBuilt[s.dept]), s.dept, false); deptsBuilt[s.dept] += 1; } catch (e) { noteErr(e, 'new ' + s.id); }
+      }
+    });
+    staff.forEach(function (s) {
       var rec = people[String(s.id)]; if (!rec) { return; }
       rec.state = stateKey(s.state);
       rec.nameText = String(s.name || ''); rec.roleText = String(s.title || '');
