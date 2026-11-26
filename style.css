@@ -1406,3 +1406,5 @@ html.o3-on .o3-active .o3-stage { min-height: 320px; }
 
 .o3-sound { position: absolute; top: 10px; right: 10px; z-index: 3; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,0.9); font-size: 17px; line-height: 1; box-shadow: 0 2px 6px rgba(20,30,50,0.25); cursor: pointer; }
 .o3-sound.on { background: #4ade80; }
+
+.o3-view { right: 54px; }
