@@ -1021,7 +1021,7 @@
 
 
   // ---------- CC0 characters (Quaternius, Ultimate Animated Character Pack) ----------
-  var CHAR_KEYS = ['businessman', 'woman', 'man', 'scientist'];
+  var CHAR_KEYS = ['businessman', 'woman', 'man', 'scientist', 'doctor', 'nurse', 'teen', 'athlete'];
   var FEMALE = ' سلمى ليلى دعاء آية دينا هالة نهى رشا مروة شهد هدى سلوى ياسمين سمر جيهان منى رنا هبة كوثر إيمان سارة لبنى نيرة ريم ';
   var charTpl = {}, charLoader = null, CHAR_SCALE = 0.62;
   var CHAR_SIT = { y: -0.02, z: 0.0 };
@@ -1031,15 +1031,16 @@
     document.head.appendChild(sc);
   }
   function loadParts(key, n, ok, bad) {
-    if (n >= ({businessman:5,woman:5,man:5,scientist:4}[key])) { ok(); return; }
+    if (n >= ({businessman:5,woman:5,man:5,scientist:4,doctor:5,nurse:6,teen:3,athlete:3}[key])) { ok(); return; }
     loadScriptTag('o3g_' + key + '_' + n + '.js?v=2', function () { loadParts(key, n + 1, ok, bad); }, bad);
   }
   function charKeyFor(id) {
     var rec = people[id], nm = rec && rec.nameText ? rec.nameText.trim() : '';
     var fem = id === 'mgr' || (nm && FEMALE.indexOf(' ' + nm + ' ') >= 0);
     var hh = hashStr(id + 'c');
-    if (!nm && id !== 'mgr') { return CHAR_KEYS[hh % 4]; }
-    return fem ? (id === 'mgr' ? 'woman' : (hh % 3 === 0 ? 'scientist' : 'woman')) : (hh % 2 ? 'man' : 'businessman');
+    if (!nm && id !== 'mgr') { return CHAR_KEYS[hh % 8]; }
+    var FP = ['woman','scientist','nurse','athlete'], MP = ['man','businessman','doctor','teen'];
+    return fem ? (id === 'mgr' ? 'woman' : FP[hh % 4]) : MP[hh % 4];
   }
   function initCharacters() {
     if (window.__o3NoChars) { return; }
