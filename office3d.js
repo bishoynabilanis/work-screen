@@ -1,10 +1,14 @@
 /* 3D office scene (three.js). Plain-language statuses only. Data comes from app.js via Office3D.update(feed). */
 (function () {
   'use strict';
-  if (typeof THREE === 'undefined') { return; }
-
   var host = document.getElementById('office3d');
   if (!host) { return; }
+  function plainFallback(msg) {
+    host.classList.add('o3-failed');
+    var lv = document.getElementById('listView'); if (lv) { lv.open = true; }
+    var h = host.querySelector('.o3-hint'); if (h) { h.hidden = false; h.textContent = msg; }
+  }
+  if (typeof THREE === 'undefined') { plainFallback('المشهد ثلاثي الأبعاد مش متاح دلوقتي، عرضنا القائمة بدله.'); return; }
 
   var CELL = 2.4, ROW = 3.0;
   var BLOCKS = {
@@ -33,7 +37,7 @@
   var renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  } catch (e) { return; }
+  } catch (e) { plainFallback('المشهد ثلاثي الأبعاد مش شغال على جهازك، عرضنا القائمة بدله.'); return; }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0xdfeaf5, 1);
   canvasWrap.appendChild(renderer.domElement);
