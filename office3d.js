@@ -643,6 +643,7 @@
       project({ x: zi.cx, z: zi.cz - zi.d / 2 + 0.6 }, 0.6, pt);
       zi.el.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-50%)';
       zi.el.style.display = (!showNames && pt.vis) ? '' : 'none';
+      zi.rx = pt.x; zi.ry = pt.y; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = !showNames && pt.vis;
     });
     Object.keys(people).forEach(function (id) {
       var r = people[id], pa = r.person.parts;
@@ -674,6 +675,11 @@
       lb.classList.toggle('is-away', !!r.away);
       var sb = lb.__s;
       var showSt = pt.vis && !r.away && (r.state === 'running' || r.state === 'blocked' || showNames);
+      if (showSt && !showNames) {
+        var bx = pt.x, by = pt.y - 4 - 6;
+        for (var zk in zoneInfo) { var zz = zoneInfo[zk];
+          if (zz.rv && Math.abs(bx - zz.rx) < zz.rw / 2 + 16 && Math.abs(by - zz.ry) < zz.rh / 2 + 10) { showSt = false; break; } }
+      }
       sb.style.display = showSt ? 'flex' : 'none';
       if (showSt) {
         sb.classList.toggle('full', showNames);
