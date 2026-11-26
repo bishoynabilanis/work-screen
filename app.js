@@ -1122,7 +1122,14 @@
     }
     var iso = new Date((msg.time || Math.floor(Date.now() / 1000)) * 1000).toISOString();
     if (body.t === 'h') {
-      liveEvents.push({ t: 'h', from: cleanText(body.from, 40), to: cleanText(body.to, 40), label: cleanText(body.label, 80), time: iso });
+      var hm = null;
+      if (typeof body.msg === 'string') { hm = { text: cleanText(body.msg, 200) }; }
+      else if (isObj(body.msg)) { hm = { done: cleanText(body.msg.done, 140), missing: cleanText(body.msg.missing, 140), next: cleanText(body.msg.next, 140) }; }
+      liveEvents.push({ t: 'h', from: cleanText(body.from, 40), to: cleanText(body.to, 40), label: cleanText(body.label, 80), job: cleanText(body.job, 40), jt: cleanText(body.jt, 80), step: cleanText(body.step, 40), msg: hm, time: iso });
+      return true;
+    }
+    if (body.t === 'r') {
+      liveEvents.push({ t: 'r', job: cleanText(body.job, 40), jt: cleanText(body.jt, 80), time: iso });
       return true;
     }
     if (body.t === 'p') {
@@ -1171,6 +1178,7 @@
       if (ms > newest) {
         newest = ms;
       }
+      if (ev.t === 'r') { return; }
       if (ev.t === 'h') {
         f.handoffs.push({ from: ev.from, to: ev.to, label: ev.label, time: ev.time });
         return;
@@ -1199,8 +1207,91 @@
     if (m) {
       applyFeed(m);
     }
+    try { renderLog(); } catch (e) { /* ok */ }
   }
 
+  // ---- Job pipeline + first-person conversation log (built from live handoff events) ----
+  var logPanel = null;
+  function nameOf(id) {
+    if (id === 'mgr') { return (baseFeed && baseFeed.assistant && baseFeed.assistant.name) || 'ريم'; }
+    var p = staffById.get(String(id)); return p && p.name ? p.name : String(id || '—');
+  }
+  function roleOfId(id) {
+    if (id === 'mgr') { return 'المديرة'; }
+    var p = staffById.get(String(id)); return p && p.title ? p.title : '';
+  }
+  function hhmm(iso) {
+    try { return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }).format(new Date(iso)); } catch (e) { return ''; }
+  }
+  function ensureLogPanel() {
+    if (logPanel) { return logPanel; }
+    var host = document.getElementById('office3d'); if (!host) { return null; }
+    logPanel = make('aside', 'o3-log');
+    logPanel.innerHTML = '<div class="o3-log-head"><b>سجل الشغل</b><span>بصيغة كل واحد بنفسه</span></div><div class="o3-pipes"></div><ul class="o3-lines"></ul>';
+    host.appendChild(logPanel);
+    return logPanel;
+  }
+  function renderLog() {
+    var panel = ensureLogPanel(); if (!panel) { return; }
+    var evs = liveEvents.filter(function (e) { return e.t === 'h' || e.t === 'r'; });
+    var lines = panel.querySelector('.o3-lines'), pipes = panel.querySelector('.o3-pipes');
+    lines.textContent = ''; pipes.textContent = '';
+    if (!evs.length) { var em = make('li', 'o3-empty'); em.textContent = 'لسه مفيش تسليمات النهاردة'; lines.appendChild(em); return; }
+    // pipelines
+    var jobs = {}, order = [];
+    evs.forEach(function (e) {
+      var k = e.job || (e.t === 'h' ? 'j-' + e.label : ''); if (!k) { return; }
+      if (!jobs[k]) { jobs[k] = { id: k, title: '', chain: [], reported: false }; order.push(k); }
+      var j = jobs[k];
+      if (e.t === 'r') { j.reported = true; return; }
+      if (e.jt) { j.title = e.jt; } else if (!j.title && e.label) { j.title = e.label; }
+      if (!j.chain.length) { j.chain.push(e.from); }
+      j.chain.push(e.to);
+    });
+    order.slice(-4).reverse().forEach(function (k) {
+      var j = jobs[k], row = make('div', 'o3-pipe');
+      var t = make('div', 'o3-pipe-title'); t.textContent = j.title || 'شغلانة'; row.appendChild(t);
+      var st = make('div', 'o3-stages');
+      var chain = j.chain.slice(); var last = chain.length - 1;
+      var atMgr = chain[last] === 'mgr';
+      chain.forEach(function (pid, i) {
+        var s = make('span', 'o3-stage-chip');
+        var done = i < last || (atMgr && i === last && j.reported) || j.reported;
+        s.classList.add(done ? 'is-done' : 'is-now');
+        s.textContent = (done ? '✓ ' : '● ') + nameOf(pid) + (roleOfId(pid) ? ' · ' + roleOfId(pid) : '');
+        st.appendChild(s);
+      });
+      var fin = make('span', 'o3-stage-chip'); fin.classList.add(j.reported ? 'is-done' : 'is-todo');
+      fin.textContent = (j.reported ? '✓ ' : '○ ') + 'اتبلّغ لبيشو'; st.appendChild(fin);
+      row.appendChild(st); pipes.appendChild(row);
+    });
+    // first-person lines, newest first
+    evs.slice(-14).reverse().forEach(function (e) {
+      var li = make('li', 'o3-line'); var who, txt;
+      if (e.t === 'r') { who = 'mgr'; txt = 'أنا بلّغت بيشو بنتيجة: ' + (e.jt || 'الشغلانة') + '.'; }
+      else {
+        who = e.from;
+        var parts = ['أنا خلّصت ' + (e.label || e.jt || 'اللي عليا') + ' وسلّمته لـ' + nameOf(e.to) + '.'];
+        if (e.msg) {
+          if (e.msg.text) { parts.push(e.msg.text); }
+          if (e.msg.done) { parts.push('خلّصت: ' + e.msg.done + '.'); }
+          if (e.msg.missing) { parts.push('ناقص: ' + e.msg.missing + '.'); }
+          if (e.msg.next) { parts.push('المطلوب منك: ' + e.msg.next + '.'); }
+        }
+        txt = parts.join(' ');
+      }
+      var h = make('div', 'o3-line-head'); h.textContent = nameOf(who) + ' · ' + hhmm(e.time); li.appendChild(h);
+      var b = make('div', 'o3-line-body'); b.textContent = txt; li.appendChild(b);
+      lines.appendChild(li);
+      if (e.t === 'h') {
+        var li2 = make('li', 'o3-line is-recv'); var h2 = make('div', 'o3-line-head'); h2.textContent = nameOf(e.to) + ' · ' + hhmm(e.time); li2.appendChild(h2);
+        var b2 = make('div', 'o3-line-body'); b2.textContent = e.to === 'mgr' ? 'استلمت النتيجة من ' + nameOf(e.from) + ' وهبلّغ بيشو.' : 'استلمت من ' + nameOf(e.from) + ' وبدأت شغلي.'; li2.appendChild(b2);
+        lines.appendChild(li2);
+      }
+    });
+  }
+
+  window.__o3Live = function (b) { if (ingestLive({ event: 'message', id: 'dbg' + Math.random(), time: Math.floor(Date.now() / 1000), message: JSON.stringify(b) })) { applyMerged(); } };
   function startLive() {
     if (typeof EventSource === 'undefined') {
       return;
