@@ -1420,3 +1420,10 @@ html.o3-on .o3-active .o3-stage { min-height: 320px; }
 .o3-cams{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:3;display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(10,18,32,.72);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.35)}
 .o3-cams button{border:0;border-radius:999px;padding:6px 12px;font:600 12px/1 inherit;font-family:inherit;color:#cfe0f2;background:transparent;cursor:pointer}
 .o3-cams button.on{background:#3aa0ff;color:#fff}
+
+.o3-fs-btn{position:absolute;left:10px;bottom:10px;z-index:3;border:0;border-radius:999px;padding:8px 14px;font:600 12px/1 inherit;font-family:inherit;color:#fff;background:rgba(10,18,32,.72);backdrop-filter:blur(6px);cursor:pointer}
+html.o3-fs, html.o3-fs body { overflow: hidden; background: #070d18; }
+html.o3-fs .topbar, html.o3-fs .o3-chips, html.o3-fs .o3-hint, html.o3-fs .list-view, html.o3-fs .handoffs, html.o3-fs .foot, html.o3-fs .offline-banner { display: none !important; }
+html.o3-fs .wrap { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+html.o3-fs .office3d { position: fixed !important; inset: 0 !important; z-index: 100; margin: 0 !important; border-radius: 0 !important; border: 0 !important; background: #070d18; }
+html.o3-fs .o3-active .o3-stage, html.o3-fs .o3-stage { height: 100vh !important; height: 100dvh !important; min-height: 0 !important; max-height: none !important; }
