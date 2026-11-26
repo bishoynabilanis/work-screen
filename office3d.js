@@ -1099,6 +1099,21 @@
     var b = document.createElement('button'); b.type = 'button'; b.textContent = p[1]; b.addEventListener('click', function () { userTouch(); setCamMode(p[0]); });
     camBtns[p[0]] = b; camBar.appendChild(b);
   });
+  var fsBtn = document.createElement('button'); fsBtn.type = 'button'; fsBtn.className = 'o3-fs-btn'; fsBtn.textContent = 'ملء الشاشة'; fsBtn.setAttribute('aria-label', 'ملء الشاشة');
+  function isFs() { return document.documentElement.classList.contains('o3-fs'); }
+  function setFs(on) {
+    var de = document.documentElement;
+    de.classList.toggle('o3-fs', on); fsBtn.textContent = on ? 'خروج' : 'ملء الشاشة';
+    try {
+      if (on) { var rq = de.requestFullscreen || de.webkitRequestFullscreen; if (rq && !document.fullscreenElement && !document.webkitFullscreenElement) { var pr = rq.call(de); if (pr && pr.catch) { pr.catch(function () { /* ok */ }); } } }
+      else { var ex = document.exitFullscreen || document.webkitExitFullscreen; if ((document.fullscreenElement || document.webkitFullscreenElement) && ex) { var p2 = ex.call(document); if (p2 && p2.catch) { p2.catch(function () { /* ok */ }); } } }
+    } catch (e) { /* ok */ }
+    window.scrollTo(0, 0);
+    setTimeout(function () { window.dispatchEvent(new Event('resize')); resize(); }, 120);
+  }
+  fsBtn.addEventListener('click', function () { setFs(!isFs()); });
+  document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && isFs()) { setFs(false); } });
+  (host.querySelector('.o3-stage') || host).appendChild(fsBtn);
   camBtns.free.classList.add('on');
   (host.querySelector('.o3-stage') || host).appendChild(camBar);
   syncViewBtn();
