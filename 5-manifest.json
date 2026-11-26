@@ -1,0 +1,13 @@
+{
+  "name": "مكتب الشغل",
+  "short_name": "المكتب",
+  "description": "شاشة حية للمديرة والأقسام والتسليمات",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e0f11",
+  "theme_color": "#f4511e"
+}

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4511e">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="مكتب الشغل — شاشة حية للمديرة والأقسام والتسليمات">
+  <title>مكتب الشغل</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><span class="brand-core"></span></span>
+        <div class="brand-text">
+          <h1>مكتب الشغل</h1>
+          <p class="tagline">الشغل بيحصل دلوقتي</p>
+        </div>
+      </div>
+      <div class="updated">
+        <span class="updated-label">آخر تحديث</span>
+        <span id="lastUpdated" class="updated-value">—</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="offlineBanner" class="offline-banner" role="status" hidden>
+      <span class="offline-dot" aria-hidden="true"></span>
+      <span class="offline-text">إنت أوفلاين — بنعرض آخر نسخة محفوظة</span>
+    </div>
+
+    <section class="office" id="office" aria-label="مكتب الشغل">
+      <section class="manager-zone" aria-labelledby="managerHeading">
+        <div class="zone-head">
+          <h2 id="managerHeading" class="zone-title">المكتب الرئيسي</h2>
+          <span class="zone-tag">المديرة</span>
+        </div>
+        <div id="managerDeskSlot" class="manager-desk-slot"></div>
+      </section>
+
+      <div id="departments" class="departments"></div>
+
+      <div id="walkerLayer" class="walker-layer" aria-hidden="true"></div>
+    </section>
+
+    <section class="handoffs" aria-labelledby="handoffsHeading">
+      <div class="section-head">
+        <h2 id="handoffsHeading">آخر التسليمات</h2>
+        <span class="section-note">لما حد يسلّم لحد</span>
+      </div>
+      <ul id="handoffList" class="handoff-list"></ul>
+      <p id="handoffEmpty" class="empty" hidden>مفيش تسليمات لسه</p>
+    </section>
+
+    <footer class="foot">بيتحدّث كل 10 ثواني · شغال أوفلاين كمان</footer>
+  </main>
+
+  <div id="sheetBackdrop" class="sheet-backdrop" hidden></div>
+
+  <section id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetName" tabindex="-1" hidden>
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <div class="sheet-id">
+        <p class="eyebrow">بطاقة الشغل</p>
+        <h2 id="sheetName">—</h2>
+        <p id="sheetTitle" class="sheet-title">—</p>
+      </div>
+      <span id="sheetState" class="sheet-state" data-state="unknown">—</span>
+    </div>
+    <dl class="sheet-grid">
+      <div class="sheet-cell">
+        <dt>القسم</dt>
+        <dd id="sheetDeptValue">—</dd>
+      </div>
+      <div class="sheet-cell">
+        <dt>الحالة</dt>
+        <dd id="sheetStateValue">—</dd>
+      </div>
+      <div class="sheet-cell sheet-cell-wide">
+        <dt>الخطوة</dt>
+        <dd id="sheetStep">—</dd>
+      </div>
+      <div class="sheet-cell sheet-cell-wide">
+        <dt>آخر حركة</dt>
+        <dd id="sheetLast">—</dd>
+      </div>
+      <div class="sheet-cell">
+        <dt>الوقت</dt>
+        <dd id="sheetTime">—</dd>
+      </div>
+    </dl>
+    <button id="sheetClose" class="sheet-close" type="button">قفل</button>
+  </section>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
