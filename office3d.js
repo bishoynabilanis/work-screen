@@ -367,7 +367,7 @@
       if (firstFeedDone && prevSt && prevSt !== 'done' && rec.state === 'done' && !rec.away && cineDepth === 0) {
         if (cineGo(new THREE.Vector3(rec.seat.x, 0, rec.seat.z), (host.classList.contains('o3-portrait') ? 2.6 : 2.4))) { cineEnd(2500); }
       }
-      rec.nameText = String(s.name || ''); rec.roleText = String(s.title || '');
+      rec.nameText = String(s.name || ''); rec.roleText = String(window.__roleOf ? window.__roleOf(s.title || '') : (s.title || ''));
       rec.step = String(s.step || '');
     });
     var mg = people['mgr'];
