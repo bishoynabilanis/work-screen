@@ -1369,3 +1369,24 @@ html.o3-on .office3d.o3-active { border-radius: 0; margin: 0 -14px 14px; border-
 .o3-portrait .o3-bubble { font-size: 9px; padding: 3px 7px; }
 .o3-portrait .o3-clock { font-size: 10px; padding: 3px 8px; }
 @media (max-aspect-ratio: 1/1) { html.o3-on .o3-active .o3-stage { height: min(calc(100dvh - var(--hh, 64px) - 52px), 125vw, 900px); } }
+
+/* status bubbles */
+.o3-status { position: absolute; left: 0; top: 0; display: none; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 10px 10px 10px 2px; background: #fff; color: #1c232c; box-shadow: 0 2px 6px rgba(20,30,50,0.3); font-size: 9px; font-weight: 700; line-height: 1.2; white-space: nowrap; pointer-events: none; border: 1.5px solid #cfd6df; will-change: transform; }
+.o3-status[data-state="running"] { border-color: #3aa0ff; }
+.o3-status[data-state="waiting"] { border-color: #f6c453; }
+.o3-status[data-state="done"] { border-color: #4ade80; }
+.o3-status[data-state="blocked"] { border-color: #f87171; background: #fff0f0; }
+.o3-st-text { display: none; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.o3-status.full .o3-st-text { display: inline; }
+.o3-status:not(.full) { padding: 2px 5px; border-radius: 8px; }
+.o3-dots { display: none; align-items: center; gap: 2px; }
+.o3-status[data-state="running"] .o3-dots { display: inline-flex; }
+.o3-dots u { width: 4px; height: 4px; border-radius: 50%; background: #3aa0ff; display: block; animation: o3dot 1s infinite ease-in-out; }
+.o3-dots u:nth-child(2) { animation-delay: .18s; } .o3-dots u:nth-child(3) { animation-delay: .36s; }
+@keyframes o3dot { 0%, 70%, 100% { transform: translateY(0); opacity: .45; } 35% { transform: translateY(-3px); opacity: 1; } }
+.o3-status[data-state="blocked"]:not(.full)::before { content: '!'; color: #d33; font-weight: 900; }
+.o3-status[data-state="waiting"].full::before { content: '⏳'; font-size: 9px; }
+.o3-status[data-state="done"].full::before { content: '✓'; color: #1a9d4a; font-weight: 900; }
+.o3-portrait .o3-status { font-size: 7.5px; padding: 1px 4px; }
+.o3-portrait .o3-st-text { max-width: 96px; }
+.o3-portrait .o3-dots u { width: 3px; height: 3px; }
