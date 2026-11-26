@@ -1256,6 +1256,10 @@
     if (!('serviceWorker' in navigator)) {
       return;
     }
+    var hadController = !!navigator.serviceWorker.controller, reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (hadController && !reloaded) { reloaded = true; window.location.reload(); }
+    });
     navigator.serviceWorker.register('sw.js').catch(function () {
       return null;
     });
