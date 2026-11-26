@@ -60,7 +60,7 @@
   var zoom = 1;
   var desiredTarget = target.clone();
   var desiredZoom = 1;
-  var baseSpan = 30;
+  var baseSpan = 30, initZoomDone = false;
 
   function placeCamera() {
     var w = canvasWrap.clientWidth || 360, h = canvasWrap.clientHeight || 520;
@@ -80,6 +80,7 @@
     renderer.domElement.style.height = '100%';
     var aspect = w / h;
     baseSpan = Math.max(34, 44 / aspect);
+    if (!initZoomDone && aspect < 0.85) { initZoomDone = true; desiredZoom = zoom = 1.7; }
     placeCamera();
   }
 
@@ -624,8 +625,10 @@
     target.lerp(desiredTarget, 0.08);
     zoom += (desiredZoom - zoom) * 0.08;
     placeCamera();
-    var showRole = zoom > 1.9;
-    var showNames = zoom > 1.35;
+    var portrait = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85;
+    var showRole = zoom > (portrait ? 3.4 : 1.9);
+    var showNames = zoom > (portrait ? 2.4 : 1.35);
+    if (host.classList.contains('o3-portrait') !== portrait) { host.classList.toggle('o3-portrait', portrait); }
     Object.keys(zoneInfo).forEach(function (zid) {
       var zi = zoneInfo[zid]; if (!zi.el) { return; }
       project({ x: zi.cx, z: zi.cz - zi.d / 2 + 0.6 }, 0.6, pt);
