@@ -44,6 +44,8 @@
   setHH(); window.addEventListener('resize', setHH);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0xdfeaf5, 1);
+  var lowGpu = (window.devicePixelRatio || 1) > 2 || /iPhone|iPod/.test(navigator.userAgent || '');
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   canvasWrap.appendChild(renderer.domElement);
 
   var scene = new THREE.Scene();
@@ -52,10 +54,17 @@
   scene.add(hemi);
   var winMats = [], cityLights = [], lampGlows = [];
   var sun = new THREE.DirectionalLight(0xfff3dc, 0.75);
-  sun.position.set(-10, 24, 14);
+  sun.position.set(1.5, 24, 22.5);
+  sun.target.position.set(11.5, 0, 8.5); scene.add(sun.target);
+  sun.castShadow = true; sun.shadow.mapSize.set(lowGpu ? 1024 : 2048, lowGpu ? 1024 : 2048);
+  sun.shadow.camera.left = -26; sun.shadow.camera.right = 26; sun.shadow.camera.top = 26; sun.shadow.camera.bottom = -26;
+  sun.shadow.camera.near = 1; sun.shadow.camera.far = 90; sun.shadow.bias = -0.0006; sun.shadow.radius = 3;
   scene.add(sun);
 
-  var camera = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 200);
+  var camOrtho = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 200);
+  var camPersp = new THREE.PerspectiveCamera(34, 1, 0.5, 260);
+  var camera = camOrtho, perspMode = false;
+  try { var pv = localStorage.getItem('o3-persp'); perspMode = pv === null ? (window.innerWidth / window.innerHeight >= 0.85) : pv === '1'; } catch (e) { perspMode = false; }
   var target = new THREE.Vector3(12.5, 0, 9);
   var zoom = 1;
   var desiredTarget = target.clone();
@@ -67,10 +76,18 @@
     var w = canvasWrap.clientWidth || 360, h = canvasWrap.clientHeight || 520;
     var aspect = w / h;
     var span = baseSpan / zoom;
-    camera.left = -span * aspect / 2; camera.right = span * aspect / 2;
-    camera.top = span / 2; camera.bottom = -span / 2;
     var ca = Math.cos(az), sa = Math.sin(az);
-    camera.position.set(target.x + 24 * ca + 24 * sa, target.y + 22, target.z - 24 * sa + 24 * ca);
+    if (perspMode) {
+      camera = camPersp; camera.aspect = aspect;
+      var dd = 40 / zoom, ex = 24, ey = 12.5, ez = 24, el = Math.sqrt(ex * ex + ey * ey + ez * ez);
+      var ox = (ex * ca + ez * sa) / el * dd, oz = (-ex * sa + ez * ca) / el * dd;
+      camera.position.set(target.x + ox, target.y + ey / el * dd, target.z + oz);
+    } else {
+      camera = camOrtho;
+      camera.left = -span * aspect / 2; camera.right = span * aspect / 2;
+      camera.top = span / 2; camera.bottom = -span / 2;
+      camera.position.set(target.x + 24 * ca + 24 * sa, target.y + 22, target.z - 24 * sa + 24 * ca);
+    }
     camera.lookAt(target);
     camera.updateProjectionMatrix();
   }
@@ -371,6 +388,7 @@
       r.label.dataset.state = r.state;
     });
     try { updateBoard(feed); } catch (e) { noteErr(e, 'board'); }
+    try { applyShadows(); } catch (e) { noteErr(e, 'shadow'); }
     buildChips(feed);
     firstFeedDone = true;
   }
@@ -873,6 +891,27 @@
     else { ambient.on = false; stopAmbient(); soundBtn.textContent = '🔇'; soundBtn.classList.remove('on'); }
   });
   (host.querySelector('.o3-stage') || host).appendChild(soundBtn);
+
+  var shadowCount = -1;
+  function applyShadows() {
+    var n = Object.keys(people).length; if (n === shadowCount) { return; } shadowCount = n;
+    scene.traverse(function (o) {
+      if (!o.isMesh || !o.material) { return; }
+      if (o.material.isMeshBasicMaterial) { return; }
+      var g = o.geometry && o.geometry.type;
+      if (g === 'PlaneGeometry') { return; }
+      o.castShadow = true; o.receiveShadow = true;
+    });
+    floor.castShadow = false; carpet.castShadow = false; carpet.receiveShadow = true; floor.receiveShadow = true;
+  }
+  var viewBtn = document.createElement('button'); viewBtn.type = 'button'; viewBtn.className = 'o3-sound o3-view'; viewBtn.textContent = '🎥'; viewBtn.setAttribute('aria-label', 'تبديل زاوية الكاميرا');
+  function syncViewBtn() { viewBtn.classList.toggle('on', perspMode); }
+  viewBtn.addEventListener('click', function () {
+    perspMode = !perspMode; try { localStorage.setItem('o3-persp', perspMode ? '1' : '0'); } catch (e) { /* ok */ }
+    syncViewBtn();
+  });
+  syncViewBtn();
+  (host.querySelector('.o3-stage') || host).appendChild(viewBtn);
 
   window.Office3D = { ready: true, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
   if (hint) { hint.hidden = false; }
