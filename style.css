@@ -1416,3 +1416,7 @@ html.o3-on .o3-active .o3-stage { min-height: 320px; }
 .room-roles:empty{display:none}
 .room-head{flex-wrap:wrap}
 .room-roles{order:9;width:100%;flex:0 0 100%;text-align:right;background:none}
+
+.o3-cams{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:3;display:flex;gap:4px;padding:4px;border-radius:999px;background:rgba(10,18,32,.72);backdrop-filter:blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.35)}
+.o3-cams button{border:0;border-radius:999px;padding:6px 12px;font:600 12px/1 inherit;font-family:inherit;color:#cfe0f2;background:transparent;cursor:pointer}
+.o3-cams button.on{background:#3aa0ff;color:#fff}
