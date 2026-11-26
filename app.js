@@ -427,6 +427,9 @@
     var title = make('span', 'desk-title');
     btn.appendChild(name);
     btn.appendChild(title);
+    var stepEl = make('span', 'desk-step');
+    btn.appendChild(stepEl);
+    btn.__step = stepEl;
 
     var doing = null;
     if (isManager) {
@@ -460,6 +463,7 @@
     var label = stateLabel(person.state);
     btn.__name.textContent = safeText(person.name, '—');
     btn.__title.textContent = safeText(person.title, '');
+    if (btn.__step) { btn.__step.textContent = isManager ? '' : safeText(person.step, ''); }
 
     if (isManager && btn.__doing) {
       btn.__doing.textContent = safeText(person.doing, '');
@@ -490,6 +494,9 @@
     var name = make('h2', 'room-name');
     name.textContent = safeText(dept.name, dept.id);
     head.appendChild(name);
+    var roles = make('p', 'room-roles');
+    head.appendChild(roles);
+    room.__roles = roles;
 
     var tags = make('div', 'room-tags');
     var count = make('span', 'room-count');
@@ -590,6 +597,10 @@
         specRow.hidden = true;
       }
       room.__count.textContent = String(count);
+      if (room.__roles) {
+        var tl = staff.filter(function (r) { return isObj(r) && String(r.dept) === deptId && r.title; }).map(function (r) { return r.title; });
+        room.__roles.textContent = tl.length ? 'الأدوار: ' + tl.join(' · ') : '';
+      }
       roomByDept.set(deptId, room);
       els.departments.appendChild(room);
     });
