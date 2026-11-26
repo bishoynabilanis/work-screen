@@ -172,6 +172,11 @@
     el.appendChild(n); el.appendChild(r);
     el.__n = n; el.__r = r;
     labelLayer.appendChild(el);
+    var st = document.createElement('div'); st.className = 'o3-status';
+    var dots = document.createElement('i'); dots.className = 'o3-dots'; dots.innerHTML = '<u></u><u></u><u></u>';
+    var tx = document.createElement('span'); tx.className = 'o3-st-text';
+    st.appendChild(dots); st.appendChild(tx); labelLayer.appendChild(st);
+    el.__s = st; el.__st = tx;
     return el;
   }
 
@@ -350,6 +355,10 @@
     Object.keys(people).forEach(function (id) {
       var r = people[id];
       r.label.__n.textContent = r.nameText; r.label.__r.textContent = r.roleText;
+      var stTxt = r.step || '';
+      if (stTxt.length > 34) { stTxt = stTxt.slice(0, 33) + '…'; }
+      r.label.__st.textContent = stTxt;
+      r.label.__s.dataset.state = r.state;
       var col = STATE_COLOR[r.state] || STATE_COLOR.unknown;
       r.ring.material.color.setHex(col);
       r.desk.screens.forEach(function (sc) { sc.material.color.setHex(col); });
@@ -663,6 +672,14 @@
       lb.style.display = (pt.vis && (showNames || r.away)) ? '' : 'none';
       lb.classList.toggle('show-role', showRole);
       lb.classList.toggle('is-away', !!r.away);
+      var sb = lb.__s;
+      var showSt = pt.vis && !r.away && (r.state === 'running' || r.state === 'blocked' || showNames);
+      sb.style.display = showSt ? 'flex' : 'none';
+      if (showSt) {
+        sb.classList.toggle('full', showNames);
+        var lift = showNames ? (showRole ? 36 : 24) : 4;
+        sb.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + (pt.y - lift).toFixed(1) + 'px) translate(-50%,-100%)';
+      }
     });
     if (bubbleFor) {
       project(bubbleFor.person.group.position, 3.6, pt);
