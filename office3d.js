@@ -110,7 +110,14 @@
   var floor = new THREE.Mesh(new THREE.BoxGeometry(34, 0.4, 32), mat(0xf4f1ea));
   floor.position.set(11.5, -0.2, 8.5);
   scene.add(floor);
-  var carpet = new THREE.Mesh(new THREE.BoxGeometry(33, 0.05, 31), mat(0xe9e5dc));
+  var tileTex = (function () {
+    var c = document.createElement('canvas'); c.width = c.height = 256; var x = c.getContext('2d');
+    var g = x.createLinearGradient(0, 0, 256, 256); g.addColorStop(0, '#d9dde3'); g.addColorStop(1, '#c4cad3'); x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+    x.strokeStyle = 'rgba(70,80,95,0.35)'; x.lineWidth = 3; x.strokeRect(0, 0, 256, 256);
+    x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(6, 6, 244, 60);
+    var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(11, 10.5); t.anisotropy = 4; return t;
+  })();
+  var carpet = new THREE.Mesh(new THREE.BoxGeometry(33, 0.05, 31), new THREE.MeshStandardMaterial({ color: 0xffffff, map: tileTex, roughness: 0.22, metalness: 0.12 }));
   carpet.position.set(11.5, 0.01, 8.5);
   scene.add(carpet);
 
@@ -170,6 +177,12 @@
     var edge = new THREE.Mesh(new THREE.BoxGeometry(w, 0.07, 0.12), mat(ACCENT[id] || 0xcccccc));
     edge.position.set(cx, 0.06, cz + d / 2); scene.add(edge);
     var edge2 = edge.clone(); edge2.position.set(cx, 0.06, cz - d / 2); scene.add(edge2);
+    (function () {
+      var c = document.createElement('canvas'); c.width = c.height = 128; var x = c.getContext('2d');
+      var gr = x.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(255,236,200,0.55)'); gr.addColorStop(1, 'rgba(255,236,200,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+      var pool = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.25, d * 1.25), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.55 }));
+      pool.rotation.x = -Math.PI / 2; pool.position.set(cx, 0.09, cz); scene.add(pool);
+    })();
     zoneInfo[id] = { cx: cx, cz: cz, w: w, d: d, name: name };
     var zl = document.createElement('button');
     zl.type = 'button'; zl.className = 'o3-zone'; zl.textContent = String(name).replace(/^قسم /, '');
@@ -236,9 +249,9 @@
 
   function buildDesk(color) {
     var d = new THREE.Group();
-    var top = box(1.7, 0.1, 0.95, 0xffffff); top.position.y = 0.78; d.add(top);
-    var side1 = box(0.08, 0.76, 0.9, 0xe9ecef); side1.position.set(-0.8, 0.38, 0); d.add(side1);
-    var side2 = box(0.08, 0.76, 0.9, 0xe9ecef); side2.position.set(0.8, 0.38, 0); d.add(side2);
+    var top = box(1.7, 0.1, 0.95, 0xc08f62); top.position.y = 0.78; d.add(top);
+    var side1 = box(0.08, 0.76, 0.9, 0x39414d); side1.position.set(-0.8, 0.38, 0); d.add(side1);
+    var side2 = box(0.08, 0.76, 0.9, 0x39414d); side2.position.set(0.8, 0.38, 0); d.add(side2);
     var mon = box(0.78, 0.5, 0.05, 0x1b1e24); mon.position.set(0, 1.12, 0.05); d.add(mon);
     var scr = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.42), new THREE.MeshBasicMaterial({ color: 0x3aa0ff, side: THREE.DoubleSide }));
     scr.position.set(0, 1.12, 0.08); d.add(scr);
