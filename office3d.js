@@ -70,23 +70,23 @@
   var desiredTarget = target.clone();
   var desiredZoom = 1;
   var baseSpan = 30, initZoomDone = false;
-  var az = 0, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
+  var az = 0, azU = 0, azUT = 0, elU = 0.45, elUT = 0.45, camDir = { x: 0.7071, z: 0.7071 }, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
 
   function placeCamera() {
     var w = canvasWrap.clientWidth || 360, h = canvasWrap.clientHeight || 520;
     var aspect = w / h;
     var span = baseSpan / zoom;
-    var ca = Math.cos(az), sa = Math.sin(az);
+    var th = Math.PI / 4 + az + azU, sT = Math.sin(th), cT = Math.cos(th);
+    camDir.x = sT; camDir.z = cT;
     if (perspMode) {
       camera = camPersp; camera.aspect = aspect;
-      var dd = 40 / zoom, ex = 24, ey = 12.5, ez = 24, el = Math.sqrt(ex * ex + ey * ey + ez * ez);
-      var ox = (ex * ca + ez * sa) / el * dd, oz = (-ex * sa + ez * ca) / el * dd;
-      camera.position.set(target.x + ox, target.y + ey / el * dd, target.z + oz);
+      var dd = 40 / zoom, ce = Math.cos(elU), se = Math.sin(elU);
+      camera.position.set(target.x + sT * ce * dd, target.y + se * dd, target.z + cT * ce * dd);
     } else {
       camera = camOrtho;
       camera.left = -span * aspect / 2; camera.right = span * aspect / 2;
       camera.top = span / 2; camera.bottom = -span / 2;
-      camera.position.set(target.x + 24 * ca + 24 * sa, target.y + 22, target.z - 24 * sa + 24 * ca);
+      camera.position.set(target.x + 33.9 * sT, target.y + 22, target.z + 33.9 * cT);
     }
     camera.lookAt(target);
     camera.updateProjectionMatrix();
@@ -448,28 +448,45 @@
     el.setPointerCapture(e.pointerId);
     pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
     moved = false;
-    if (ptCount() === 1) { drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }; }
+    if (ptCount() === 1) { drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, pan: e.button === 2 || e.shiftKey || e.button === 1 }; }
     if (ptCount() === 2) { var k = Object.keys(pointers); var a = pointers[k[0]], b = pointers[k[1]]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: desiredZoom }; }
   });
+  function panBy(dx, dy) {
+    var unit = (baseSpan / zoom) / (canvasWrap.clientHeight || 520);
+    var fx = -camDir.x, fz = -camDir.z, rx = -fz, rz = fx;
+    desiredTarget.x += -rx * dx * unit + fx * dy * unit * 1.1;
+    desiredTarget.z += -rz * dx * unit + fz * dy * unit * 1.1;
+    desiredTarget.x = Math.min(27, Math.max(-4, desiredTarget.x));
+    desiredTarget.z = Math.min(24, Math.max(-8, desiredTarget.z));
+    target.lerp(desiredTarget, 0.5);
+  }
+  function clampZ(z) { return Math.min(5, Math.max(0.6, z)); }
+  el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   el.addEventListener('pointermove', function (e) {
-    if (!pointers[e.pointerId]) { return; }
-    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var prev = pointers[e.pointerId];
+    if (!prev) { return; }
+    var np = { x: e.clientX, y: e.clientY };
     if (ptCount() === 2 && pinch) {
       var k = Object.keys(pointers); var a = pointers[k[0]], b = pointers[k[1]];
+      var cx0 = (a.x + b.x) / 2, cy0 = (a.y + b.y) / 2;
+      pointers[e.pointerId] = np;
+      a = pointers[k[0]]; b = pointers[k[1]];
       var d = Math.hypot(a.x - b.x, a.y - b.y);
-      desiredZoom = Math.min(5, Math.max(0.6, pinch.z * d / pinch.d)); zoom = desiredZoom; moved = true; return;
+      desiredZoom = clampZ(pinch.z * d / pinch.d);
+      panBy((a.x + b.x) / 2 - cx0, (a.y + b.y) / 2 - cy0);
+      moved = true; return;
     }
+    pointers[e.pointerId] = np;
     if (drag && ptCount() === 1) {
       var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 6) { moved = true; }
       drag.x = e.clientX; drag.y = e.clientY;
-      var span = baseSpan / zoom, h = canvasWrap.clientHeight || 520;
-      var unit = span / h;
-      // screen drag -> world pan on the ground plane (camera is 45deg diagonal)
-      var rx = (-dx * unit) * 0.7071 * 1.0, rz = (-dx * unit) * -0.7071;
-      var fx = (dy * unit) * 1.2 * 0.7071 * -1, fz = (dy * unit) * 1.2 * 0.7071 * -1;
-      desiredTarget.x += rx + fx; desiredTarget.z += rz + fz;
-      target.copy(desiredTarget);
+      if (!moved) { return; }
+      if (drag.pan) { panBy(dx, dy); }
+      else {
+        azUT += dx * 0.006; elUT = Math.min(1.35, Math.max(0.12, elUT + dy * 0.004));
+        if (perspMode === false) { elUT = 0.45; }
+      }
     }
   });
   function endPointer(e) {
@@ -485,9 +502,10 @@
   el.addEventListener('pointercancel', function (e) { delete pointers[e.pointerId]; pinch = null; drag = null; });
   el.addEventListener('wheel', function (e) {
     e.preventDefault(); userTouch();
-    desiredZoom = Math.min(5, Math.max(0.6, desiredZoom * (e.deltaY < 0 ? 1.12 : 0.89))); zoom = desiredZoom;
+    var dy = Math.max(-120, Math.min(120, e.deltaY)); if (e.deltaMode === 1) { dy *= 16; } desiredZoom = clampZ(desiredZoom * Math.exp(-dy * 0.0009));
   }, { passive: false });
 
+  el.addEventListener('dblclick', function () { userTouch(); azUT = 0; elUT = 0.45; desiredTarget.set(12.5, 0, 9); desiredZoom = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85 ? 1.7 : 1; });
   var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   function pick(cx, cy) {
     var r = el.getBoundingClientRect();
@@ -695,8 +713,9 @@
       if (k >= 1) { cine = null; }
     } else {
       target.lerp(desiredTarget, 0.08);
-      zoom += (desiredZoom - zoom) * 0.08;
+      zoom += (desiredZoom - zoom) * Math.min(1, dt * 7);
     }
+    azU += (azUT - azU) * Math.min(1, dt * 9); elU += (elUT - elU) * Math.min(1, dt * 9);
     // slow orbit when idle in the wide view
     var idle = !cine && !cineHome && ptCount() === 0 && performance.now() - lastTouch > 20000 && zoom < 2.2;
     var azT = idle ? Math.sin(clock.elapsedTime * 0.07) * 0.4 : 0;
