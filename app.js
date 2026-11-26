@@ -1091,6 +1091,13 @@
       liveEvents.push({ t: 'h', from: cleanText(body.from, 40), to: cleanText(body.to, 40), label: cleanText(body.label, 80), time: iso });
       return true;
     }
+    if (body.t === 'p') {
+      var pe = { t: 'p', id: cleanText(body.id, 40), name: cleanText(body.name, 40), title: cleanText(body.title, 60), dept: cleanText(body.dept, 40), time: iso };
+      ['state', 'step', 'last'].forEach(function (k) { if (typeof body[k] === 'string') { pe[k] = cleanText(body[k], k === 'state' ? 20 : 120); } });
+      if (!pe.id || !pe.name) { return false; }
+      liveEvents.push(pe);
+      return true;
+    }
     if (body.t === 's') {
       var ev = { t: 's', id: cleanText(body.id, 40), time: iso };
       ['state', 'step', 'last', 'doing'].forEach(function (k) {
@@ -1115,6 +1122,15 @@
     f.handoffs = Array.isArray(f.handoffs) ? f.handoffs : [];
     liveEvents.forEach(function (ev) {
       var ms = Date.parse(ev.time) || 0;
+      if (ev.t === 'p') {
+        var known = staff.some(function (x) { return x.id === ev.id; });
+        if (!known) {
+          var dpt = ev.dept || 'tools';
+          if (!(f.departments || []).some(function (d) { return d.id === dpt; })) { dpt = 'tools'; }
+          staff.push({ id: ev.id, name: ev.name, title: ev.title || '', dept: dpt, level: 'member', state: ev.state || 'waiting', step: ev.step || '', last: ev.last || '', time: ev.time });
+        }
+        return;
+      }
       if (ms <= baseMs) {
         return;
       }
