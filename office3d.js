@@ -70,7 +70,7 @@
   var desiredTarget = target.clone();
   var desiredZoom = 1;
   var baseSpan = 30, initZoomDone = false;
-  var az = 0, azU = 0, azUT = 0, elU = 0.45, elUT = 0.45, camDir = { x: 0.7071, z: 0.7071 }, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
+  var camMode = 'free', followId = '', followT = 0, camBtns = {}, az = 0, azU = 0, azUT = 0, elU = 0.45, elUT = 0.45, camDir = { x: 0.7071, z: 0.7071 }, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
 
   function placeCamera() {
     var w = canvasWrap.clientWidth || 360, h = canvasWrap.clientHeight || 520;
@@ -465,7 +465,7 @@
   var pointers = {};
   function ptCount() { return Object.keys(pointers).length; }
   el.addEventListener('pointerdown', function (e) {
-    userTouch();
+    userTouch(); setCamMode('free');
     el.setPointerCapture(e.pointerId);
     pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
     moved = false;
@@ -522,7 +522,7 @@
   el.addEventListener('pointerup', endPointer);
   el.addEventListener('pointercancel', function (e) { delete pointers[e.pointerId]; pinch = null; drag = null; });
   el.addEventListener('wheel', function (e) {
-    e.preventDefault(); userTouch();
+    e.preventDefault(); userTouch(); setCamMode('free');
     var dy = Math.max(-120, Math.min(120, e.deltaY)); if (e.deltaMode === 1) { dy *= 16; } desiredZoom = clampZ(desiredZoom * Math.exp(-dy * 0.0009));
   }, { passive: false });
 
@@ -735,6 +735,23 @@
     } else {
       target.lerp(desiredTarget, 0.08);
       zoom += (desiredZoom - zoom) * Math.min(1, dt * 7);
+    }
+    if (camMode !== 'free' && !cine && ptCount() === 0) {
+      var ct = clock.elapsedTime;
+      if (camMode === 'orbit') {
+        azUT += dt * 0.28; elUT = 0.5; desiredZoom = 1.15; desiredTarget.set(12.5, 0, 8);
+      } else if (camMode === 'fly') {
+        desiredTarget.set(12 + 10.5 * Math.sin(ct * 0.11), 0, 8 + 9 * Math.sin(ct * 0.07 + 1.2));
+        desiredZoom = 1.3; elUT = 0.3; azUT = 0.55 * Math.sin(ct * 0.09);
+      } else if (camMode === 'follow') {
+        if (ct - followT > 9 || !followId || !people[followId]) {
+          var run = Object.keys(people).filter(function (k) { return people[k].state === 'running' && k !== followId; });
+          if (!run.length) { run = Object.keys(people).filter(function (k) { return people[k].state === 'running'; }); }
+          if (run.length) { followId = run[Math.floor(Math.random() * run.length)]; followT = ct; }
+        }
+        var fp = people[followId];
+        if (fp) { var pp = fp.away ? fp.person.group.position : fp.seat; desiredTarget.set(pp.x, 0, pp.z); desiredZoom = 2.6; elUT = 0.4; azUT += (0.9 - azUT) * dt * 0.3; }
+      }
     }
     azU += (azUT - azU) * Math.min(1, dt * 9); elU += (elUT - elU) * Math.min(1, dt * 9);
     // slow orbit when idle in the wide view
@@ -1041,6 +1058,18 @@
     perspMode = !perspMode; try { localStorage.setItem('o3-persp', perspMode ? '1' : '0'); } catch (e) { /* ok */ }
     syncViewBtn();
   });
+  var camBar = document.createElement('div'); camBar.className = 'o3-cams';
+  function setCamMode(m) {
+    camMode = m;
+    Object.keys(camBtns).forEach(function (k) { camBtns[k].classList.toggle('on', k === m); });
+    if (m !== 'free') { cine = null; cineHome = null; cineDepth = 0; clearTimeout(cineTimer); followT = -99; if (m === 'orbit') { elUT = 0.5; } }
+  }
+  [['free', 'حرّ'], ['fly', 'طيران'], ['orbit', 'دوران'], ['follow', 'متابعة']].forEach(function (p) {
+    var b = document.createElement('button'); b.type = 'button'; b.textContent = p[1]; b.addEventListener('click', function () { userTouch(); setCamMode(p[0]); });
+    camBtns[p[0]] = b; camBar.appendChild(b);
+  });
+  camBtns.free.classList.add('on');
+  (host.querySelector('.o3-stage') || host).appendChild(camBar);
   syncViewBtn();
   (host.querySelector('.o3-stage') || host).appendChild(viewBtn);
 
