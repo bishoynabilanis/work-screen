@@ -61,6 +61,7 @@
   var desiredTarget = target.clone();
   var desiredZoom = 1;
   var baseSpan = 30, initZoomDone = false;
+  var az = 0, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
 
   function placeCamera() {
     var w = canvasWrap.clientWidth || 360, h = canvasWrap.clientHeight || 520;
@@ -68,7 +69,8 @@
     var span = baseSpan / zoom;
     camera.left = -span * aspect / 2; camera.right = span * aspect / 2;
     camera.top = span / 2; camera.bottom = -span / 2;
-    camera.position.set(target.x + 24, target.y + 22, target.z + 24);
+    var ca = Math.cos(az), sa = Math.sin(az);
+    camera.position.set(target.x + 24 * ca + 24 * sa, target.y + 22, target.z - 24 * sa + 24 * ca);
     camera.lookAt(target);
     camera.updateProjectionMatrix();
   }
@@ -343,7 +345,10 @@
     });
     staff.forEach(function (s) {
       var rec = people[String(s.id)]; if (!rec) { return; }
-      rec.state = stateKey(s.state);
+      var prevSt = rec.state; rec.state = stateKey(s.state);
+      if (firstFeedDone && prevSt && prevSt !== 'done' && rec.state === 'done' && !rec.away && cineDepth === 0) {
+        if (cineGo(new THREE.Vector3(rec.seat.x, 0, rec.seat.z), (host.classList.contains('o3-portrait') ? 2.6 : 2.4))) { cineEnd(2500); }
+      }
       rec.nameText = String(s.name || ''); rec.roleText = String(s.title || '');
       rec.step = String(s.step || '');
     });
@@ -365,6 +370,7 @@
       r.label.dataset.state = r.state;
     });
     buildChips(feed);
+    firstFeedDone = true;
   }
 
   function buildChips(feed) {
@@ -385,7 +391,31 @@
     });
   }
 
-  function flyTo(t, z) { desiredTarget.copy(t); desiredZoom = z; }
+  function smooth(k) { return k * k * (3 - 2 * k); }
+  function startTween(t, z, ms) {
+    cine = { t0: performance.now(), dur: ms, fT: target.clone(), fZ: zoom, tT: t.clone(), tZ: z };
+    desiredTarget.copy(t); desiredZoom = z;
+  }
+  function flyTo(t, z) { cineHome = null; startTween(t, z, 1200); }
+  function userTouch() { lastTouch = performance.now(); cine = null; cineHome = null; cineDepth = 0; clearTimeout(cineTimer); }
+  // cinematic: slide/zoom to an event (3s, smoothstep), hold, then slide back to the wide view
+  function cineGo(t, z) {
+    if (performance.now() - lastTouch < 15000) { return false; }
+    clearTimeout(cineTimer);
+    if (!cineHome) { cineHome = { t: desiredTarget.clone(), z: desiredZoom }; }
+    cineDepth++;
+    startTween(t, z, 3000);
+    return true;
+  }
+  function cineEnd(holdMs) {
+    if (!cineHome) { return; }
+    cineDepth = Math.max(0, cineDepth - 1);
+    if (cineDepth > 0) { return; }
+    clearTimeout(cineTimer);
+    cineTimer = setTimeout(function () {
+      if (cineHome && cineDepth === 0) { var h = cineHome; cineHome = null; startTween(h.t, h.z, 3000); }
+    }, holdMs || 1200);
+  }
 
   // ---------- camera controls ----------
   var drag = null, pinch = null, moved = false;
@@ -394,6 +424,7 @@
   var pointers = {};
   function ptCount() { return Object.keys(pointers).length; }
   el.addEventListener('pointerdown', function (e) {
+    userTouch();
     el.setPointerCapture(e.pointerId);
     pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
     moved = false;
@@ -433,7 +464,7 @@
   el.addEventListener('pointerup', endPointer);
   el.addEventListener('pointercancel', function (e) { delete pointers[e.pointerId]; pinch = null; drag = null; });
   el.addEventListener('wheel', function (e) {
-    e.preventDefault();
+    e.preventDefault(); userTouch();
     desiredZoom = Math.min(5, Math.max(0.6, desiredZoom * (e.deltaY < 0 ? 1.12 : 0.89))); zoom = desiredZoom;
   }, { passive: false });
 
@@ -595,7 +626,7 @@
     var pts = routeTo(from, to);
     bubbleFor = from; bubbleEl.textContent = String(item.label || 'تسليم'); bubbleEl.hidden = false;
     from.carry = true;
-    flyTo(new THREE.Vector3((from.seat.x + to.seat.x) / 2, 0, (from.seat.z + to.seat.z) / 2), Math.max(1.5, Math.min(2.2, 40 / (from.seat.distanceTo(to.seat) + 8))));
+    var cineOn = cineGo(new THREE.Vector3((from.seat.x + to.seat.x) / 2, 0, (from.seat.z + to.seat.z) / 2), Math.max(1.5, Math.min(2.2, 40 / (from.seat.distanceTo(to.seat) + 8))));
     return followPath(from, pts, 3.4)
       .then(function () {
         g.rotation.y = Math.atan2(0, -1);
@@ -613,6 +644,7 @@
         g.rotation.y = 0;
         sitPose(from);
         from.away = false; bubbleEl.hidden = true; bubbleFor = null;
+        if (cineOn) { cineEnd(1500); }
       });
   }
 
@@ -631,8 +663,18 @@
     requestAnimationFrame(frame);
     var dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
     // camera easing
-    target.lerp(desiredTarget, 0.08);
-    zoom += (desiredZoom - zoom) * 0.08;
+    if (cine) {
+      var k = Math.min(1, (performance.now() - cine.t0) / cine.dur), sm = smooth(k);
+      target.copy(cine.fT).lerp(cine.tT, sm); zoom = cine.fZ + (cine.tZ - cine.fZ) * sm;
+      if (k >= 1) { cine = null; }
+    } else {
+      target.lerp(desiredTarget, 0.08);
+      zoom += (desiredZoom - zoom) * 0.08;
+    }
+    // slow orbit when idle in the wide view
+    var idle = !cine && !cineHome && ptCount() === 0 && performance.now() - lastTouch > 20000 && zoom < 2.2;
+    var azT = idle ? Math.sin(clock.elapsedTime * 0.07) * 0.4 : 0;
+    az += (azT - az) * (idle ? 0.012 : 0.05);
     placeCamera();
     var portrait = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85;
     var showRole = zoom > (portrait ? 3.4 : 1.9);
