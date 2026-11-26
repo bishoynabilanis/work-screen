@@ -229,11 +229,36 @@
     }
   }
 
+  var ROLE_MAP = {
+    'مستكشف الأدوات المجانية': 'كشّاف الأدوات',
+    'تنسيق الأدوات': 'منسّق الأدوات',
+    'تقارير القنوات': 'محلل الأداء',
+    'إعادة القياس': 'محلل الأداء (إعادة قياس)',
+    'SEO': 'خبير السيو',
+    'المونتاج والتصدير': 'منتج الفيديو',
+    'فيديو الغسالة': 'منتج الفيديو (الغسالة)',
+    'تيك توك': 'منتج فيديو تيك توك',
+    'بناء الشورتس': 'صانع الشورتس',
+    'رصد الترندات': 'صائد الترندات',
+    'رفع الشورتس': 'ناشر الشورتس',
+    'جدول النشر': 'منسّق النشر',
+    'مسودات فيسبوك': 'كاتب فيسبوك',
+    'مقالات بلوجر': 'كاتبة بلوجر',
+    'ردود تعليقات يوتيوب': 'مسؤول التعليقات',
+    'العناوين والأوصاف': 'كاتب العناوين',
+    'تجهيز الموافقات': 'مجهّز الموافقات',
+    'فحص الصحة': 'فاحص الصحة',
+    'الفهرسة': 'مسؤول الفهرسة',
+    'تلخيص التحديثات': 'ملخّص الأخبار'
+  };
+  function roleOf(t) { return ROLE_MAP[t] || t; }
+  window.__roleOf = roleOf;
+
   function normalizeStaff(staff) {
     return {
       id: String(staff.id),
       name: typeof staff.name === 'string' ? staff.name : '',
-      title: typeof staff.title === 'string' ? staff.title : '',
+      title: typeof staff.title === 'string' ? roleOf(staff.title) : '',
       dept: staff.dept === undefined || staff.dept === null ? '' : String(staff.dept),
       level: staff.level === 'lead' ? 'lead' : 'specialist',
       state: staff.state,
@@ -598,7 +623,7 @@
       }
       room.__count.textContent = String(count);
       if (room.__roles) {
-        var tl = staff.filter(function (r) { return isObj(r) && String(r.dept) === deptId && r.title; }).map(function (r) { return r.title; });
+        var tl = staff.filter(function (r) { return isObj(r) && String(r.dept) === deptId && r.title; }).map(function (r) { return roleOf(r.title); });
         room.__roles.textContent = tl.length ? 'الأدوار: ' + tl.join(' · ') : '';
       }
       roomByDept.set(deptId, room);
