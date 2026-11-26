@@ -64,7 +64,7 @@
   var camOrtho = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 200);
   var camPersp = new THREE.PerspectiveCamera(34, 1, 0.5, 260);
   var camera = camOrtho, perspMode = false;
-  try { var pv = localStorage.getItem('o3-persp'); perspMode = pv === null ? (window.innerWidth / window.innerHeight >= 0.85) : pv === '1'; } catch (e) { perspMode = false; }
+  try { var pv = localStorage.getItem('o3-persp'); perspMode = true; void pv; } catch (e) { perspMode = false; }
   var target = new THREE.Vector3(12.5, 0, 9);
   var zoom = 1;
   var desiredTarget = target.clone();
@@ -99,7 +99,7 @@
     renderer.domElement.style.height = '100%';
     var aspect = w / h;
     baseSpan = Math.max(34, 44 / aspect);
-    if (!initZoomDone && aspect < 0.85) { initZoomDone = true; desiredZoom = zoom = 1.7; }
+    if (!initZoomDone && aspect < 0.85) { initZoomDone = true; desiredZoom = zoom = (w < 500 ? 0.95 : 0.66); }
     placeCamera();
   }
 
@@ -556,7 +556,7 @@
     var dy = Math.max(-120, Math.min(120, e.deltaY)); if (e.deltaMode === 1) { dy *= 16; } desiredZoom = clampZ(desiredZoom * Math.exp(-dy * 0.0009));
   }, { passive: false });
 
-  el.addEventListener('dblclick', function () { userTouch(); azUT = 0; elUT = 0.45; desiredTarget.set(12.5, 0, 9); desiredZoom = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85 ? 1.7 : 1; });
+  el.addEventListener('dblclick', function () { userTouch(); azUT = 0; elUT = 0.45; desiredTarget.set(12.5, 0, 9); desiredZoom = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85 ? 0.66 : 1; });
   var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   function pick(cx, cy) {
     var r = el.getBoundingClientRect();
@@ -1083,7 +1083,7 @@
     });
     floor.castShadow = false; carpet.castShadow = false; carpet.receiveShadow = true; floor.receiveShadow = true;
   }
-  var viewBtn = document.createElement('button'); viewBtn.type = 'button'; viewBtn.className = 'o3-sound o3-view'; viewBtn.textContent = '🎥'; viewBtn.setAttribute('aria-label', 'تبديل زاوية الكاميرا');
+  var viewBtn = document.createElement('button'); viewBtn.type = 'button'; viewBtn.className = 'o3-sound o3-view'; viewBtn.style.display = 'none'; viewBtn.textContent = '🎥'; viewBtn.setAttribute('aria-label', 'تبديل زاوية الكاميرا');
   function syncViewBtn() { viewBtn.classList.toggle('on', perspMode); }
   viewBtn.addEventListener('click', function () {
     perspMode = !perspMode; try { localStorage.setItem('o3-persp', perspMode ? '1' : '0'); } catch (e) { /* ok */ }
