@@ -4,6 +4,7 @@
   var host = document.getElementById('office3d');
   if (!host) { return; }
   function plainFallback(msg) {
+    host.classList.remove('o3-active'); document.documentElement.classList.remove('o3-on');
     host.classList.add('o3-failed');
     var lv = document.getElementById('listView'); if (lv) { lv.open = true; }
     var h = host.querySelector('.o3-hint'); if (h) { h.hidden = false; h.textContent = msg; }
@@ -38,6 +39,9 @@
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   } catch (e) { plainFallback('المشهد ثلاثي الأبعاد مش شغال على جهازك، عرضنا القائمة بدله.'); return; }
+  host.classList.add('o3-active'); document.documentElement.classList.add('o3-on');
+  function setHH() { var hd = document.querySelector('header'); document.documentElement.style.setProperty('--hh', (hd ? hd.offsetHeight : 64) + 'px'); }
+  setHH(); window.addEventListener('resize', setHH);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setClearColor(0xdfeaf5, 1);
   canvasWrap.appendChild(renderer.domElement);
@@ -73,7 +77,7 @@
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     var aspect = w / h;
-    baseSpan = Math.max(38, 33 / Math.min(aspect, 1.6));
+    baseSpan = Math.max(34, 44 / aspect);
     placeCamera();
   }
 
@@ -342,6 +346,7 @@
     chipSig = sig;
     while (chipsEl.firstChild) { chipsEl.removeChild(chipsEl.firstChild); }
     function chip(label, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'o3-chip'; b.textContent = label; b.addEventListener('click', fn); chipsEl.appendChild(b); }
+    chip('آخر التسليمات', function () { var h = document.getElementById('handoffsHeading'); if (h) { h.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
     chip('الكل', function () { flyTo(new THREE.Vector3(12.5, 0, 9), 1); });
     chip('المديرة', function () { flyTo(new THREE.Vector3(11.5, 0, -3.6), 3.2); });
     depts.forEach(function (d) {
@@ -574,6 +579,7 @@
     if (Object.keys(people).length < 5) { failScene(); }
   }
   function failScene() {
+    host.classList.remove('o3-active'); document.documentElement.classList.remove('o3-on');
     host.classList.add('o3-failed');
     var lv = document.getElementById('listView'); if (lv) { lv.open = true; }
     if (hint) { hint.hidden = false; hint.textContent = 'المشهد ثلاثي الأبعاد مش شغال على جهازك، عرضنا القائمة بدله.' + (window.__o3err ? ' (' + window.__o3err.slice(0, 90) + ')' : ''); }
