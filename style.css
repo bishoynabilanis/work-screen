@@ -1355,3 +1355,9 @@ button {
 .o3-zone { position: absolute; left: 0; top: 0; pointer-events: auto; border: 2px solid #ccc; background: rgba(255,255,255,0.94); color: #1c232c; border-radius: 10px; padding: 4px 9px; font: 800 11px/1.2 inherit; font-family: inherit; box-shadow: 0 3px 8px rgba(20,30,50,0.28); white-space: nowrap; cursor: pointer; }
 .office3d.o3-failed .o3-stage, .office3d.o3-failed .o3-chips { display: none; }
 .office3d.o3-failed { border-radius: 14px; }
+
+/* office fills the screen, page keeps scrolling */
+html.o3-on .o3-active .o3-stage { height: min(calc(100dvh - var(--hh, 64px) - 52px), 108vw, 900px); min-height: 320px; }
+@media (min-aspect-ratio: 1/1) { html.o3-on .o3-active .o3-stage { height: calc(100dvh - var(--hh, 64px) - 52px); } }
+html.o3-on .office3d.o3-active { border-radius: 0; margin: 0 -14px 14px; border-left: 0; border-right: 0; }
+.o3-active .o3-hint { display: none; }
