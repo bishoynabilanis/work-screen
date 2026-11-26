@@ -3,7 +3,7 @@
 
   var FEED_URL = 'feed.json';
   var POLL_MS = 10000;
-  var TICK_MS = 30000;
+  var TICK_MS = 5000;
   var REQUEST_TIMEOUT_MS = 8000;
   var HANDOFF_WINDOW_MS = 3 * 60 * 1000;
   var PLAYED_STORAGE_KEY = 'office-played-handoffs-v1';
@@ -197,30 +197,16 @@
       return '';
     }
     var diff = Date.now() - date.getTime();
-    if (diff < 0) {
-      diff = 0;
+    if (diff < 120000) {
+      return 'اتسلّم دلوقتي';
     }
-    var sec = Math.floor(diff / 1000);
-    if (sec < 60) {
-      return 'دلوقتي';
-    }
-    var min = Math.floor(sec / 60);
-    if (min < 60) {
-      return minutesLabel(min);
-    }
-    var hr = Math.floor(min / 60);
-    if (hr < 24) {
-      return hoursLabel(hr);
-    }
-    var day = Math.floor(hr / 24);
-    if (day < 30) {
-      return daysLabel(day);
-    }
-    var month = Math.floor(day / 30);
-    if (month < 12) {
-      return monthsLabel(month);
-    }
-    return yearsLabel(Math.floor(month / 12));
+    var fmt = function (o) { try { return new Intl.DateTimeFormat('ar-EG', o).format(date); } catch (e) { return ''; } };
+    var tz = 'Asia/Dubai';
+    var clock = fmt({ hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz });
+    var dayNow = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+    var dayThen = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(date);
+    if (dayNow === dayThen) { return 'الساعة ' + clock; }
+    return fmt({ day: 'numeric', month: 'short', timeZone: tz }) + ' ' + clock;
   }
 
   function formatAbsolute(value) {
@@ -1300,6 +1286,8 @@
         refresh();
       }
     });
+    window.addEventListener('pageshow', function () { refresh(); });
+    window.addEventListener('focus', function () { refresh(); });
     window.addEventListener('load', registerServiceWorker);
 
     updateOffline();
