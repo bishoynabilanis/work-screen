@@ -48,7 +48,9 @@
 
   var scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0xdfeaf5, 60, 120);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c4d0, 0.95));
+  var hemi = new THREE.HemisphereLight(0xffffff, 0xb8c4d0, 0.95);
+  scene.add(hemi);
+  var winMats = [], cityLights = [], lampGlows = [];
   var sun = new THREE.DirectionalLight(0xfff3dc, 0.75);
   sun.position.set(-10, 24, 14);
   scene.add(sun);
@@ -101,7 +103,12 @@
     for (var i = 0; i < n; i++) {
       var win = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.2), new THREE.MeshBasicMaterial({ color: 0xbfe3ff }));
       win.position.set(-len / 2 + 2.4 + i * 4.2, 0.2, 0.22);
-      g.add(win);
+      g.add(win); winMats.push(win.material);
+      for (var cl = 0; cl < 7; cl++) {
+        var bld = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.3 + ((cl * 37 + i * 11) % 9) * 0.1), new THREE.MeshBasicMaterial({ color: 0xffd98a }));
+        bld.position.set(win.position.x - 1.0 + cl * 0.33, -1.35 + 0.15 + ((cl * 37 + i * 11) % 9) * 0.05, 0.23);
+        bld.visible = false; bld.userData.seed = (cl * 7 + i * 3) % 5; g.add(bld); cityLights.push(bld);
+      }
       var frame = box(2.8, 3.4, 0.08, 0xffffff);
       frame.position.set(win.position.x, 0.2, 0.17);
       g.add(frame);
@@ -213,6 +220,12 @@
     var stand = box(0.08, 0.28, 0.08, 0x2a2d33); stand.position.set(0, 0.93, 0.05); d.add(stand);
     var kb = box(0.55, 0.03, 0.2, 0xdadde2); kb.position.set(0, 0.85, 0.3); d.add(kb);
     var mug = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.12, 8), mat(0xf4511e)); mug.position.set(0.65, 0.89, 0.2); d.add(mug);
+    var lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.03, 8), mat(0x2a2d33)); lampBase.position.set(-0.62, 0.85, 0.15); d.add(lampBase);
+    var lampArm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.32, 5), mat(0x2a2d33)); lampArm.position.set(-0.62, 1.0, 0.15); d.add(lampArm);
+    var lampHead = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.12, 8), new THREE.MeshBasicMaterial({ color: 0x777c86 })); lampHead.position.set(-0.62, 1.17, 0.15); d.add(lampHead);
+    var lampPool = new THREE.Mesh(new THREE.CircleGeometry(0.5, 16), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.0, depthWrite: false }));
+    lampPool.rotation.x = -Math.PI / 2; lampPool.position.set(-0.55, 0.845, 0.25); d.add(lampPool);
+    lampGlows.push({ head: lampHead, pool: lampPool });
     return { group: d, screens: [scr, scr2], monitor: mon };
   }
 
@@ -525,6 +538,41 @@
       return true;
     });
   }
+
+  // ---------- day / night by real Dubai time ----------
+  var sunDisc = new THREE.Mesh(new THREE.CircleGeometry(2.4, 24), new THREE.MeshBasicMaterial({ color: 0xfff2b0, fog: false }));
+  sunDisc.position.set(-14, 16, -22); sunDisc.lookAt(camera.position.x, camera.position.y, camera.position.z); scene.add(sunDisc);
+  var clockEl = document.createElement('div'); clockEl.className = 'o3-clock'; (host.querySelector('.o3-stage') || host).appendChild(clockEl);
+  function dubaiHour() {
+    var m = /[?&]hour=([0-9.]+)/.exec(location.search); if (m) { return parseFloat(m[1]) % 24; }
+    var d = new Date(Date.now() + 4 * 3600 * 1000); return d.getUTCHours() + d.getUTCMinutes() / 60;
+  }
+  function lerpC(a, b, k) { return new THREE.Color(a).lerp(new THREE.Color(b), k); }
+  function applyTime() {
+    var h = dubaiHour();
+    // daylight 0..1: dark before 5:30, ramps to full by 7:30, falls from 17:00 to 19:00
+    var day = h < 5.5 ? 0 : h < 7.5 ? (h - 5.5) / 2 : h < 17 ? 1 : h < 19 ? 1 - (h - 17) / 2 : 0;
+    var warm = (h > 5.5 && h < 8) ? 1 - Math.abs(h - 6.7) / 1.3 : (h > 16.5 && h < 19.3) ? 1 - Math.abs(h - 17.9) / 1.4 : 0; warm = Math.max(0, Math.min(1, warm));
+    var night = 1 - day;
+    var sky = lerpC(0x0c1428, 0xdfeaf5, day); if (warm > 0) { sky.lerp(new THREE.Color(0xf0a878), warm * 0.55); }
+    renderer.setClearColor(sky, 1); scene.fog.color.copy(sky);
+    hemi.intensity = 0.42 + 0.53 * day; hemi.color.set(lerpC(0xb8c6ff, 0xffffff, day));
+    sun.intensity = 0.1 + 0.65 * day; sun.color.set(lerpC(0xfff3dc, 0xffb070, warm));
+    var glass = lerpC(0x0b1738, 0xbfe3ff, day); if (warm > 0) { glass.lerp(new THREE.Color(0xffc99a), warm * 0.6); }
+    winMats.forEach(function (m) { m.color.copy(glass); });
+    cityLights.forEach(function (b) { b.visible = night > 0.35 && ((b.userData.seed + Math.floor(h * 2)) % 5 !== 0); });
+    lampGlows.forEach(function (l) { l.pool.material.opacity = 0.5 * night; l.head.material.color.set(night > 0.4 ? 0xffd27a : 0x777c86); });
+    // sun by day, moon by night
+    var isDay = h >= 6 && h < 18;
+    var prog = isDay ? (h - 6) / 12 : ((h + 6) % 24) / 12;
+    sunDisc.material.color.set(isDay ? lerpC(0xfff2b0, 0xffb070, warm) : 0xdfe6ff);
+    sunDisc.position.set(-22 + prog * 26, 8 + Math.sin(prog * Math.PI) * 14, -22);
+    sunDisc.lookAt(camera.position);
+    var hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
+    clockEl.textContent = (isDay ? '☀ ' : '☾ ') + 'دبي ' + (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
+    clockEl.className = 'o3-clock' + (night > 0.5 ? ' is-night' : '');
+  }
+  applyTime(); setInterval(applyTime, 60000);
 
   function walk(item) {
     var from = people[String(item.from)], to = people[String(item.to)];
