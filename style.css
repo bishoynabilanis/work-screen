@@ -1363,3 +1363,9 @@ html.o3-on .office3d.o3-active { border-radius: 0; margin: 0 -14px 14px; border-
 .o3-active .o3-hint { display: none; }
 .o3-clock { position: absolute; top: 10px; left: 10px; z-index: 3; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.9); color: #27303b; font: 800 12px/1.2 inherit; font-family: inherit; box-shadow: 0 2px 6px rgba(20,30,50,0.25); pointer-events: none; }
 .o3-clock.is-night { background: rgba(20,28,52,0.85); color: #ffe9b0; }
+.o3-portrait .o3-zone { font-size: 9px; padding: 2px 6px; border-width: 1.5px; border-radius: 8px; }
+.o3-portrait .o3-label { font-size: 8px; padding: 1px 4px; }
+.o3-portrait .o3-label span { font-size: 7px; }
+.o3-portrait .o3-bubble { font-size: 9px; padding: 3px 7px; }
+.o3-portrait .o3-clock { font-size: 10px; padding: 3px 8px; }
+@media (max-aspect-ratio: 1/1) { html.o3-on .o3-active .o3-stage { height: min(calc(100dvh - var(--hh, 64px) - 52px), 125vw, 900px); } }
