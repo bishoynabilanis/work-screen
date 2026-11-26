@@ -1353,3 +1353,5 @@ button {
 .list-view > summary { cursor: pointer; padding: 10px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); color: var(--text-soft); font-weight: 700; font-size: 13px; }
 .list-view[open] > summary { margin-bottom: 12px; }
 .o3-zone { position: absolute; left: 0; top: 0; pointer-events: auto; border: 2px solid #ccc; background: rgba(255,255,255,0.94); color: #1c232c; border-radius: 10px; padding: 4px 9px; font: 800 11px/1.2 inherit; font-family: inherit; box-shadow: 0 3px 8px rgba(20,30,50,0.28); white-space: nowrap; cursor: pointer; }
+.office3d.o3-failed .o3-stage, .office3d.o3-failed .o3-chips { display: none; }
+.office3d.o3-failed { border-radius: 14px; }
