@@ -1390,3 +1390,16 @@ html.o3-on .office3d.o3-active { border-radius: 0; margin: 0 -14px 14px; border-
 .o3-portrait .o3-status { font-size: 7.5px; padding: 1px 4px; }
 .o3-portrait .o3-st-text { max-width: 96px; }
 .o3-portrait .o3-dots u { width: 3px; height: 3px; }
+
+/* live indicator + full-width layout on tablets */
+.updated.is-live .updated-label { display: inline-flex; align-items: center; gap: 5px; color: #4ade80; font-weight: 800; }
+.updated.is-live .updated-label::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74,222,128,.7); animation: livepulse 1.6s infinite; }
+.updated.is-live .updated-value { letter-spacing: .5px; }
+.updated.flash { border-color: #4ade80; transition: border-color .2s; }
+@keyframes livepulse { 0% { box-shadow: 0 0 0 0 rgba(74,222,128,.7); } 70% { box-shadow: 0 0 0 8px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
+html.o3-on .topbar-inner, html.o3-on .wrap { max-width: none; }
+html.o3-on .o3-active .o3-stage { min-height: 320px; }
+@media (min-width: 700px) {
+  html.o3-on .office3d.o3-active { margin: 0 -22px 14px; }
+}
+@media (max-aspect-ratio: 1/1) { html.o3-on .o3-active .o3-stage { height: calc(100dvh - var(--hh, 64px) - 52px); } }
