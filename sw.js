@@ -1,6 +1,6 @@
 'use strict';
 
-var CACHE_NAME = 'office-scene-v4';
+var CACHE_NAME = 'office-scene-v5';
 var SHELL = ['./', './index.html', './style.css', './app.js', './office3d.js', './manifest.json', './feed.json'];
 
 self.addEventListener('install', function (event) {
@@ -85,46 +85,34 @@ function handleFeed(request) {
     });
 }
 
-function handleNavigation(request) {
-  return caches.open(CACHE_NAME).then(function (cache) {
-    return cache.match(request).then(function (cached) {
-      if (cached) {
-        return cached;
-      }
-      return cache.match('./index.html').then(function (shell) {
-        if (shell) {
-          return shell;
-        }
-        return fetch(request);
-      });
-    });
+function networkFirst(request, fallbackKey) {
+  return fetch(request, { cache: 'no-store' }).then(function (response) {
+    if (response && response.ok) {
+      var copy = response.clone();
+      caches.open(CACHE_NAME).then(function (cache) { cache.put(request, copy); });
+    }
+    return response;
   }).catch(function () {
-    return new Response('offline', {
-      status: 503,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+    return caches.open(CACHE_NAME).then(function (cache) {
+      return cache.match(request, { ignoreSearch: true }).then(function (cached) {
+        if (cached) { return cached; }
+        if (fallbackKey) {
+          return cache.match(fallbackKey).then(function (shell) {
+            return shell || new Response('offline', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+          });
+        }
+        return new Response('offline', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+      });
     });
   });
 }
 
+function handleNavigation(request) {
+  return networkFirst(request, './index.html');
+}
+
 function handleAsset(request) {
-  return caches.open(CACHE_NAME).then(function (cache) {
-    return cache.match(request, { ignoreSearch: true }).then(function (cached) {
-      if (cached) {
-        return cached;
-      }
-      return fetch(request).then(function (response) {
-        if (response && response.ok) {
-          var copy = response.clone();
-          return cache.put(request, copy).then(function () {
-            return response;
-          });
-        }
-        return response;
-      });
-    });
-  }).catch(function () {
-    return new Response('', { status: 504 });
-  });
+  return networkFirst(request, null);
 }
 
 self.addEventListener('fetch', function (event) {
