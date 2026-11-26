@@ -33,6 +33,16 @@
       <span class="offline-text">إنت أوفلاين — بنعرض آخر نسخة محفوظة</span>
     </div>
 
+    <section class="office3d" id="office3d" aria-label="مكتب الشغل ثلاثي الأبعاد">
+      <div class="o3-chips" role="toolbar" aria-label="الأقسام"></div>
+      <div class="o3-stage">
+        <div class="o3-canvas"></div>
+        <div class="o3-labels" aria-hidden="true"></div>
+      </div>
+      <p class="o3-hint" hidden>اسحب للتحريك، قرّب بإصبعين، واضغط على أي شخص لتفاصيله</p>
+    </section>
+
+    <details class="list-view" id="listView"><summary>عرض الأقسام كقائمة</summary>
     <section class="office" id="office" aria-label="مكتب الشغل">
       <section class="manager-zone" aria-labelledby="managerHeading">
         <div class="zone-head">
@@ -46,6 +56,7 @@
 
       <div id="walkerLayer" class="walker-layer" aria-hidden="true"></div>
     </section>
+    </details>
 
     <section class="handoffs" aria-labelledby="handoffsHeading">
       <div class="section-head">
@@ -97,5 +108,7 @@
   </section>
 
   <script src="app.js" defer></script>
+  <script src='https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js'></script>
+  <script src='office3d.js'></script>
 </body>
 </html>
