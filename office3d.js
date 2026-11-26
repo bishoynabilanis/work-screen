@@ -268,7 +268,10 @@
   }
 
   // ---------- build from feed ----------
+  var gotFeed = false;
   var built = false, deptsBuilt = {};
+  var errs = [];
+  function noteErr(e, where) { errs.push(where + ': ' + (e && e.message ? e.message : e)); window.__o3err = errs.slice(0, 3).join(' | '); }
   var chipSig = '';
 
   function stateKey(s) {
@@ -287,8 +290,8 @@
       if (deptsBuilt[id]) { return; }
       var list = byDept[id].slice().sort(function (a, b) { return (a.level === 'lead' ? 0 : 1) - (b.level === 'lead' ? 0 : 1); });
       deptsBuilt[id] = list.length;
-      buildZone(id, list.length, names[id] || id);
-      list.forEach(function (s, i) { makePersonAt(String(s.id), slotFor(id, i), id, false); });
+      try { buildZone(id, list.length, names[id] || id); } catch (e) { noteErr(e, 'zone ' + id); }
+      list.forEach(function (s, i) { try { makePersonAt(String(s.id), slotFor(id, i), id, false); } catch (e) { noteErr(e, 'p ' + s.id); } });
     });
     if (!people['mgr']) {
       var mp = makePersonAt('mgr', { x: 11.5, z: -3.6 }, 'mgr', true);
@@ -302,6 +305,7 @@
   }
 
   function update(feed) {
+    gotFeed = true;
     if (!feed || typeof feed !== 'object') { return; }
     if (!built || Object.keys(deptsBuilt).length === 0) { build(feed); }
     var staff = Array.isArray(feed.staff) ? feed.staff : [];
@@ -561,6 +565,21 @@
   resize();
   frame();
 
-  window.Office3D = { ready: true, update: update, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
+  function safeUpdate(feed) {
+    try { update(feed); } catch (e) { noteErr(e, 'update'); }
+    if (Object.keys(people).length < 5) { failScene(); }
+  }
+  function failScene() {
+    host.classList.add('o3-failed');
+    var lv = document.getElementById('listView'); if (lv) { lv.open = true; }
+    if (hint) { hint.hidden = false; hint.textContent = 'المشهد ثلاثي الأبعاد مش شغال على جهازك، عرضنا القائمة بدله.' + (window.__o3err ? ' (' + window.__o3err.slice(0, 90) + ')' : ''); }
+    window.Office3D.ready = false;
+  }
+  setTimeout(function () {
+    if (!gotFeed) {
+      fetch('feed.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (f) { safeUpdate(f); }).catch(function () { failScene(); });
+    }
+  }, 3500);
+  window.Office3D = { ready: true, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
   if (hint) { hint.hidden = false; }
 })();
