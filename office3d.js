@@ -1011,7 +1011,7 @@
     var zWc = canvasWrap.clientWidth || 0;
     zItems.forEach(function (it) {
       var zi = it.zi;
-      var zhw = (zi.el.offsetWidth || 0) / 2 + 6, zx = zWc > zhw * 2 ? Math.min(zWc - zhw - (it.py < 130 ? 58 : 0), Math.max(zhw, it.px)) : it.px;
+      var zhw = (zi.el.offsetWidth || 0) / 2 + 14, zx = zWc > zhw * 2 ? Math.min(zWc - zhw - (it.py < 130 ? 58 : 0), Math.max(zhw, it.px)) : it.px;
       var zhh = (zi.el.offsetHeight || 24) / 2 + 3, zy = it.py;
       for (var pass = 0; pass < 10; pass++) {
         var hit = false;
@@ -1312,7 +1312,6 @@
       var b = r.bones, run = r.state === 'running';
       ['Left', 'Right'].forEach(function (sd, i) {
         var fa = b[sd + 'ForeArm']; if (!fa) { return; }
-        fa.rotation.x = fa.userData.br.x + 1.1 + (run ? Math.sin(tt * 11 + i * 1.7) * 0.07 : 0);
       });
       if (b.Head) { b.Head.rotation.y = r.state === 'waiting' ? Math.sin(tt * 0.8) * 0.3 : (run ? Math.sin(tt * 1.1) * 0.06 : 0); }
       if (b.Spine) { b.Spine.rotation.x = 0.08 + Math.sin(tt * 1.6 + (r.fidPh || 0)) * 0.012; }
