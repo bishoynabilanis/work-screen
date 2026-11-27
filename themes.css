@@ -1,0 +1,32 @@
+/* Idea 39: three themes. Default (no data-theme) = futuristic blue, defined in style.css. */
+html[data-theme="gold"] {
+  color-scheme: dark;
+  --bg: #130d06; --bg-soft: #1c1309; --surface: rgba(34, 22, 10, 0.78); --surface-2: rgba(52, 34, 14, 0.78);
+  --line: rgba(255, 190, 90, 0.18); --line-strong: rgba(255, 190, 90, 0.42);
+  --text: #fff4e2; --text-soft: #ecd5b0; --muted: #c2a477;
+  --accent: #f5b942; --accent-soft: #ffd584; --neon-a: #f5b942; --neon-b: #f4511e; --neon-c: #f4511e;
+  --green: #7fd6a0; --amber: #ffcc4d; --red: #ff7a7a; --teal: #f5b942;
+  --glow-a: 0 0 6px rgba(245,185,66,.5), 0 0 18px rgba(245,185,66,.25);
+  --glow-b: 0 0 6px rgba(244,81,30,.5), 0 0 18px rgba(244,81,30,.25);
+  --shadow: 0 18px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(255,190,90,.14);
+}
+html[data-theme="gold"] body {
+  background:
+    radial-gradient(900px 520px at 100% -10%, rgba(244,81,30,.2), transparent 60%),
+    radial-gradient(900px 560px at -10% 110%, rgba(245,185,66,.16), transparent 58%),
+    linear-gradient(rgba(255,190,90,.045) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, rgba(255,190,90,.045) 1px, transparent 1px) 0 0 / 44px 44px,
+    var(--bg);
+  background-attachment: fixed;
+}
+/* light: whole page is inverted from the dark identity, media is inverted back so the scene keeps its real colours */
+html[data-theme="light"] { color-scheme: light; filter: invert(1) hue-rotate(180deg); }
+html[data-theme="light"] .o3-stage canvas, html[data-theme="light"] img, html[data-theme="light"] video { filter: invert(1) hue-rotate(180deg) brightness(1.03); }
+html[data-theme="gold"] .o3-stage canvas { filter: sepia(.32) saturate(1.12) hue-rotate(-6deg) brightness(.94); }
+/* toggle */
+#ws-theme-btn {
+  min-width: 44px; min-height: 44px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+  font-size: 14px; font-weight: 700; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--line-strong); margin-inline-start: 12px;
+}
+#ws-theme-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
