@@ -1115,11 +1115,11 @@
           if (!m || m.event !== 'message' || !m.id || statusSeen[m.id]) { return; }
           statusSeen[m.id] = true; statusSince = m.id;
           var b = null; try { b = JSON.parse(m.message); } catch (e) { b = null; }
-          var nm = '', tx = '', stt = '', aid = '', nx = '', dn = -1, pd = -1;
-          if (b && typeof b === 'object') { nm = cleanText(b.name, 40); tx = cleanText(b.text, 160); stt = b.state === 'done' ? 'done' : 'start'; aid = cleanText(b.id, 40); nx = cleanText(b.next, 120); dn = isFinite(+b.done) && b.done !== null && b.done !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.done))) : -1; pd = isFinite(+b.pending) && b.pending !== null && b.pending !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.pending))) : -1; }
+          var nm = '', tx = '', stt = '', aid = '', nx = '', dn = -1, pd = -1, jb = '', rs = '';
+          if (b && typeof b === 'object') { nm = cleanText(b.name, 40); tx = cleanText(b.text, 160); stt = b.state === 'done' ? 'done' : 'start'; aid = cleanText(b.id, 40); jb = cleanText(b.job, 60); rs = (b.result === 'got' || b.result === 'none' || b.result === 'pending') ? b.result : ''; nx = cleanText(b.next, 120); dn = isFinite(+b.done) && b.done !== null && b.done !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.done))) : -1; pd = isFinite(+b.pending) && b.pending !== null && b.pending !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.pending))) : -1; }
           else { tx = cleanText(m.message, 160); nm = cleanText(m.title, 40); stt = 'start'; }
           if (!tx) { return; }
-          statusLines.push({ id: aid, name: nm, text: tx, state: stt, next: nx, done: dn, pending: pd, ms: (m.time || 0) * 1000 });
+          statusLines.push({ id: aid, name: nm, text: tx, state: stt, next: nx, done: dn, pending: pd, job: jb, result: rs, ms: (m.time || 0) * 1000 });
           changed = true;
         });
         if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 60); try { renderLog(); renderCard(); } catch (e) {} }
@@ -1130,7 +1130,8 @@
 
   // ---- Per-agent card: now / next / progress, from the live status stream (text only) ----
   function agentLive(id, name) {
-    var i; for (i = 0; i < statusLines.length; i++) { var e = statusLines[i]; if ((id && e.id && e.id === id) || (name && e.name && e.name === name)) { return e; } }
+    var AL = { 'scout': 't5', 'jessica-dev': 'j2', 'security': 'q14', 'yt-replies': 'c4', 'tiktok': 'v1' };
+    var i; for (i = 0; i < statusLines.length; i++) { var e = statusLines[i], cid = AL[e.id] || e.id; if ((id && cid && cid === id) || (name && e.name && e.name === name)) { return e; } }
     return null;
   }
   var cardEl = null, cardFor = null;
@@ -1292,15 +1293,37 @@
     if (logPanel) { return logPanel; }
     var host = document.getElementById('office3d'); if (!host) { return null; }
     logPanel = make('aside', 'o3-log');
-    logPanel.innerHTML = '<div class="o3-log-head"><b>سجل الشغل</b><span>بصيغة كل واحد بنفسه</span></div><div class="o3-pipes"></div><ul class="o3-lines"></ul>';
+    logPanel.innerHTML = '<div class="o3-log-head"><b>سجل الشغل</b><span>بصيغة كل واحد بنفسه</span></div><div class="o3-jobtog" style="display:flex;gap:6px;margin:6px 0"></div><div class="o3-pipes"></div><ul class="o3-lines"></ul>';
+    (function () { var tg = logPanel.querySelector('.o3-jobtog'); [['السجل', false], ['الشغلانات', true]].forEach(function (a) { var bt = make('button', ''); bt.type = 'button'; bt.textContent = a[0]; bt.style.cssText = 'flex:1;padding:6px;border-radius:10px;border:1px solid rgba(80,200,230,.4);background:rgba(255,255,255,.06);color:#fff;font-size:12px;cursor:pointer'; bt.addEventListener('click', function () { jobsMode = a[1]; renderLog(); Array.prototype.forEach.call(tg.children, function (c, i) { c.style.background = (i === 1) === jobsMode ? 'rgba(43,176,160,.45)' : 'rgba(255,255,255,.06)'; }); }); tg.appendChild(bt); }); tg.children[0].style.background = 'rgba(43,176,160,.45)'; })();
     host.appendChild(logPanel);
     return logPanel;
+  }
+
+  var jobsMode = false;
+  function renderJobs(lines, pipes) {
+    var latest = {}, order = [];
+    statusLines.forEach(function (e) { var k = (e.id || e.name || '?') + '|' + (e.job || ''); if (!latest[k]) { latest[k] = e; order.push(k); } });
+    var jobs = {}, jo = [];
+    order.forEach(function (k) { var e = latest[k], jn = e.job || 'من غير شغلانة محددة'; if (!jobs[jn]) { jobs[jn] = []; jo.push(jn); } jobs[jn].push(e); });
+    if (!jo.length) { var em = make('li', 'o3-empty'); em.textContent = 'مفيش شغلانات وصلت من الموظفين لسه (الحقل job).'; lines.appendChild(em); return; }
+    jo.forEach(function (jn) {
+      var ag = jobs[jn], dn = 0, pd = 0, hasNum = false, fin = true, res = '';
+      ag.forEach(function (e) { if (e.done >= 0 && e.pending >= 0) { dn += e.done; pd += e.pending; hasNum = true; } if (e.state !== 'done') { fin = false; } if (e.result === 'got') { res = 'got'; } else if (e.result === 'pending' && res !== 'got') { res = 'pending'; } else if (e.result === 'none' && !res) { res = 'none'; } });
+      if (hasNum && pd > 0) { fin = false; }
+      var li = make('li', 'o3-line'); li.style.marginBottom = '8px';
+      var t = make('div', ''); t.style.cssText = 'font-weight:800;font-size:13px'; t.textContent = jn + ' · ' + ag.length + ' موظف · ' + (fin ? '✓ خلصت' : '● لسه شغالة'); li.appendChild(t);
+      var rl = make('div', ''); rl.style.cssText = 'font-size:12px;color:#8aa3bf'; rl.textContent = 'النتيجة: ' + (res === 'got' ? 'طلعت نتيجة' : res === 'none' ? 'مفيش نتيجة' : res === 'pending' ? 'لسه مستنية' : 'لسه ما اتبعتش'); li.appendChild(rl);
+      if (hasNum) { var tot = dn + pd, pc = tot ? Math.round(dn * 100 / tot) : 0; var bar = make('div', ''); bar.style.cssText = 'height:7px;border-radius:6px;background:rgba(255,255,255,.12);margin:5px 0;overflow:hidden'; var f = make('div', ''); f.style.cssText = 'height:100%;background:#2bb0a0;width:' + pc + '%'; bar.appendChild(f); li.appendChild(bar); var pl = make('div', ''); pl.style.cssText = 'font-size:11px;color:#8aa3bf'; pl.textContent = dn + ' اتعمل / ' + pd + ' فاضل (' + pc + '%)'; li.appendChild(pl); }
+      ag.forEach(function (e) { var d = make('div', ''); d.style.cssText = 'font-size:12px;margin-top:3px'; d.textContent = (e.name || e.id || '؟') + ': ' + (e.state === 'done' ? '✓ ' : '● ') + e.text + (e.next ? ' ← الجاي: ' + e.next : ''); li.appendChild(d); });
+      lines.appendChild(li);
+    });
   }
   function renderLog() {
     var panel = ensureLogPanel(); if (!panel) { return; }
     var evs = liveEvents.filter(function (e) { return e.t === 'h' || e.t === 'r'; });
     var lines = panel.querySelector('.o3-lines'), pipes = panel.querySelector('.o3-pipes');
     lines.textContent = ''; pipes.textContent = '';
+    if (jobsMode) { renderJobs(lines, pipes); return; }
     if (statusLines.length) {
       var sh = make('li', 'o3-empty'); sh.textContent = 'شغل حي دلوقتي (الأحدث فوق):'; lines.appendChild(sh);
       statusLines.slice(0, 25).forEach(function (e) {
