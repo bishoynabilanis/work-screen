@@ -331,10 +331,10 @@
     d.group.position.set(pos.x, 0, pos.z);
     scene.add(d.group);
     var chair = buildChair();
-    chair.position.set(pos.x, 0, pos.z - 0.95);
+    chair.position.set(pos.x, 0, pos.z - 0.72);
     scene.add(chair);
     var p = buildPerson(id);
-    var seat = new THREE.Vector3(pos.x, 0.12, pos.z - 0.95);
+    var seat = new THREE.Vector3(pos.x, 0.12, pos.z - 0.72);
     p.group.position.copy(seat);
     p.group.position.y = 0.0;
     scene.add(p.group);
@@ -342,7 +342,7 @@
     if (!window.__o3NoChars) { p.group.visible = false; setTimeout(function () { p.group.visible = true; }, 90000); }
     // stand/sit: lift body to seat, tuck legs
     var ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
-    ring.rotation.x = -Math.PI / 2; ring.position.set(pos.x, 0.09, pos.z - 0.95); scene.add(ring);
+    ring.rotation.x = -Math.PI / 2; ring.position.set(pos.x, 0.09, pos.z - 0.72); scene.add(ring);
     var rec = {
       id: id, dept: deptId, desk: d, chair: chair, person: p, ring: ring, seat: seat, front: new THREE.Vector3(pos.x, 0, pos.z + 0.95),
       state: 'unknown', label: makeLabel(), away: false, time: Math.random() * 6, nameText: '', roleText: ''
@@ -752,6 +752,39 @@
   }
   var walkPhase = 0;
 
+  var avoidRects = [], avoidN = 0;
+  function refreshAvoid() {
+    
+    var lr = labelLayer.getBoundingClientRect(); avoidRects = [];
+    ['.o3-floors', '.o3-floors-toggle', '.o3-sound', '.o3-view', '.o3-clock', '.o3-cams', '.o3-fs-btn', '.o3-modes', '.o3-fsbtn'].forEach(function (sel) {
+      var n = host.querySelectorAll(sel);
+      for (var i = 0; i < n.length; i++) { var r = n[i].getBoundingClientRect(); if (r.width > 4 && r.height > 4) { avoidRects.push({ l: r.left - lr.left - 4, t: r.top - lr.top - 4, r: r.right - lr.left + 4, b: r.bottom - lr.top + 4 }); } }
+    });
+    avoidRects.push({ l: lr.width - 64, t: 0, r: lr.width + 10, b: 120 });
+  }
+  var placed = [];
+  function placeEl(el, x, y, anchor, nocol) {
+    var w = el.offsetWidth || 60, h = el.offsetHeight || 24, W = labelLayer.clientWidth || 300, H = labelLayer.clientHeight || 300;
+    if (W < w + 16 || H < h + 16) { el.style.display = 'none'; return false; }
+    var cx = Math.min(W - w / 2 - 8, Math.max(w / 2 + 8, x));
+    var top = anchor === 'b' ? y - h : y - h / 2;
+    top = Math.min(H - h - 8, Math.max(8, top));
+    var l = cx - w / 2, r = cx + w / 2;
+    for (var i = 0; i < avoidRects.length; i++) { var a = avoidRects[i]; if (l < a.r && r > a.l && top < a.b && top + h > a.t) { el.style.display = 'none'; return false; } }
+    if (!nocol) {
+      for (var pass = 0; pass < 8; pass++) {
+        var moved = false;
+        for (var k = 0; k < placed.length; k++) { var q = placed[k]; if (l < q.r - 1 && r > q.l + 1 && top < q.b - 1 && top + h > q.t + 1) { top = q.t - h - 2; moved = true; } }
+        if (!moved) { break; }
+        if (top < 8) { el.style.display = 'none'; return false; }
+        for (var j = 0; j < avoidRects.length; j++) { var a2 = avoidRects[j]; if (l < a2.r && r > a2.l && top < a2.b && top + h > a2.t) { el.style.display = 'none'; return false; } }
+      }
+      for (var k2 = 0; k2 < placed.length; k2++) { var q2 = placed[k2]; if (l < q2.r - 1 && r > q2.l + 1 && top < q2.b - 1 && top + h > q2.t + 1) { el.style.display = 'none'; return false; } }
+    }
+    placed.push({ l: l, r: r, t: top, b: top + h });
+    el.style.transform = 'translate(' + cx.toFixed(1) + 'px,' + (top + (anchor === 'b' ? h : h / 2)).toFixed(1) + 'px) translate(-50%,' + (anchor === 'b' ? '-100%' : '-50%') + ')';
+    return true;
+  }
   var bubbleEl = document.createElement('div');
   bubbleEl.className = 'o3-bubble'; bubbleEl.hidden = true;
   labelLayer.appendChild(bubbleEl);
@@ -990,7 +1023,7 @@
     var zRects = [];
     (function () { /* keep labels clear of the floor menu, camera buttons and clock */
       var cw = canvasWrap.getBoundingClientRect();
-      ['.o3-floors', '.o3-cams', '.o3-clock', '.o3-fs-btn'].forEach(function (sel) {
+      ['.o3-floors', '.o3-floors-toggle', '.o3-cams', '.o3-clock', '.o3-fs-btn'].forEach(function (sel) {
         var e = host.querySelector(sel); if (!e || e.hidden) { return; }
         var cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden') { return; }
         var r = e.getBoundingClientRect(); if (!r.width) { return; }
@@ -998,6 +1031,7 @@
       });
     })();
     var SHORT = { 'غرفة الاجتماعات': 'الاجتماعات', 'مكتب المالك': 'المالك', 'مكتب المديرة': 'المديرة' };
+    refreshAvoid(); placed.length = 0;
     var zItems = [];
     Object.keys(zoneInfo).forEach(function (zid) {
       var zi = zoneInfo[zid]; if (!zi.el) { return; }
@@ -1011,8 +1045,9 @@
     var zWc = canvasWrap.clientWidth || 0;
     zItems.forEach(function (it) {
       var zi = it.zi;
-      var zhw = (zi.el.offsetWidth || 0) / 2 + 6, zx = zWc > zhw * 2 ? Math.min(zWc - zhw - (it.py < 130 ? 58 : 0), Math.max(zhw, it.px)) : it.px;
+      var zhw = (zi.el.offsetWidth || 0) / 2 + 14, zx = zWc > zhw * 2 ? Math.min(zWc - zhw - (it.py < 130 ? 58 : 0), Math.max(zhw, it.px)) : it.px;
       var zhh = (zi.el.offsetHeight || 24) / 2 + 3, zy = it.py;
+      var zH = canvasWrap.clientHeight || 400; zy = Math.min(zH - zhh - 8, Math.max(zhh + 8, zy));
       for (var pass = 0; pass < 10; pass++) {
         var hit = false;
         for (var zr = 0; zr < zRects.length; zr++) { var q = zRects[zr]; if (Math.abs(zx - q.x) < zhw + q.w && Math.abs(zy - q.y) < zhh + q.h) { zy = q.y + q.h + zhh + 1; hit = true; } }
@@ -1020,8 +1055,8 @@
       }
       var show = !showNames && it.vis && !zi.hidden && !buildOn;
       if (show) { zRects.push({ x: zx, y: zy, w: zhw, h: zhh }); }
-      zi.el.style.transform = 'translate(' + zx.toFixed(1) + 'px,' + zy.toFixed(1) + 'px) translate(-50%,-50%)';
       zi.el.style.display = show ? '' : 'none';
+      if (show && !placeEl(zi.el, zx, zy, 'c', true)) { show = false; }
       zi.rx = it.px; zi.ry = it.py; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = show;
     });
     Object.keys(people).forEach(function (id) {
@@ -1051,8 +1086,8 @@
       var fo = floorOff(r.dept); if (fo) { headPos = new THREE.Vector3(headPos.x, headPos.y + fo, headPos.z); }
       project(headPos, 3.0 + fo, pt);
       var lb = r.label;
-      lb.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-100%)';
       lb.style.display = (pt.vis && !r.hidden && (showNames || r.away)) ? '' : 'none';
+      if (lb.style.display !== 'none') { placeEl(lb, pt.x, pt.y, 'b'); }
       lb.classList.toggle('show-role', showRole);
       lb.classList.toggle('is-away', !!r.away);
       var sb = lb.__s;
@@ -1066,13 +1101,13 @@
       if (showSt) {
         sb.classList.toggle('full', showNames);
         var lift = showNames ? (showRole ? 36 : 24) : 4;
-        sb.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + (pt.y - lift).toFixed(1) + 'px) translate(-50%,-100%)';
+        placeEl(sb, pt.x, pt.y - lift, 'b');
       }
     });
     if (bubbleFor) {
       project(bubbleFor.person.group.position, 2.45, pt);
       if (walkRing) { walkRing.visible = !!(walkFor && walkFor.away); if (walkFor) { walkRing.position.set(walkFor.person.group.position.x, 0.06, walkFor.person.group.position.z); walkRing.rotation.z += dt * 2; } }
-      bubbleEl.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-100%)';
+      bubbleEl.style.display = ''; if (!bubbleEl.hidden) { placeEl(bubbleEl, pt.x, pt.y, 'b'); }
     }
     stepEnvelopes();
     renderFinal();
@@ -1255,14 +1290,15 @@
       })();
     });
   }
-  var G_H = 1.45;
+  var G_H = 1.7;
   function upgradePerson(rec) {
     if (rec.char) { return; }
     var key = charKeyFor(rec.id), tpl = charTpl[key]; if (!tpl) { return; }
     var L = window.O3Loaders, inst = L.SkeletonUtils.clone(tpl.scene);
     inst.traverse(function (o) { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; o.receiveShadow = false; } });
     var h = hashStr(rec.id), wrap = new THREE.Group(); wrap.add(inst);
-    var sc = G_H / tpl.h * (0.96 + (h % 9) * 0.01); inst.scale.setScalar(sc);
+    if (!tpl.hh) { inst.updateMatrixWorld(true); var tb = {}; inst.traverse(function (o) { if (o.isBone) { tb[o.name] = o; } }); var vh = new THREE.Vector3(), vt = new THREE.Vector3(), vt2 = new THREE.Vector3(); if (tb.Head && tb.LeftToeBase) { tb.Head.getWorldPosition(vh); tb.LeftToeBase.getWorldPosition(vt); (tb.RightToeBase || tb.LeftToeBase).getWorldPosition(vt2); var ty = Math.min(vt.y, vt2.y); tpl.hh = (vh.y - ty) * 1.12; tpl.my = ty - (vh.y - ty) * 0.02; } else { tpl.hh = tpl.h; tpl.my = tpl.minY; } }
+    var sc = G_H / tpl.hh * (0.96 + (h % 9) * 0.01); inst.scale.setScalar(sc);
     var bones = {}; inst.traverse(function (o) { if (o.isBone) { bones[o.name] = o; o.userData.bp = o.position.clone(); o.userData.br = o.rotation.clone(); } });
     var g = rec.person.group;
     g.children.forEach(function (c) { c.visible = false; });
@@ -1270,27 +1306,33 @@
     var mixer = new THREE.AnimationMixer(inst), acts = {};
     tpl.clips.forEach(function (cl) { acts[cl.name] = mixer.clipAction(cl); });
     rec.char = wrap; rec.inst = inst; rec.bones = bones; rec.mixer = mixer; rec.acts = acts; rec.cMode = ''; rec.lastPos = g.position.clone();
-    rec.gh = tpl.h * sc; rec.minY = tpl.minY * sc;
+    rec.gh = tpl.hh * sc; rec.minY = tpl.my * sc;
     setCharMode(rec, 'sit', true);
   }
   function resetBones(r) { Object.keys(r.bones).forEach(function (k) { var b = r.bones[k]; b.position.copy(b.userData.bp); b.rotation.copy(b.userData.br); }); }
+  var WX = new THREE.Vector3(1, 0, 0), WZ = new THREE.Vector3(0, 0, 1);
+  function wrot(r, bone, ax, ang) {
+    if (!bone || !bone.parent) { return; }
+    r.person.group.updateMatrixWorld(true);
+    var pq = new THREE.Quaternion(); bone.parent.getWorldQuaternion(pq);
+    var qw = new THREE.Quaternion().setFromAxisAngle(ax, ang);
+    bone.quaternion.copy(pq.clone().invert().multiply(qw).multiply(pq).multiply(bone.quaternion));
+  }
   function seatPose(r) {
     resetBones(r); var b = r.bones; if (!b.Hips) { return; }
-    b.Hips.position.y *= 0.60;
     ['Left', 'Right'].forEach(function (sd, i) {
       var sg = i === 0 ? 1 : -1;
-      if (b[sd + 'UpLeg']) { b[sd + 'UpLeg'].rotation.x += -1.45; } if (b[sd + 'Leg']) { b[sd + 'Leg'].rotation.x += 1.5; } if (b[sd + 'Foot']) { b[sd + 'Foot'].rotation.x += -0.1; }
-      if (b[sd + 'Arm']) { b[sd + 'Arm'].rotation.z += sg * -0.5; b[sd + 'Arm'].rotation.x += 0.6; }
-      if (b[sd + 'ForeArm']) { b[sd + 'ForeArm'].rotation.x += 0.9; }
+      wrot(r, b[sd + 'UpLeg'], WX, -1.5); wrot(r, b[sd + 'Leg'], WX, 1.5); wrot(r, b[sd + 'Foot'], WX, -0.1);
+      wrot(r, b[sd + 'Arm'], WZ, sg * -0.3); wrot(r, b[sd + "Arm"], WX, -0.5); wrot(r, b[sd + "ForeArm"], WX, -1.15);
     });
-    if (b.Spine) { b.Spine.rotation.x += 0.08; }
+    wrot(r, b.Spine, WX, -0.08);
   }
   function setCharMode(r, mode, instant) {
     if (r.cMode === mode || !r.acts) { return; }
     var walking = mode === 'walk' || mode === 'walkc';
     r.mixer.stopAllAction();
     if (walking && r.acts.walk) { resetBones(r); r.acts.walk.reset().fadeIn(instant ? 0 : 0.2).play(); r.char.position.set(0, -r.minY, 0); }
-    else if (mode === 'sit') { seatPose(r); r.char.position.set(0, 0, 0); r.person.group.updateMatrixWorld(true); if (r.bones.Hips) { var hw = new THREE.Vector3(), gw = new THREE.Vector3(); r.bones.Hips.getWorldPosition(hw); r.person.group.getWorldPosition(gw); r.char.position.set(-(hw.x - gw.x), 0.67 - (hw.y - gw.y), -(hw.z - gw.z) + CHAR_SIT.z); } r.sitBase = true; }
+    else if (mode === 'sit') { seatPose(r); r.sitQ = {}; ['RightArm', 'RightForeArm'].forEach(function (n) { if (r.bones[n]) { r.sitQ[n] = r.bones[n].quaternion.clone(); } }); r.char.position.set(0, 0, 0); r.person.group.updateMatrixWorld(true); if (r.bones.Hips) { var hw = new THREE.Vector3(), gw = new THREE.Vector3(); r.bones.Hips.getWorldPosition(hw); r.person.group.getWorldPosition(gw); r.char.position.set(-(hw.x - gw.x), 0.67 - (hw.y - gw.y), -(hw.z - gw.z) + CHAR_SIT.z); } r.sitBase = true; }
     else { resetBones(r); r.char.position.set(0, -r.minY, 0); }
     r.cMode = mode;
   }
@@ -1305,8 +1347,9 @@
       var b = r.bones, run = r.state === 'running';
       ['Left', 'Right'].forEach(function (sd, i) {
         var fa = b[sd + 'ForeArm']; if (!fa) { return; }
-        fa.rotation.x = fa.userData.br.x + 1.1 + (run ? Math.sin(tt * 11 + i * 1.7) * 0.07 : 0);
       });
+      if (r.sitQ) { for (var qn in r.sitQ) { b[qn].quaternion.copy(r.sitQ[qn]); } }
+      if (b.Head) { b.Head.rotation.x = b.Head.userData.br.x; }
       if (b.Head) { b.Head.rotation.y = r.state === 'waiting' ? Math.sin(tt * 0.8) * 0.3 : (run ? Math.sin(tt * 1.1) * 0.06 : 0); }
       if (b.Spine) { b.Spine.rotation.x = 0.08 + Math.sin(tt * 1.6 + (r.fidPh || 0)) * 0.012; }
       // idle fidget every 8-20s: look around, nod, sip, lean back
@@ -1320,7 +1363,7 @@
           var e = Math.sin(pr * Math.PI), k = r.fid.k;
           if (k === 'look' && b.Head) { b.Head.rotation.y += r.fid.s * 0.55 * e; }
           else if (k === 'nod' && b.Head) { b.Head.rotation.x += Math.sin(pr * Math.PI * 4) * 0.12 * e; }
-          else if (k === 'sip' && b.RightForeArm) { b.RightForeArm.rotation.x += 0.9 * e; if (b.RightArm) { b.RightArm.rotation.x += 0.35 * e; } if (b.Head) { b.Head.rotation.x -= 0.1 * e; } }
+          else if (k === 'sip' && b.RightForeArm) { wrot(r, b.RightForeArm, WX, -0.9 * e); if (b.RightArm) { wrot(r, b.RightArm, WX, -0.3 * e); } if (b.Head) { b.Head.rotation.x -= 0.1 * e; } }
           else if (k === 'lean' && b.Spine) { b.Spine.rotation.x -= 0.14 * e; if (b.Head) { b.Head.rotation.x -= 0.05 * e; } }
         }
       }
