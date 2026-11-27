@@ -1664,3 +1664,48 @@ button, input, select, textarea { font-family: var(--font-ui); }
 }
 
 .o3-cams button, .o3-floors button { padding: 5px 9px !important; font-size: 11px !important; }
+
+/* Work-screen visual identity (locked, approved 27 Nov): orange primary, deep navy, cyan/violet neon, local Kufi, app icon mark. */
+:root {
+  --brand-primary: #f4511e;
+  --brand-primary-soft: #ff8a65;
+  --brand-navy: #04060d;
+  --brand-navy-2: #070b17;
+  --brand-neon-cyan: #00e5ff;
+  --brand-neon-violet: #b44dff;
+  --accent: var(--brand-primary);
+  --accent-soft: var(--brand-primary-soft);
+  --bg: var(--brand-navy);
+  --bg-soft: var(--brand-navy-2);
+  --neon-a: var(--brand-neon-cyan);
+  --neon-b: var(--brand-neon-violet);
+  --glow-brand: 0 0 6px rgba(244,81,30,.6), 0 0 18px rgba(244,81,30,.3);
+}
+.brand h1 {
+  background: linear-gradient(90deg, #fff1ea, var(--brand-primary-soft) 40%, var(--brand-primary) 70%, var(--brand-neon-violet));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+  filter: drop-shadow(0 0 8px rgba(244,81,30,.4));
+}
+.brand-mark {
+  background: radial-gradient(circle at 35% 30%, #ffb199, var(--brand-primary) 62%, #8a2308) !important;
+  box-shadow: var(--glow-brand), inset 0 0 10px rgba(255,255,255,.3) !important;
+  border: 1px solid rgba(255,190,160,.6);
+}
+.brand-core { background: #fff !important; box-shadow: 0 0 10px #fff, 0 0 22px var(--brand-primary) !important; }
+
+/* Identity palette per Reem (approved): navy #070d18, cyan #22d3ee, violet #8b5cf6. Font: Noto Kufi Arabic (OFL), self-hosted. */
+:root {
+  --brand-navy: #070d18;
+  --brand-navy-2: #0b1424;
+  --brand-neon-cyan: #22d3ee;
+  --brand-neon-violet: #8b5cf6;
+  --bg: #070d18;
+  --bg-soft: #0b1424;
+  --neon-a: #22d3ee;
+  --neon-b: #8b5cf6;
+  --teal: #22d3ee;
+  --accent-cool: #22d3ee;
+  --glow-a: 0 0 6px rgba(34,211,238,.55), 0 0 18px rgba(34,211,238,.28);
+  --glow-b: 0 0 6px rgba(139,92,246,.55), 0 0 18px rgba(139,92,246,.28);
+}
+html, html.o3-fs, html.o3-fs body { background: #070d18; }
