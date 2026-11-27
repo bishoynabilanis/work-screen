@@ -1151,7 +1151,7 @@
     var t = make('b', ''); t.textContent = nm + (title ? ' · ' + title : ''); h.appendChild(t);
     var x = make('button', ''); x.type = 'button'; x.textContent = '✕'; x.style.cssText = 'background:none;border:0;color:#fff;font-size:16px;cursor:pointer'; x.addEventListener('click', closeCard); h.appendChild(x);
     cardEl.appendChild(h);
-    function row(label, val) { var r = make('div', ''); r.style.cssText = 'font-size:13px;line-height:1.6'; var l = make('span', ''); l.textContent = label + ': '; l.style.color = '#8aa3bf'; var v = make('span', ''); v.textContent = val; r.appendChild(l); r.appendChild(v); cardEl.appendChild(r); }
+    function row(label, val) { var r = make('div', ''); r.style.cssText = 'font-size:14px;line-height:1.6'; var l = make('span', ''); l.textContent = label + ': '; l.style.color = '#8aa3bf'; var v = make('span', ''); v.textContent = val; r.appendChild(l); r.appendChild(v); cardEl.appendChild(r); }
     var now = lv ? (lv.state === 'done' ? 'خلّص: ' : 'بيشتغل على: ') + lv.text : (sf && sf.step ? sf.step + ' (من الداتا القديمة)' : 'مفيش حالة حية');
     row('دلوقتي', now);
     row('الجاي', lv && lv.next ? lv.next : 'لسه ما بعتش');
@@ -1160,9 +1160,9 @@
       row('اتعمل / فاضل', lv.done + ' / ' + lv.pending);
       var bar = make('div', ''); bar.style.cssText = 'height:8px;border-radius:6px;background:rgba(255,255,255,.12);margin-top:6px;overflow:hidden';
       var fill = make('div', ''); fill.style.cssText = 'height:100%;background:#2bb0a0;width:' + pc + '%'; bar.appendChild(fill); cardEl.appendChild(bar);
-      var pt = make('div', ''); pt.style.cssText = 'font-size:11px;color:#8aa3bf;margin-top:3px'; pt.textContent = pc + '% خلص النهاردة'; cardEl.appendChild(pt);
+      var pt = make('div', ''); pt.style.cssText = 'font-size:14px;color:#b9cce2;margin-top:3px'; pt.textContent = pc + '% خلص النهاردة'; cardEl.appendChild(pt);
     } else { row('اتعمل / فاضل', 'لسه ما بعتش الأرقام'); }
-    if (lv && lv.ms) { var tt = make('div', ''); tt.style.cssText = 'font-size:11px;color:#8aa3bf;margin-top:6px'; try { tt.textContent = 'آخر تحديث ' + new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }).format(new Date(lv.ms)); } catch (e) {} cardEl.appendChild(tt); }
+    if (lv && lv.ms) { var tt = make('div', ''); tt.style.cssText = 'font-size:14px;color:#b9cce2;margin-top:6px'; try { tt.textContent = 'آخر تحديث ' + new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }).format(new Date(lv.ms)); } catch (e) {} cardEl.appendChild(tt); }
   }
   function showCard(id) {
     var host = document.getElementById('office3d'); if (!host) { return false; }
@@ -1332,9 +1332,9 @@
       if (hasNum && pd > 0) { fin = false; }
       var li = make('li', 'o3-line'); li.style.marginBottom = '8px';
       var t = make('div', ''); t.style.cssText = 'font-weight:800;font-size:13px'; t.textContent = jn + ' · ' + ag.length + ' موظف · ' + (fin ? '✓ خلصت' : '● لسه شغالة'); li.appendChild(t);
-      var rl = make('div', ''); rl.style.cssText = 'font-size:12px;color:#8aa3bf'; rl.textContent = 'النتيجة: ' + (res === 'got' ? 'طلعت نتيجة' : res === 'none' ? 'مفيش نتيجة' : res === 'pending' ? 'لسه مستنية' : 'لسه ما اتبعتش'); li.appendChild(rl);
+      var rl = make('div', ''); rl.style.cssText = 'font-size:14px;color:#b9cce2'; rl.textContent = 'النتيجة: ' + (res === 'got' ? 'طلعت نتيجة' : res === 'none' ? 'مفيش نتيجة' : res === 'pending' ? 'لسه مستنية' : 'لسه ما اتبعتش'); li.appendChild(rl);
       if (hasNum) { var tot = dn + pd, pc = tot ? Math.round(dn * 100 / tot) : 0; var bar = make('div', ''); bar.style.cssText = 'height:7px;border-radius:6px;background:rgba(255,255,255,.12);margin:5px 0;overflow:hidden'; var f = make('div', ''); f.style.cssText = 'height:100%;background:#2bb0a0;width:' + pc + '%'; bar.appendChild(f); li.appendChild(bar); var pl = make('div', ''); pl.style.cssText = 'font-size:11px;color:#8aa3bf'; pl.textContent = dn + ' اتعمل / ' + pd + ' فاضل (' + pc + '%)'; li.appendChild(pl); }
-      ag.forEach(function (e) { var d = make('div', ''); d.style.cssText = 'font-size:12px;margin-top:3px'; d.textContent = (e.name || e.id || '؟') + ': ' + (e.state === 'done' ? '✓ ' : e.state === 'blocked' ? '■ واقف ' : '● ') + e.text + (e.next ? ' ← الجاي: ' + e.next : ''); li.appendChild(d); });
+      ag.forEach(function (e) { var d = make('div', ''); d.style.cssText = 'font-size:14px;margin-top:3px'; d.textContent = (e.name || e.id || '؟') + ': ' + (e.state === 'done' ? '✓ ' : e.state === 'blocked' ? '■ واقف ' : '● ') + e.text + (e.next ? ' ← الجاي: ' + e.next : ''); li.appendChild(d); });
       lines.appendChild(li);
     });
   }
@@ -1343,19 +1343,30 @@
     var bar = document.getElementById('o3-summary');
     if (!bar) {
       bar = document.createElement('div'); bar.id = 'o3-summary';
-      bar.style.cssText = 'position:fixed;top:68px;left:8px;right:8px;width:fit-content;margin:0 auto;z-index:30;display:flex;gap:8px;padding:6px 12px;border-radius:999px;background:rgba(7,13,24,.82);border:1px solid rgba(244,81,30,.55);color:#fff;font-size:15px;font-weight:700;pointer-events:none;backdrop-filter:blur(6px);justify-content:center;box-sizing:border-box;white-space:nowrap;direction:rtl';
-      document.body.appendChild(bar);
+      bar.style.cssText = 'position:static;display:flex;gap:8px;padding:6px 12px;margin:6px auto;width:fit-content;max-width:calc(100vw - 16px);box-sizing:border-box;justify-content:center;border-radius:999px;background:rgba(7,13,24,.82);border:1px solid rgba(244,81,30,.55);color:#fff;font-size:15px;font-weight:700;white-space:nowrap;direction:rtl';
+      var hd = document.querySelector('header.topbar') || document.querySelector('header');
+      if (hd && hd.parentNode) { hd.parentNode.insertBefore(bar, hd.nextSibling); } else { document.body.insertBefore(bar, document.body.firstChild); }
     }
     var cutoff = Date.now() - 30 * 60000, latest = {}, k;
     statusLines.forEach(function (e) { k = e.id || e.name || '?'; if (!latest[k]) { latest[k] = e; } });
     var working = 0, done = 0, stuck = 0, jobs = {}, pend = 0;
     Object.keys(latest).forEach(function (id) { var e = latest[id]; if (e.ms < cutoff) { return; } if (e.state === 'done') { done++; } else if (e.state === 'blocked') { stuck++; } else { working++; } if (e.job) { jobs[e.job] = 1; } if (e.pending > 0) { pend += e.pending; } });
-    var narrow = (window.innerWidth || 1000) < 560;
-    var parts = [['\u25CF ' + working + (narrow ? ' شغال' : ' شغالين'), '#f4511e'], ['\u2713 ' + done + (narrow ? ' خلص' : ' خلصوا'), '#22d3ee'], [Object.keys(jobs).length + (narrow ? ' شغلانة' : ' شغلانات'), '#8b5cf6']];
-    if (stuck) { parts.splice(2, 0, ['\u25A0 ' + stuck + ' واقف', '#f87171']); }
-    if (pend && !narrow) { parts.push([pend + ' معلّق', '#9aa8bd']); }
-    bar.textContent = '';
-    parts.forEach(function (p) { var sp = document.createElement('span'); sp.textContent = p[0]; sp.style.color = p[1]; bar.appendChild(sp); });
+    var nj = Object.keys(jobs).length;
+    function build(short) {
+      var parts = [['\u25CF ' + working + (short ? ' شغال' : ' شغالين'), '#f4511e'], ['\u2713 ' + done + (short ? ' خلص' : ' خلصوا'), '#22d3ee']];
+      if (stuck) { parts.push(['\u25A0 ' + stuck + ' واقف', '#f87171']); }
+      parts.push([nj + (short ? ' شغلانة' : ' شغلانات'), '#8b5cf6']);
+      if (pend && !short) { parts.push([pend + ' معلّق', '#9aa8bd']); }
+      bar.textContent = '';
+      parts.forEach(function (p) { var sp = document.createElement('span'); sp.textContent = p[0]; sp.style.color = p[1]; bar.appendChild(sp); });
+      bar.title = pend ? ('معلّق: ' + pend) : '';
+    }
+    bar.style.flexWrap = 'nowrap'; bar.style.borderRadius = '999px'; bar.style.gap = '8px';
+    build(false);
+    var lim = (document.documentElement.clientWidth || window.innerWidth || 360) - 28;
+    function tooWide() { return bar.scrollWidth > bar.clientWidth + 1 || bar.getBoundingClientRect().width > lim; }
+    if (tooWide()) { build(true); }
+    if (tooWide()) { bar.style.flexWrap = 'wrap'; bar.style.whiteSpace = 'normal'; bar.style.borderRadius = '18px'; bar.style.gap = '4px 10px'; }
   }
 
   var BADGE_COLORS = ['#ff8a65', '#4dd0e1', '#b39ddb', '#81c784', '#ffd54f', '#f48fb1', '#64b5f6', '#a1887f', '#aed581', '#ba68c8', '#4db6ac', '#e57373'];
