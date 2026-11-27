@@ -902,11 +902,15 @@
     var showRole = zoom > (portrait ? 3.4 : 2.4);
     var showNames = zoom > (portrait ? 2.6 : 1.7);
     if (host.classList.contains('o3-portrait') !== portrait) { host.classList.toggle('o3-portrait', portrait); }
+    var zRects = [];
     Object.keys(zoneInfo).forEach(function (zid) {
       var zi = zoneInfo[zid]; if (!zi.el) { return; }
       project({ x: zi.cx, z: zi.cz - zi.d / 2 + 0.6 }, 0.6 + floorOff(zid), pt);
       var zhw = (zi.el.offsetWidth || 0) / 2 + 6, zW = canvasWrap.clientWidth || 0, zx = zW > zhw * 2 ? Math.min(zW - zhw - (pt.y < 130 ? 58 : 0), Math.max(zhw, pt.x)) : pt.x;
-      zi.el.style.transform = 'translate(' + zx.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-50%)';
+      var zhh = (zi.el.offsetHeight || 24) / 2 + 3, zy = pt.y;
+      for (var zr = 0; zr < zRects.length; zr++) { var q = zRects[zr]; if (Math.abs(zx - q.x) < zhw + q.w && Math.abs(zy - q.y) < zhh + q.h) { zy = q.y + q.h + zhh + 1; } }
+      if (pt.vis && !zi.hidden) { zRects.push({ x: zx, y: zy, w: zhw, h: zhh }); }
+      zi.el.style.transform = 'translate(' + zx.toFixed(1) + 'px,' + zy.toFixed(1) + 'px) translate(-50%,-50%)';
       zi.el.style.display = (!showNames && pt.vis && !zi.hidden && !buildOn) ? '' : 'none';
       zi.rx = pt.x; zi.ry = pt.y; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = !showNames && pt.vis && !zi.hidden && !buildOn;
     });
