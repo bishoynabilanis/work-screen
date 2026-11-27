@@ -3,11 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f4511e">
+  <meta name="theme-color" content="#070d18">
   <meta name="color-scheme" content="dark">
   <meta name="description" content="مكتب الشغل — شاشة حية للمديرة والأقسام والتسليمات">
   <title>مكتب الشغل</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="preload" href="4-kufi-regular.woff" as="font" type="font/woff" crossorigin>
+  <link rel="preload" href="5-kufi-bold.woff" as="font" type="font/woff" crossorigin>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -108,7 +110,19 @@
   </section>
 
   <script src="app.js" defer></script>
-  <script src='https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js'></script>
-  <script src='office3d.js'></script>
+  <script src="7-three.min.js" defer></script>
+  <script src="office3d.js" defer></script>
+  <script>
+  /* warm the character model parts in parallel once the page is up (they are loaded one by one later) */
+  window.addEventListener('load', function () {
+    var N = {businessman: 5, woman: 5, man: 5, scientist: 4, doctor: 5, nurse: 6, teen: 3, athlete: 3};
+    var go = function () {
+      var urls = ['o3loaders.js?v=1'];
+      Object.keys(N).forEach(function (k) { for (var i = 0; i < N[k]; i++) { urls.push('o3g_' + k + '_' + i + '.js?v=6'); } });
+      urls.forEach(function (u) { var l = document.createElement('link'); l.rel = 'prefetch'; l.as = 'script'; l.href = u; document.head.appendChild(l); });
+    };
+    (window.requestIdleCallback || function (f) { setTimeout(f, 800); })(go);
+  });
+  </script>
 </body>
 </html>

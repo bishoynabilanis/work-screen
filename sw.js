@@ -1,7 +1,7 @@
 'use strict';
 
-var CACHE_NAME = 'office-scene-v5';
-var SHELL = ['./', './index.html', './style.css', './app.js', './office3d.js', './manifest.json', './feed.json'];
+var CACHE_NAME = 'office-scene-v7';
+var SHELL = ['./', './index.html', './style.css', './app.js', './office3d.js', './7-three.min.js', './4-kufi-regular.woff', './5-kufi-bold.woff', './6-mono.woff', './manifest.json', './feed.json'];
 
 self.addEventListener('install', function (event) {
   self.skipWaiting();
@@ -111,7 +111,24 @@ function handleNavigation(request) {
   return networkFirst(request, './index.html');
 }
 
+var HEAVY = /\/(o3[gpml]?[a-z]*_?[^\/]*\.js|[^\/]*three\.min\.js|[^\/]+\.woff)$/;
+
+/* heavy static files: cache first, refresh in the background (versioned ?v= URLs bust it) */
+function cacheFirst(request) {
+  return caches.open(CACHE_NAME).then(function (cache) {
+    return cache.match(request).then(function (hit) {
+      var net = fetch(request).then(function (res) {
+        if (res && res.ok) { cache.put(request, res.clone()); }
+        return res;
+      });
+      if (hit) { net.catch(function () {}); return hit; }
+      return net;
+    });
+  });
+}
+
 function handleAsset(request) {
+  if (HEAVY.test(new URL(request.url).pathname)) { return cacheFirst(request); }
   return networkFirst(request, null);
 }
 

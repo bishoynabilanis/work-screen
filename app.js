@@ -1101,8 +1101,91 @@
   var liveSource = null;
   var liveLastId = '';
 
+  // ---- Live status lines (ntfy topic, JSON: id, name, text, state start|done). Untrusted: text only, never HTML. ----
+  var STATUS_BASE = 'https://ntfy.sh/wsfeed-bishoy-0284a9cccdca36e35f4d30fb';
+  var statusLines = [], statusSeen = {}, statusSince = '12h';
+  function pollStatus() {
+    fetch(STATUS_BASE + '/json?poll=1&since=' + encodeURIComponent(statusSince), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (txt) {
+        var changed = false;
+        String(txt || '').split('\n').forEach(function (ln) {
+          if (!ln) { return; }
+          var m; try { m = JSON.parse(ln); } catch (e) { return; }
+          if (!m || m.event !== 'message' || !m.id || statusSeen[m.id]) { return; }
+          statusSeen[m.id] = true; statusSince = m.id;
+          var b = null; try { b = JSON.parse(m.message); } catch (e) { b = null; }
+          var nm = '', tx = '', stt = '', aid = '', nx = '', dn = -1, pd = -1, jb = '', rs = '';
+          if (b && typeof b === 'object') { nm = cleanText(b.name, 40); tx = cleanText(b.text, 160); stt = b.state === 'done' ? 'done' : 'start'; aid = cleanText(b.id, 40); jb = cleanText(b.job, 60); rs = (b.result === 'got' || b.result === 'none' || b.result === 'pending') ? b.result : ''; nx = cleanText(b.next, 120); dn = isFinite(+b.done) && b.done !== null && b.done !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.done))) : -1; pd = isFinite(+b.pending) && b.pending !== null && b.pending !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.pending))) : -1; }
+          else { tx = cleanText(m.message, 160); nm = cleanText(m.title, 40); stt = 'start'; }
+          if (!tx) { return; }
+          statusLines.push({ id: aid, name: nm, text: tx, state: stt, next: nx, done: dn, pending: pd, job: jb, result: rs, ms: (m.time || 0) * 1000 });
+          changed = true;
+        });
+        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 60); try { renderLog(); renderCard(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
+      })
+      .catch(function () {});
+  }
+  pollStatus(); setInterval(pollStatus, 5000);
+
+  // ---- Per-agent card: now / next / progress, from the live status stream (text only) ----
+  function agentLive(id, name) {
+    var AL = { 'scout': 't5', 'jessica-dev': 'j2', 'security': 'q14', 'yt-replies': 'c4', 'tiktok': 'v1' };
+    var i; for (i = 0; i < statusLines.length; i++) { var e = statusLines[i], cid = AL[e.id] || e.id; if ((id && cid && cid === id) || (name && e.name && e.name === name)) { return e; } }
+    return null;
+  }
+  var cardEl = null, cardFor = null;
+  function closeCard() { if (cardEl) { cardEl.remove(); cardEl = null; cardFor = null; } }
+  function renderCard() {
+    if (!cardEl || !cardFor) { return; }
+    var id = cardFor, sf = (baseFeed && baseFeed.staff || []).filter(function (p) { return String(p.id) === id; })[0];
+    var nm = id === '__manager__' ? ((baseFeed && baseFeed.assistant && baseFeed.assistant.name) || 'ريم') : (sf ? sf.name : id);
+    var title = id === '__manager__' ? 'المديرة' : (sf && sf.title || '');
+    var lv = agentLive(id, nm);
+    cardEl.textContent = '';
+    var st = function (css) { return css; };
+    var h = make('div', ''); h.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px';
+    var t = make('b', ''); t.textContent = nm + (title ? ' · ' + title : ''); h.appendChild(t);
+    var x = make('button', ''); x.type = 'button'; x.textContent = '✕'; x.style.cssText = 'background:none;border:0;color:#fff;font-size:16px;cursor:pointer'; x.addEventListener('click', closeCard); h.appendChild(x);
+    cardEl.appendChild(h);
+    function row(label, val) { var r = make('div', ''); r.style.cssText = 'font-size:13px;line-height:1.6'; var l = make('span', ''); l.textContent = label + ': '; l.style.color = '#8aa3bf'; var v = make('span', ''); v.textContent = val; r.appendChild(l); r.appendChild(v); cardEl.appendChild(r); }
+    var now = lv ? (lv.state === 'done' ? 'خلّص: ' : 'بيشتغل على: ') + lv.text : (sf && sf.step ? sf.step + ' (من الداتا القديمة)' : 'مفيش حالة حية');
+    row('دلوقتي', now);
+    row('الجاي', lv && lv.next ? lv.next : 'لسه ما بعتش');
+    if (lv && lv.done >= 0 && lv.pending >= 0) {
+      var tot = lv.done + lv.pending, pc = tot ? Math.round(lv.done * 100 / tot) : 0;
+      row('اتعمل / فاضل', lv.done + ' / ' + lv.pending);
+      var bar = make('div', ''); bar.style.cssText = 'height:8px;border-radius:6px;background:rgba(255,255,255,.12);margin-top:6px;overflow:hidden';
+      var fill = make('div', ''); fill.style.cssText = 'height:100%;background:#2bb0a0;width:' + pc + '%'; bar.appendChild(fill); cardEl.appendChild(bar);
+      var pt = make('div', ''); pt.style.cssText = 'font-size:11px;color:#8aa3bf;margin-top:3px'; pt.textContent = pc + '% خلص النهاردة'; cardEl.appendChild(pt);
+    } else { row('اتعمل / فاضل', 'لسه ما بعتش الأرقام'); }
+    if (lv && lv.ms) { var tt = make('div', ''); tt.style.cssText = 'font-size:11px;color:#8aa3bf;margin-top:6px'; try { tt.textContent = 'آخر تحديث ' + new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }).format(new Date(lv.ms)); } catch (e) {} cardEl.appendChild(tt); }
+  }
+  function showCard(id) {
+    var host = document.getElementById('office3d'); if (!host) { return false; }
+    if (!cardEl) { cardEl = make('div', 'o3-agentcard'); cardEl.style.cssText = 'position:absolute;z-index:30;top:160px;inset-inline-start:12px;width:min(300px,86%);padding:12px 14px;border-radius:14px;background:rgba(8,14,30,.92);color:#fff;border:1px solid rgba(80,200,230,.45);backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,0,0,.5)'; host.appendChild(cardEl); }
+    cardFor = String(id); renderCard(); return true;
+  }
+
+  var SECRET_RX = [
+    /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
+    /(?:\+|00)?\d[\d\s().-]{8,}\d/,
+    /\b(?:sk|pk|ghp|gho|ghs|xox[abp]|AKIA|AIza|eyJ|tk|glpat)[-_A-Za-z0-9]{8,}/i,
+    /\b[A-Za-z0-9_\-+/=]{28,}\b/,
+    /(?:password|passwd|pwd|token|secret|api[-_ ]?key|bearer|cookie|otp|cvv|iban|كلمة\s*(?:السر|المرور)|باسورد|توكن|مفتاح)\s*[:=]/i,
+    /https?:\/\/[^\s]*[?&](?:token|key|sig|auth|code)=/i,
+    /(?:اسم العميل|رقم الحساب|رقم الكارت|رقم الموبايل)/
+  ];
+  var ACCOUNT_RX = /(ستوديو|جلسة\s*جوجل|جلسه\s*جوجل|log[\s-]?in|sign[\s-]?in|signed in|studio|2fa|two[\s-]?factor|otp|verification code|captcha|session|cookie|تسجيل\s*(?:ال)?دخول|طلب\s*(?:ال)?دخول|دخول مؤقت|رمز\s*(?:ال)?تحقق|تحقق بخطوتين|كلمة\s*(?:ال)?(?:سر|مرور)|كلمه\s*(?:ال)?(?:سر|مرور)|حظر\s*(?:ال)?حساب|اتحظر|تعليق\s*(?:ال)?حساب)/i;
+  function looksPrivate(t) {
+    for (var i = 0; i < SECRET_RX.length; i++) { if (SECRET_RX[i].test(t)) { return true; } }
+    return false;
+  }
   function cleanText(v, n) {
-    return typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n || 200) : '';
+    if (typeof v !== 'string') { return ''; }
+    var t = v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n || 200);
+    if (looksPrivate(t)) { return ''; }
+    return ACCOUNT_RX.test(t) ? 'نشاط على حساب، التفاصيل مخفية' : t;
   }
 
   function ingestLive(msg) {
@@ -1227,16 +1310,60 @@
     if (logPanel) { return logPanel; }
     var host = document.getElementById('office3d'); if (!host) { return null; }
     logPanel = make('aside', 'o3-log');
-    logPanel.innerHTML = '<div class="o3-log-head"><b>سجل الشغل</b><span>بصيغة كل واحد بنفسه</span></div><div class="o3-pipes"></div><ul class="o3-lines"></ul>';
+    logPanel.innerHTML = '<div class="o3-log-head"><b>سجل الشغل</b><span>بصيغة كل واحد بنفسه</span></div><div class="o3-jobtog" style="display:flex;gap:6px;margin:6px 0"></div><div class="o3-pipes"></div><ul class="o3-lines"></ul>';
+    (function () { var tg = logPanel.querySelector('.o3-jobtog'); [['السجل', false], ['الشغلانات', true]].forEach(function (a) { var bt = make('button', ''); bt.type = 'button'; bt.textContent = a[0]; bt.style.cssText = 'flex:1;padding:6px;border-radius:10px;border:1px solid rgba(80,200,230,.4);background:rgba(255,255,255,.06);color:#fff;font-size:12px;cursor:pointer'; bt.addEventListener('click', function () { jobsMode = a[1]; renderLog(); Array.prototype.forEach.call(tg.children, function (c, i) { c.style.background = (i === 1) === jobsMode ? 'rgba(43,176,160,.45)' : 'rgba(255,255,255,.06)'; }); }); tg.appendChild(bt); }); tg.children[0].style.background = 'rgba(43,176,160,.45)'; })();
     host.appendChild(logPanel);
     return logPanel;
+  }
+
+  var jobsMode = false;
+  function renderJobs(lines, pipes) {
+    var latest = {}, order = [];
+    statusLines.forEach(function (e) { var k = (e.id || e.name || '?') + '|' + (e.job || ''); if (!latest[k]) { latest[k] = e; order.push(k); } });
+    var jobs = {}, jo = [];
+    order.forEach(function (k) { var e = latest[k], jn = e.job || 'من غير شغلانة محددة'; if (!jobs[jn]) { jobs[jn] = []; jo.push(jn); } jobs[jn].push(e); });
+    if (!jo.length) { var em = make('li', 'o3-empty'); em.textContent = 'مفيش شغلانات وصلت من الموظفين لسه (الحقل job).'; lines.appendChild(em); return; }
+    jo.forEach(function (jn) {
+      var ag = jobs[jn], dn = 0, pd = 0, hasNum = false, fin = true, res = '';
+      ag.forEach(function (e) { if (e.done >= 0 && e.pending >= 0) { dn += e.done; pd += e.pending; hasNum = true; } if (e.state !== 'done') { fin = false; } if (e.result === 'got') { res = 'got'; } else if (e.result === 'pending' && res !== 'got') { res = 'pending'; } else if (e.result === 'none' && !res) { res = 'none'; } });
+      if (hasNum && pd > 0) { fin = false; }
+      var li = make('li', 'o3-line'); li.style.marginBottom = '8px';
+      var t = make('div', ''); t.style.cssText = 'font-weight:800;font-size:13px'; t.textContent = jn + ' · ' + ag.length + ' موظف · ' + (fin ? '✓ خلصت' : '● لسه شغالة'); li.appendChild(t);
+      var rl = make('div', ''); rl.style.cssText = 'font-size:12px;color:#8aa3bf'; rl.textContent = 'النتيجة: ' + (res === 'got' ? 'طلعت نتيجة' : res === 'none' ? 'مفيش نتيجة' : res === 'pending' ? 'لسه مستنية' : 'لسه ما اتبعتش'); li.appendChild(rl);
+      if (hasNum) { var tot = dn + pd, pc = tot ? Math.round(dn * 100 / tot) : 0; var bar = make('div', ''); bar.style.cssText = 'height:7px;border-radius:6px;background:rgba(255,255,255,.12);margin:5px 0;overflow:hidden'; var f = make('div', ''); f.style.cssText = 'height:100%;background:#2bb0a0;width:' + pc + '%'; bar.appendChild(f); li.appendChild(bar); var pl = make('div', ''); pl.style.cssText = 'font-size:11px;color:#8aa3bf'; pl.textContent = dn + ' اتعمل / ' + pd + ' فاضل (' + pc + '%)'; li.appendChild(pl); }
+      ag.forEach(function (e) { var d = make('div', ''); d.style.cssText = 'font-size:12px;margin-top:3px'; d.textContent = (e.name || e.id || '؟') + ': ' + (e.state === 'done' ? '✓ ' : '● ') + e.text + (e.next ? ' ← الجاي: ' + e.next : ''); li.appendChild(d); });
+      lines.appendChild(li);
+    });
   }
   function renderLog() {
     var panel = ensureLogPanel(); if (!panel) { return; }
     var evs = liveEvents.filter(function (e) { return e.t === 'h' || e.t === 'r'; });
     var lines = panel.querySelector('.o3-lines'), pipes = panel.querySelector('.o3-pipes');
     lines.textContent = ''; pipes.textContent = '';
-    if (!evs.length) { var em = make('li', 'o3-empty'); em.textContent = 'لسه مفيش تسليمات النهاردة'; lines.appendChild(em); return; }
+    if (jobsMode) { renderJobs(lines, pipes); return; }
+    if (statusLines.length) {
+      var sh = make('li', 'o3-empty'); sh.textContent = 'شغل حي دلوقتي (الأحدث فوق):'; lines.appendChild(sh);
+      statusLines.slice(0, 25).forEach(function (e) {
+        var li = make('li', 'o3-line'); var d = new Date(e.ms), ss = '';
+        try { ss = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }).format(d); } catch (x) { ss = ''; }
+        li.textContent = ss + ' · ' + (e.name ? e.name + ': ' : '') + (e.state === 'done' ? '✓ خلّص ' : '● بيشتغل ') + e.text;
+        lines.appendChild(li);
+      });
+    }
+    if (!evs.length && statusLines.length) { return; }
+    if (!evs.length) {
+      var stf = (baseFeed && baseFeed.staff) || [];
+      var ago = function (iso) { var m = Math.round((Date.now() - new Date(iso).getTime()) / 60000); if (!(m >= 0)) { return ''; } if (m < 2) { return 'دلوقتي'; } if (m < 60) { return 'من ' + m + ' دقيقة'; } if (m < 1440) { return 'من ' + Math.round(m / 60) + ' ساعة'; } return 'من ' + Math.round(m / 1440) + ' يوم'; };
+      var stl = { running: 'شغّال', waiting: 'مستني', done: 'خلّص', idle: 'فاضي' };
+      var upd = baseFeed && baseFeed.updated ? ago(baseFeed.updated) : '';
+      var em = make('li', 'o3-empty'); em.textContent = 'مفيش تسليمات النهاردة. دي آخر حالات الموظفين من الداتا' + (upd ? ' (آخر تحديث ' + upd + ')' : '') + ':'; lines.appendChild(em);
+      stf.slice().sort(function (a, b) { return String(b.time || '').localeCompare(String(a.time || '')); }).slice(0, 14).forEach(function (p) {
+        if (!p.step) { return; }
+        var li = make('li', 'o3-line'); li.textContent = (p.time ? hhmm(p.time) + ' · ' : '') + p.name + (p.title ? ' (' + p.title + ')' : '') + ' ' + (stl[p.state] || '') + ': ' + p.step + (p.time ? ' · ' + ago(p.time) : '');
+        lines.appendChild(li);
+      });
+      return;
+    }
     // pipelines
     var jobs = {}, order = [];
     evs.forEach(function (e) {
@@ -1393,7 +1520,8 @@
   }
 
   function init() {
-    window.__openSheet = openSheet;
+    window.__openSheet = function (id) { if (!showCard(id)) { openSheet(id); } };
+    window.__openSheetFull = openSheet;
     els.offlineBanner = byId('offlineBanner');
     els.lastUpdated = byId('lastUpdated');
     els.office = byId('office');
@@ -1442,5 +1570,40 @@
     window.setInterval(renderLastUpdated, 1000);
   }
 
+  // ---- Org view (org.js/org.css/org.json): additive module; loaded after app boot ----
+  function bootOrgView() {
+    try {
+      var main = document.querySelector('main.wrap');
+      if (!main) { return; }
+      var sec = make('section', 'org-view');
+      sec.id = 'orgView';
+      sec.setAttribute('aria-labelledby', 'orgHeading');
+      var head = make('div', 'section-head');
+      var h2 = make('h2');
+      h2.id = 'orgHeading';
+      h2.textContent = '\u0627\u0644\u0647\u064a\u0643\u0644 \u0627\u0644\u062a\u0646\u0638\u064a\u0645\u064a';
+      var note = make('span', 'section-note');
+      note.textContent = '\u0645\u064a\u0646 \u0628\u064a\u0634\u062a\u063a\u0644 \u062a\u062d\u062a \u0645\u064a\u0646 \u00b7 \u0645\u0628\u0627\u0634\u0631';
+      head.appendChild(h2);
+      head.appendChild(note);
+      var body = make('div', 'org-body');
+      body.id = 'orgBody';
+      sec.appendChild(head);
+      sec.appendChild(body);
+      var anchor = main.querySelector('.handoffs');
+      main.insertBefore(sec, anchor || null);
+      var css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = 'org.css?v=2';
+      document.head.appendChild(css);
+      window.__orgStatusLines = function () { return statusLines; };
+      var sc = document.createElement('script');
+      sc.src = 'org.js?v=2';
+      sc.defer = true;
+      document.body.appendChild(sc);
+    } catch (e) {}
+  }
+
+  bootOrgView();
   init();
 })();
