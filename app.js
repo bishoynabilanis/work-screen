@@ -1057,7 +1057,7 @@
     if (!isObj(data)) {
       return;
     }
-    window.__o3RxAt = Date.now();
+    scrubFeed(data); window.__o3RxAt = Date.now();
     (function () { var nw = isFinite(Date.parse(data.updated)) ? Date.parse(data.updated) : 0; (Array.isArray(data.staff) ? data.staff : []).forEach(function (s) { var t = s && s.time ? Date.parse(s.time) : NaN; if (isFinite(t) && t > nw) { nw = t; } }); window.__o3Newest = nw; })();
     if (window.Office3D && window.Office3D.ready) {
       try { window.Office3D.update(data); } catch (e) { /* keep 2D */ }
@@ -1121,7 +1121,7 @@
   var statusLines = [], statusSeen = {}, statusSince = '12h';
   var TL_KEY = 'ws-timeline-v1';
   function saveTL() { try { localStorage.setItem(TL_KEY, JSON.stringify(statusLines.slice(0, 500).map(function (e) { return { mid: e.mid, id: e.id, name: e.name, text: e.text, state: e.state, job: e.job, ms: e.ms, ask: e.ask || '', options: e.options || [], done: e.done, pending: e.pending }; }))); } catch (e) { /* storage full or blocked */ } }
-  function restoreTL() { try { var a = JSON.parse(localStorage.getItem(TL_KEY) || '[]'); if (Array.isArray(a)) { a.slice(0, 500).forEach(function (e) { if (e && e.mid && e.ms && e.text) { statusSeen[e.mid] = true; statusSince = e.mid; statusLines.push({ mid: String(e.mid), id: cleanText(e.id, 40), name: cleanText(e.name, 40), text: cleanText(e.text, 160), state: e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'start'), next: '', done: (isFinite(+e.done) && +e.done >= 0 ? Math.min(9999, Math.floor(+e.done)) : -1), pending: (isFinite(+e.pending) && +e.pending >= 0 ? Math.min(9999, Math.floor(+e.pending)) : -1), job: cleanText(e.job, 60), result: '', ms: +e.ms, ask: (cleanText(e.ask, 140) === PRIV_PH ? '' : cleanText(e.ask, 140)), options: cleanOpts(e.options) }); } }); statusLines.sort(function (x, y) { return y.ms - x.ms; }); } } catch (e) { console.warn('restoreTL', String(e)); statusLines = []; } }
+  function restoreTL() { try { var a = JSON.parse(localStorage.getItem(TL_KEY) || '[]'); if (Array.isArray(a)) { a.slice(0, 500).forEach(function (e) { if (e && e.mid && e.ms && e.text) { statusSeen[e.mid] = true; statusSince = e.mid; statusLines.push({ mid: String(e.mid), id: cleanText(e.id, 40), name: cleanText(e.name, 40), text: FREE_TEXT_OK ? (publicText(cleanText(e.text, 160)) || NOJOB) : (jobSafe(e.job, 40) || NOJOB), state: e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'start'), next: '', done: (isFinite(+e.done) && +e.done >= 0 ? Math.min(9999, Math.floor(+e.done)) : -1), pending: (isFinite(+e.pending) && +e.pending >= 0 ? Math.min(9999, Math.floor(+e.pending)) : -1), job: jobSafe(e.job, 40), result: '', ms: +e.ms, ask: (cleanText(e.ask, 140) === PRIV_PH ? '' : (FREE_TEXT_OK ? cleanText(e.ask, 140) : (cleanText(e.ask, 140) ? 'في قرار مستني' : ''))), options: FREE_TEXT_OK ? cleanOpts(e.options) : [] }); } }); statusLines.sort(function (x, y) { return y.ms - x.ms; }); } } catch (e) { console.warn('restoreTL', String(e)); statusLines = []; } }
   var PRIV_PH = 'نشاط على حساب، التفاصيل مخفية';
   function cleanOpts(a) { var o = []; if (Array.isArray(a)) { a.slice(0, 3).forEach(function (x) { var t = cleanText(typeof x === 'string' ? x : '', 50); if (t && t !== PRIV_PH) { o.push(t); } }); } return o; }
   function pollStatus() {
@@ -1136,8 +1136,8 @@
           statusSeen[m.id] = true; statusSince = m.id;
           var b = null; try { b = JSON.parse(m.message); } catch (e) { b = null; }
           var nm = '', tx = '', stt = '', aid = '', nx = '', dn = -1, pd = -1, jb = '', rs = '', ak = '', op = [];
-          if (b && typeof b === 'object') { nm = cleanText(b.name, 40); tx = cleanText(b.text, 160); stt = b.state === 'done' ? 'done' : (b.state === 'blocked' || b.state === 'error' ? 'blocked' : 'start'); aid = cleanText(b.id, 40); jb = cleanText(b.job, 60); rs = (b.result === 'got' || b.result === 'none' || b.result === 'pending') ? b.result : ''; nx = cleanText(b.next, 120); ak = cleanText(b.ask, 140); if (ak === PRIV_PH) { ak = ''; } op = ak ? cleanOpts(b.options) : []; dn = isFinite(+b.done) && b.done !== null && b.done !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.done))) : -1; pd = isFinite(+b.pending) && b.pending !== null && b.pending !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.pending))) : -1; }
-          else { tx = cleanText(m.message, 160); nm = cleanText(m.title, 40); stt = 'start'; }
+          if (b && typeof b === 'object') { nm = cleanText(b.name, 40); tx = (FREE_TEXT_OK && publicText(b.text)) || jobSafe(b.job, 40) || NOJOB; stt = b.state === 'done' ? 'done' : (b.state === 'blocked' || b.state === 'error' ? 'blocked' : 'start'); aid = cleanText(b.id, 40); jb = jobSafe(b.job, 40); rs = (b.result === 'got' || b.result === 'none' || b.result === 'pending') ? b.result : ''; nx = FREE_TEXT_OK ? publicText(b.next) : ''; ak = cleanText(b.ask, 140); if (ak === PRIV_PH) { ak = ''; } if (ak && !FREE_TEXT_OK) { ak = 'في قرار مستني'; } op = ak && FREE_TEXT_OK ? cleanOpts(b.options) : []; dn = isFinite(+b.done) && b.done !== null && b.done !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.done))) : -1; pd = isFinite(+b.pending) && b.pending !== null && b.pending !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.pending))) : -1; }
+          else { tx = (FREE_TEXT_OK && publicText(cleanText(m.message, 160))) || NOJOB; nm = cleanText(m.title, 40); stt = 'start'; }
           if (!tx) { return; }
           statusLines.push({ mid: m.id, id: aid, name: nm, text: tx, state: stt, next: nx, done: dn, pending: pd, job: jb, result: rs, ms: (m.time || 0) * 1000, ask: ak, options: op });
           changed = true;
@@ -1169,9 +1169,9 @@
     var x = make('button', ''); x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'إغلاق كارت الموظف'); x.style.cssText = 'background:none;border:0;color:#fff;font-size:16px;cursor:pointer;min-width:44px;min-height:44px;margin:-12px;display:flex;align-items:center;justify-content:center;flex:none'; x.addEventListener('click', closeCard); h.appendChild(x);
     cardEl.appendChild(h);
     function row(label, val) { var r = make('div', ''); r.style.cssText = 'font-size:14px;line-height:1.6'; var l = make('span', ''); l.textContent = label + ': '; l.style.color = '#8aa3bf'; var v = make('span', ''); v.textContent = val; r.appendChild(l); r.appendChild(v); cardEl.appendChild(r); }
-    var now = lv ? (publicText(lv.text) ? (lv.state === 'done' ? 'خلّص: ' : 'بيشتغل على: ') + publicText(lv.text) : 'لسه ما بعتش') : (sf && sf.step ? sf.step + ' (من الداتا القديمة)' : 'مفيش حالة حية');
+    var now = lv ? (!lv.text || lv.text === NOJOB ? NOJOB : (lv.state === 'done' ? 'خلّص: ' : 'بيشتغل على: ') + lv.text) : (sf && sf.step ? sf.step + ' (من الداتا القديمة)' : 'مفيش حالة حية');
     row('دلوقتي', now);
-    row('الجاي', lv && lv.next && publicText(lv.next) ? publicText(lv.next) : 'لسه ما بعتش');
+    if (FREE_TEXT_OK) { row('الجاي', lv && lv.next && publicText(lv.next) ? publicText(lv.next) : 'لسه ما بعتش'); }
     var LD = window.__o3Load || {}, LDM = window.__o3LoadMs || {};
     if (typeof LD[id] === 'number') { var ldAge = Date.now() - (LDM[id] || 0); row('معلّق', LD[id] + (ldAge > 3600000 ? ' (من ' + ageWords(Math.floor(ldAge / 60000)) + ')' : '')); }
     if (lv && lv.done >= 0 && lv.pending >= 0) {
@@ -1203,7 +1203,7 @@
     for (var i = 0; i < SECRET_RX.length; i++) { if (SECRET_RX[i].test(t)) { return true; } }
     return false;
   }
-  /* Idea 41 (rule 122): live text on a public screen is capped and filtered. Long or suspicious text becomes a generic word. Empty returns empty. */ function publicText(t) { if (typeof t !== 'string') { return ''; } var s = t.replace(/\s+/g, ' ').trim(); if (!s) { return ''; } if (s.length > 100) { return 'شغلانة'; } if (looksPrivate(s) || /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/.test(s) || /(?:https?:\/\/|www\.)/i.test(s) || /\b[A-Za-z0-9-]+\.(?:com|net|org|io|co|app|dev|me|ai|xyz|ly|sh|tv)\b/i.test(s) || /\d[\d\s().+-]{6,}\d/.test(s) || /\b[A-Fa-f0-9]{20,}\b/.test(s) || /[A-Za-z0-9_-]{24,}/.test(s)) { return 'شغلانة'; } return s; } function cleanText(v, n) {
+  /* Idea 41 (rules 122/123): the public screen shows job names and results only. Free text stays off unless FREE_TEXT_OK is set to true. */ var FREE_TEXT_OK = false; var NOJOB = 'لسه ما بعتش'; function normDigits(s) { return String(s).replace(/[\u0660-\u0669]/g, function (c) { return String(c.charCodeAt(0) - 1632); }).replace(/[\u06F0-\u06F9]/g, function (c) { return String(c.charCodeAt(0) - 1776); }); } function suspicious(t) { var s = normDigits(t); var j = s.replace(/(\d)[\s().\-\u2010-\u2015]+(?=\d)/g, '$1'); return looksPrivate(s) || /\d{5,}/.test(j) || /اسم\s*(?:ال)?عميل/.test(s) || /(?:\+|\b00)\s?\d{2,}/.test(s) || /[A-Za-z0-9._%+-]+\s*(?:@|\[\s*at\s*\]|\(\s*at\s*\)|\sat\s)\s*[A-Za-z0-9-]+\s*(?:\.|\[\s*dot\s*\]|\(\s*dot\s*\)|\sdot\s)\s*[A-Za-z]{2,}/i.test(s) || /(?:https?:\/\/|www\.)/i.test(s) || /\b[A-Za-z0-9-]+\.(?:com|net|org|io|co|app|dev|me|ai|xyz|ly|sh|tv)\b/i.test(s) || /\b[A-Fa-f0-9]{20,}\b/.test(s) || /[A-Za-z0-9_-]{24,}/.test(s) || /(?:كلمة\s*(?:ال)?(?:سر|مرور)|باسورد|رمز\s*(?:ال)?تحقق|كود\s*(?:ال)?تحقق|\botp\b|token|توكن|api[\s_-]*key|تسجيل\s*(?:ال)?دخول|log[\s-]?in|sign[\s-]?in|cookie|كوكي|password|secret)/i.test(s); } function jobSafe(t, n) { if (typeof t !== 'string') { return ''; } var s = t.replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim(); if (!s) { return ''; } return (s.length > (n || 40) || suspicious(s)) ? 'شغلانة' : s; } function publicText(t) { if (typeof t !== 'string') { return ''; } var s = t.replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim(); if (!s) { return ''; } return (s.length > 100 || suspicious(s)) ? 'شغلانة' : s; } function freeOnly(t, n) { return FREE_TEXT_OK ? cleanText(t, n) : ''; } function scrubFeed(d) { if (!d || typeof d !== 'object') { return d; } (Array.isArray(d.staff) ? d.staff : []).forEach(function (s) { if (s && typeof s === 'object') { s.step = FREE_TEXT_OK ? publicText(s.step) : ''; s.last = FREE_TEXT_OK ? publicText(s.last) : ''; } }); if (d.assistant && typeof d.assistant === 'object') { d.assistant.doing = FREE_TEXT_OK ? publicText(d.assistant.doing) : ''; d.assistant.last = FREE_TEXT_OK ? publicText(d.assistant.last) : ''; } (Array.isArray(d.handoffs) ? d.handoffs : []).forEach(function (h) { if (h && typeof h === 'object') { h.label = jobSafe(h.label, 40); } }); return d; } function cleanText(v, n) {
     if (typeof v !== 'string') { return ''; }
     var t = v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n || 200);
     if (looksPrivate(t)) { return ''; }
@@ -1228,18 +1228,18 @@
     var iso = new Date((msg.time || Math.floor(Date.now() / 1000)) * 1000).toISOString();
     if (body.t === 'h') {
       var hm = null;
-      if (typeof body.msg === 'string') { hm = { text: cleanText(body.msg, 200) }; }
+      if (!FREE_TEXT_OK) { hm = null; } else if (typeof body.msg === 'string') { hm = { text: cleanText(body.msg, 200) }; }
       else if (isObj(body.msg)) { hm = { done: cleanText(body.msg.done, 140), missing: cleanText(body.msg.missing, 140), next: cleanText(body.msg.next, 140) }; }
-      liveEvents.push({ t: 'h', from: cleanText(body.from, 40), to: cleanText(body.to, 40), label: cleanText(body.label, 80), job: cleanText(body.job, 40), jt: cleanText(body.jt, 80), step: cleanText(body.step, 40), msg: hm, time: iso });
+      liveEvents.push({ t: 'h', from: cleanText(body.from, 40), to: cleanText(body.to, 40), label: jobSafe(body.label, 40), job: jobSafe(body.job, 40), jt: jobSafe(body.jt, 40), step: freeOnly(body.step, 40), msg: hm, time: iso });
       return true;
     }
     if (body.t === 'r') {
-      liveEvents.push({ t: 'r', job: cleanText(body.job, 40), jt: cleanText(body.jt, 80), time: iso });
+      liveEvents.push({ t: 'r', job: jobSafe(body.job, 40), jt: jobSafe(body.jt, 40), time: iso });
       return true;
     }
     if (body.t === 'p') {
       var pe = { t: 'p', id: cleanText(body.id, 40), name: cleanText(body.name, 40), title: cleanText(body.title, 60), dept: cleanText(body.dept, 40), time: iso };
-      ['state', 'step', 'last'].forEach(function (k) { if (typeof body[k] === 'string') { pe[k] = cleanText(body[k], k === 'state' ? 20 : 120); } });
+      ['state', 'step', 'last'].forEach(function (k) { if (typeof body[k] === 'string') { pe[k] = (k === 'state' || FREE_TEXT_OK) ? cleanText(body[k], k === 'state' ? 20 : 120) : ''; } });
       if (!pe.id || !pe.name) { return false; }
       liveEvents.push(pe);
       return true;
@@ -1248,7 +1248,7 @@
       var ev = { t: 's', id: cleanText(body.id, 40), time: iso };
       ['state', 'step', 'last', 'doing'].forEach(function (k) {
         if (typeof body[k] === 'string') {
-          ev[k] = cleanText(body[k], k === 'state' ? 20 : 120);
+          ev[k] = (k === 'state' || FREE_TEXT_OK) ? cleanText(body[k], k === 'state' ? 20 : 120) : '';
         }
       });
       liveEvents.push(ev);
@@ -1665,7 +1665,7 @@
     list.forEach(function (e, li) {
       var key = e.id + '|' + e.mid, box = document.createElement('div'); box.style.cssText = 'padding:6px 0;' + (li ? 'border-top:1px solid rgba(255,255,255,.12)' : '');
       var q = document.createElement('div'); q.style.fontWeight = '700'; q.textContent = (e.name || e.id || 'موظف') + ': ' + e.ask + ' (' + decAge(e.ms) + ')'; box.appendChild(q);
-      if (!e.options.length) { var no = document.createElement('div'); no.style.cssText = 'font-size:14px;color:#b9cce2'; no.textContent = 'مفيش خيارات'; box.appendChild(no); }
+      if (!e.options.length) { var no = document.createElement('div'); no.style.cssText = 'font-size:14px;color:#b9cce2'; no.textContent = FREE_TEXT_OK ? 'مفيش خيارات' : 'التفاصيل مخفية على الشاشة العامة'; box.appendChild(no); }
       e.options.forEach(function (o, i) {
         var b = document.createElement('button'); b.type = 'button'; b.setAttribute('dir', 'rtl');
         b.style.cssText = 'display:block;width:100%;text-align:start;margin:4px 0;padding:8px 10px;min-height:44px;border-radius:10px;background:' + (decPick[key] === i ? '#1f2a44' : '#0d1626') + ';border:1px solid ' + (decPick[key] === i ? '#22d3ee' : 'rgba(255,255,255,.25)') + ';color:#fff;font:15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
@@ -1904,7 +1904,7 @@
         });
       })
       .then(function (result) {
-        baseFeed = result.data;
+        scrubFeed(result.data); baseFeed = result.data;
         applyMerged();
         lastSuccessAt = Date.now();
         networkFailed = result.servedFromCache;
