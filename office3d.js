@@ -752,6 +752,26 @@
   }
   var walkPhase = 0;
 
+  var avoidRects = [], avoidN = 0;
+  function refreshAvoid() {
+    avoidN++; if (avoidN % 15 !== 1 && avoidRects.length) { return; }
+    var lr = labelLayer.getBoundingClientRect(); avoidRects = [];
+    ['.o3-floors', '.o3-sound', '.o3-view', '.o3-clock', '.o3-cams', '.o3-fs-btn', '.o3-modes', '.o3-fsbtn'].forEach(function (sel) {
+      var n = host.querySelectorAll(sel);
+      for (var i = 0; i < n.length; i++) { var r = n[i].getBoundingClientRect(); if (r.width > 4 && r.height > 4) { avoidRects.push({ l: r.left - lr.left - 4, t: r.top - lr.top - 4, r: r.right - lr.left + 4, b: r.bottom - lr.top + 4 }); } }
+    });
+  }
+  function placeEl(el, x, y, anchor) {
+    var w = el.offsetWidth || 60, h = el.offsetHeight || 24, W = labelLayer.clientWidth || 300, H = labelLayer.clientHeight || 300;
+    if (W < w + 16 || H < h + 16) { el.style.display = 'none'; return false; }
+    var cx = Math.min(W - w / 2 - 8, Math.max(w / 2 + 8, x));
+    var top = anchor === 'b' ? y - h : y - h / 2;
+    top = Math.min(H - h - 8, Math.max(8, top));
+    var l = cx - w / 2, r = cx + w / 2;
+    for (var i = 0; i < avoidRects.length; i++) { var a = avoidRects[i]; if (l < a.r && r > a.l && top < a.b && top + h > a.t) { el.style.display = 'none'; return false; } }
+    el.style.transform = 'translate(' + cx.toFixed(1) + 'px,' + (top + (anchor === 'b' ? h : h / 2)).toFixed(1) + 'px) translate(-50%,' + (anchor === 'b' ? '-100%' : '-50%') + ')';
+    return true;
+  }
   var bubbleEl = document.createElement('div');
   bubbleEl.className = 'o3-bubble'; bubbleEl.hidden = true;
   labelLayer.appendChild(bubbleEl);
@@ -998,6 +1018,7 @@
       });
     })();
     var SHORT = { 'غرفة الاجتماعات': 'الاجتماعات', 'مكتب المالك': 'المالك', 'مكتب المديرة': 'المديرة' };
+    refreshAvoid();
     var zItems = [];
     Object.keys(zoneInfo).forEach(function (zid) {
       var zi = zoneInfo[zid]; if (!zi.el) { return; }
@@ -1013,6 +1034,7 @@
       var zi = it.zi;
       var zhw = (zi.el.offsetWidth || 0) / 2 + 14, zx = zWc > zhw * 2 ? Math.min(zWc - zhw - (it.py < 130 ? 58 : 0), Math.max(zhw, it.px)) : it.px;
       var zhh = (zi.el.offsetHeight || 24) / 2 + 3, zy = it.py;
+      var zH = canvasWrap.clientHeight || 400; zy = Math.min(zH - zhh - 8, Math.max(zhh + 8, zy));
       for (var pass = 0; pass < 10; pass++) {
         var hit = false;
         for (var zr = 0; zr < zRects.length; zr++) { var q = zRects[zr]; if (Math.abs(zx - q.x) < zhw + q.w && Math.abs(zy - q.y) < zhh + q.h) { zy = q.y + q.h + zhh + 1; hit = true; } }
@@ -1020,8 +1042,8 @@
       }
       var show = !showNames && it.vis && !zi.hidden && !buildOn;
       if (show) { zRects.push({ x: zx, y: zy, w: zhw, h: zhh }); }
-      zi.el.style.transform = 'translate(' + zx.toFixed(1) + 'px,' + zy.toFixed(1) + 'px) translate(-50%,-50%)';
       zi.el.style.display = show ? '' : 'none';
+      if (show && !placeEl(zi.el, zx, zy, 'c')) { show = false; }
       zi.rx = it.px; zi.ry = it.py; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = show;
     });
     Object.keys(people).forEach(function (id) {
@@ -1051,8 +1073,8 @@
       var fo = floorOff(r.dept); if (fo) { headPos = new THREE.Vector3(headPos.x, headPos.y + fo, headPos.z); }
       project(headPos, 3.0 + fo, pt);
       var lb = r.label;
-      lb.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-100%)';
       lb.style.display = (pt.vis && !r.hidden && (showNames || r.away)) ? '' : 'none';
+      if (lb.style.display !== 'none') { placeEl(lb, pt.x, pt.y, 'b'); }
       lb.classList.toggle('show-role', showRole);
       lb.classList.toggle('is-away', !!r.away);
       var sb = lb.__s;
@@ -1066,13 +1088,13 @@
       if (showSt) {
         sb.classList.toggle('full', showNames);
         var lift = showNames ? (showRole ? 36 : 24) : 4;
-        sb.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + (pt.y - lift).toFixed(1) + 'px) translate(-50%,-100%)';
+        placeEl(sb, pt.x, pt.y - lift, 'b');
       }
     });
     if (bubbleFor) {
       project(bubbleFor.person.group.position, 2.45, pt);
       if (walkRing) { walkRing.visible = !!(walkFor && walkFor.away); if (walkFor) { walkRing.position.set(walkFor.person.group.position.x, 0.06, walkFor.person.group.position.z); walkRing.rotation.z += dt * 2; } }
-      bubbleEl.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-100%)';
+      bubbleEl.style.display = ''; if (!bubbleEl.hidden) { placeEl(bubbleEl, pt.x, pt.y, 'b'); }
     }
     stepEnvelopes();
     renderFinal();
