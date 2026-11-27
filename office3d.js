@@ -715,7 +715,7 @@
       flyTo(new THREE.Vector3(2.46, 0, -9.9), pr ? 1.9 : 2.7);
       return;
     }
-    if (hits.length && typeof window.__openSheet === 'function') {
+    if (!hits.length && typeof window.__closeCard === 'function') { window.__closeCard(); }     if (hits.length && typeof window.__openSheet === 'function') {
       var id = hits[0].object.userData.id;
       window.__openSheet(id === 'mgr' ? '__manager__' : id);
     }
