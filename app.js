@@ -1133,7 +1133,7 @@
           statusLines.push({ mid: m.id, id: aid, name: nm, text: tx, state: stt, next: nx, done: dn, pending: pd, job: jb, result: rs, ms: (m.time || 0) * 1000 });
           changed = true;
         });
-        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 500); saveTL(); try { renderLog(); renderCard(); } catch (e) {} try { renderSummary(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
+        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 500); saveTL(); try { renderLog(); renderCard(); } catch (e) {} try { if (baseFeed) { applyMerged(); } } catch (e) {} try { renderSummary(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
       })
       .catch(function () {});
   }
@@ -1291,6 +1291,27 @@
           staff[i].time = ev.time;
         }
       }
+    });
+    // Real activity from the status stream (ntfy): the freshest line counts as activity, and the person's latest line sets their state.
+    var AL2 = { 'scout': 't5', 'jessica-dev': 'j2', 'security': 'q14', 'yt-replies': 'c4', 'tiktok': 'v1' };
+    var sNow = Date.now();
+    var byStaff = {};
+    statusLines.forEach(function (e) {
+      if (!e || !e.ms || e.ms > sNow + 300000) { return; }
+      if (e.ms > newest) { newest = e.ms; }
+      var cid = AL2[e.id] || e.id;
+      for (var j = 0; j < staff.length; j++) {
+        var sj = staff[j];
+        if (!isObj(sj) || byStaff[j]) { continue; }
+        if ((cid && String(sj.id) === String(cid)) || (e.name && sj.name === e.name)) { byStaff[j] = e; }
+      }
+    });
+    Object.keys(byStaff).forEach(function (j) {
+      var e = byStaff[j], sj = staff[j], tt = Date.parse(sj.time);
+      if (isFinite(tt) && tt >= e.ms) { return; }
+      sj.state = e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'running');
+      sj.step = e.text;
+      sj.time = new Date(e.ms).toISOString();
     });
     f.updated = new Date(newest).toISOString();
     return f;
