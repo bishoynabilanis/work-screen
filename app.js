@@ -699,7 +699,7 @@
     var lab = els.lastUpdated.parentNode && els.lastUpdated.parentNode.querySelector('.updated-label');
     var box = els.lastUpdated.parentNode;
     if (mode === 'live') { els.lastUpdated.textContent = fmtDubai(new Date()); }
-    else if (mode === 'old') { els.lastUpdated.textContent = fmtDubai(new Date(nw)); }
+    else if (mode === 'old') { var oa = Math.floor((now - nw) / 60000); els.lastUpdated.textContent = fmtDubai(new Date(nw)) + (oa > 60 ? ' (من ' + ageWords(oa) + ')' : ''); }
     else {
       var dt = nw > 0 ? nw : rx;  /* data time first (cache load time is not data age) */
       var dage = dt ? Math.floor((now - dt) / 60000) : 0;
