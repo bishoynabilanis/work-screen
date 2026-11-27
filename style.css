@@ -1762,3 +1762,4 @@ body, .o3-clock, .o3-line-head, #o3-summary { font-variant-numeric: tabular-nums
 @media (pointer: coarse) { .o3-alertbar.on { min-height: 44px; display: flex; align-items: center; justify-content: center; } }
 .o3-alertbar.on { display: block; }
 @media (pointer: coarse) { .o3-alertbar.on { display: flex; } }
+.o3-alertbar { direction: rtl; unicode-bidi: plaintext; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
