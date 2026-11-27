@@ -1169,9 +1169,9 @@
     var x = make('button', ''); x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'إغلاق كارت الموظف'); x.style.cssText = 'background:none;border:0;color:#fff;font-size:16px;cursor:pointer;min-width:44px;min-height:44px;margin:-12px;display:flex;align-items:center;justify-content:center;flex:none'; x.addEventListener('click', closeCard); h.appendChild(x);
     cardEl.appendChild(h);
     function row(label, val) { var r = make('div', ''); r.style.cssText = 'font-size:14px;line-height:1.6'; var l = make('span', ''); l.textContent = label + ': '; l.style.color = '#8aa3bf'; var v = make('span', ''); v.textContent = val; r.appendChild(l); r.appendChild(v); cardEl.appendChild(r); }
-    var now = lv ? (lv.state === 'done' ? 'خلّص: ' : 'بيشتغل على: ') + lv.text : (sf && sf.step ? sf.step + ' (من الداتا القديمة)' : 'مفيش حالة حية');
+    var now = lv ? (publicText(lv.text) ? (lv.state === 'done' ? 'خلّص: ' : 'بيشتغل على: ') + publicText(lv.text) : 'لسه ما بعتش') : (sf && sf.step ? sf.step + ' (من الداتا القديمة)' : 'مفيش حالة حية');
     row('دلوقتي', now);
-    row('الجاي', lv && lv.next ? lv.next : 'لسه ما بعتش');
+    row('الجاي', lv && lv.next && publicText(lv.next) ? publicText(lv.next) : 'لسه ما بعتش');
     var LD = window.__o3Load || {}, LDM = window.__o3LoadMs || {};
     if (typeof LD[id] === 'number') { var ldAge = Date.now() - (LDM[id] || 0); row('معلّق', LD[id] + (ldAge > 3600000 ? ' (من ' + ageWords(Math.floor(ldAge / 60000)) + ')' : '')); }
     if (lv && lv.done >= 0 && lv.pending >= 0) {
@@ -1203,7 +1203,7 @@
     for (var i = 0; i < SECRET_RX.length; i++) { if (SECRET_RX[i].test(t)) { return true; } }
     return false;
   }
-  function cleanText(v, n) {
+  /* Idea 41 (rule 122): live text on a public screen is capped and filtered. Long or suspicious text becomes a generic word. Empty returns empty. */ function publicText(t) { if (typeof t !== 'string') { return ''; } var s = t.replace(/\s+/g, ' ').trim(); if (!s) { return ''; } if (s.length > 100) { return 'شغلانة'; } if (looksPrivate(s) || /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/.test(s) || /(?:https?:\/\/|www\.)/i.test(s) || /\b[A-Za-z0-9-]+\.(?:com|net|org|io|co|app|dev|me|ai|xyz|ly|sh|tv)\b/i.test(s) || /\d[\d\s().+-]{6,}\d/.test(s) || /\b[A-Fa-f0-9]{20,}\b/.test(s) || /[A-Za-z0-9_-]{24,}/.test(s)) { return 'شغلانة'; } return s; } function cleanText(v, n) {
     if (typeof v !== 'string') { return ''; }
     var t = v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n || 200);
     if (looksPrivate(t)) { return ''; }
@@ -1321,7 +1321,7 @@
       var e = byStaff[j], sj = staff[j], tt = Date.parse(sj.time);
       if (isFinite(tt) && tt >= e.ms) { return; }
       sj.state = e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'running');
-      sj.step = e.text;
+      sj.step = publicText(e.text) || 'شغلانة';
       sj.time = new Date(e.ms).toISOString();
     });
     f.updated = new Date(newest).toISOString();
@@ -1771,7 +1771,7 @@
         li.style.borderInlineStart = '4px solid ' + bc; li.style.paddingInlineStart = '8px';
         li.appendChild(document.createTextNode(ss + ' · '));
         if (e.name) { var nsp = document.createElement('strong'); nsp.textContent = e.name; nsp.style.color = bc; li.appendChild(nsp); li.appendChild(document.createTextNode(': ')); }
-        li.appendChild(document.createTextNode((e.state === 'done' ? '✓ خلّص ' : e.state === 'blocked' ? '■ واقف ' : '● بيشتغل ') + e.text));
+        li.appendChild(document.createTextNode((e.state === 'done' ? '✓ خلّص ' : e.state === 'blocked' ? '■ واقف ' : '● بيشتغل ') + (publicText(e.text) || 'شغلانة')));
         lines.appendChild(li);
       });
     }
