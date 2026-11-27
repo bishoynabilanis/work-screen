@@ -1397,6 +1397,7 @@
       if (stuck) { parts.push(['\u25A0 ' + stuck + (stuck === 1 ? ' واقف' : ' واقفين'), '#f87171']); }
       parts.push([(nj === 1 ? '1 شغلانة' : arN(nj, A_JOB)), '#8b5cf6']);
       if (pend && !short) { parts.push([pend + ' معلّق', '#9aa8bd']); }
+      parts.push(['(آخر 30 دقيقة)', '#b9cce2']);
       bar.textContent = '';
       parts.forEach(function (p) { var sp = document.createElement('span'); sp.textContent = p[0]; sp.style.color = p[1]; bar.appendChild(sp); });
       bar.title = pend ? ('معلّق: ' + pend) : '';
