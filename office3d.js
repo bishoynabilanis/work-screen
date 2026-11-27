@@ -887,7 +887,7 @@
   /* Step 3: post-processing (bloom + vignette) with automatic quality levels (high / med / low) */
   var Q = { level: /[?&]q=(low|med|high)/.test(location.search) ? RegExp.$1 : (lowGpu ? 'med' : 'high'), locked: /[?&]q=(low|med|high)/.test(location.search), fps: 60, okSince: 0, frames: 0, t0: performance.now() };
   var POST = { rt: null, a: null, b: null, quad: null, cam: null, mats: null, w: 0, h: 0 };
-  function postSupported() { try { return !!(renderer.capabilities.isWebGL2 && renderer.extensions.get('EXT_color_buffer_float') || renderer.extensions.get('EXT_color_buffer_half_float')); } catch (e) { return false; } }
+  function postSupported() { if (/[?&]nopost=1/.test(location.search)) { return false; } try { return !!(renderer.capabilities.isWebGL2 && renderer.extensions.get('EXT_color_buffer_float') || renderer.extensions.get('EXT_color_buffer_half_float')); } catch (e) { return false; } }
   function postBuild() {
     var sz = new THREE.Vector2(); renderer.getDrawingBufferSize(sz);
     var w = Math.max(2, sz.x | 0), h = Math.max(2, sz.y | 0);
@@ -904,7 +904,7 @@
       POST.mats = {
         bright: mk('uniform sampler2D t; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb; float l = max(c.r, max(c.g, c.b)); gl_FragColor = vec4(c * smoothstep(0.75, 1.5, l), 1.0); }', { t: { value: null } }),
         blur: mk('uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * 0.227; c += (texture2D(t, vUv + d * 1.38).rgb + texture2D(t, vUv - d * 1.38).rgb) * 0.316; c += (texture2D(t, vUv + d * 3.23).rgb + texture2D(t, vUv - d * 3.23).rgb) * 0.070; gl_FragColor = vec4(c, 1.0); }', { t: { value: null }, d: { value: new THREE.Vector2() } }),
-        comp: mk('uniform sampler2D t; uniform sampler2D bl; uniform float bs; varying vec2 vUv;\nvoid main(){ vec3 c = texture2D(t, vUv).rgb + texture2D(bl, vUv).rgb * bs; vec2 q = vUv - 0.5; float v = smoothstep(0.95, 0.30, length(q * vec2(1.0, 1.0))); c *= mix(0.72, 1.0, v); gl_FragColor = vec4(c, 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}', { t: { value: null }, bl: { value: null }, bs: { value: 0.55 } }, true)
+        comp: mk('uniform sampler2D t; uniform sampler2D bl; uniform float bs; varying vec2 vUv;\nvoid main(){ vec3 c = texture2D(t, vUv).rgb + texture2D(bl, vUv).rgb * bs; vec2 q = vUv - 0.5; float v = smoothstep(0.95, 0.30, length(q * vec2(1.0, 1.0))); c *= mix(0.88, 1.0, v); gl_FragColor = vec4(c, 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}', { t: { value: null }, bl: { value: null }, bs: { value: 0.55 } }, true)
       };
       POST.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), POST.mats.bright); POST.quad.frustumCulled = false;
       POST.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
