@@ -1635,6 +1635,55 @@
   syncViewBtn();
   (host.querySelector('.o3-stage') || host).appendChild(viewBtn);
 
+  /* Idea 25: minimap. Plan view of the office (x right, z down). Dots = people by real state, polygon = what the camera sees, click = fly there. */
+  (function () {
+    var stage = host.querySelector('.o3-stage') || host, MX0 = -5.5, MX1 = 28.5, MZ0 = -7.5, MZ1 = 24.5, W = 136, H = Math.round(W * (MZ1 - MZ0) / (MX1 - MX0));
+    var wrap = document.createElement('div'); wrap.className = 'o3-minimap'; wrap.setAttribute('dir', 'rtl');
+    wrap.style.cssText = 'position:absolute;left:8px;top:56px;z-index:6;display:flex;flex-direction:column;gap:4px;align-items:flex-start;pointer-events:auto';
+    var tg = document.createElement('button'); tg.type = 'button'; tg.style.cssText = 'min-height:44px;min-width:44px;padding:4px 12px;border-radius:999px;background:rgba(7,13,24,.9);border:1px solid #22d3ee;color:#fff;font:700 14px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+    var cv = document.createElement('canvas'); cv.tabIndex = 0; cv.setAttribute('role', 'img');
+    cv.setAttribute('aria-label', 'خريطة المكتب. اضغط على مكان أو استخدم الأسهم عشان الكاميرا تروح هناك');
+    cv.style.cssText = 'width:' + W + 'px;height:' + H + 'px;border-radius:10px;background:rgba(7,13,24,.82);border:1px solid rgba(34,211,238,.6);touch-action:none;cursor:pointer';
+    var dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr;
+    var tb = document.createElement('button'); tb.type = 'button'; tb.id = 'o3-tourbtn'; tb.textContent = 'الجولة'; tb.style.cssText = tg.style.cssText; tb.addEventListener('click', function () { if (window.__o3StartTour) { window.__o3StartTour(); } });
+    var brow = document.createElement('div'); brow.style.cssText = 'display:flex;gap:6px'; brow.appendChild(tg); brow.appendChild(tb); wrap.appendChild(brow); wrap.appendChild(cv); stage.appendChild(wrap);
+    var open = false; try { open = localStorage.getItem('o3-mm-open') === '1'; } catch (e) { open = false; }
+    function sync() { tg.textContent = open ? 'الخريطة ▴' : 'الخريطة ▾'; tg.setAttribute('aria-expanded', open ? 'true' : 'false'); cv.style.display = open ? 'block' : 'none'; if (open) { draw(); } }
+    tg.addEventListener('click', function () { open = !open; try { localStorage.setItem('o3-mm-open', open ? '1' : '0'); } catch (e) { /* ignore */ } sync(); });
+    function px(x) { return (x - MX0) / (MX1 - MX0) * W; }
+    function pz(z) { return (z - MZ0) / (MZ1 - MZ0) * H; }
+    var rr = new THREE.Raycaster(), nn = new THREE.Vector2(), hit = new THREE.Vector3(), gp = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    function viewPoly() {
+      var out = [];
+      [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function (c) { nn.set(c[0], c[1]); rr.setFromCamera(nn, camera); if (rr.ray.intersectPlane(gp, hit)) { out.push([hit.x, hit.z]); } });
+      return out.length === 4 ? out : null;
+    }
+    function hex(n) { return '#' + ('000000' + n.toString(16)).slice(-6); }
+    function draw() {
+      var c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+      c.strokeStyle = 'rgba(185,204,226,.35)'; c.lineWidth = 1; c.strokeRect(0.5, 0.5, W - 1, H - 1);
+      Object.keys(people).forEach(function (id) {
+        var r = people[id]; if (!r || r.hidden || !r.seat) { return; }
+        var x = px(r.seat.x), y = pz(r.seat.z), col = r.stale ? '#9aa0aa' : hex(STATE_COLOR[r.state] || STATE_COLOR.unknown), dim = srch.on && !r.match && r.state !== 'blocked';
+        c.globalAlpha = dim ? 0.3 : 1; c.fillStyle = col; c.beginPath(); c.arc(x, y, r.state === 'blocked' ? 4 : 3, 0, 6.2832); c.fill();
+        if (r.state === 'blocked') { c.strokeStyle = '#ffffff'; c.lineWidth = 1.5; c.stroke(); }
+        if (r.stale) { c.strokeStyle = '#ffffff'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, 4.5, 0, 6.2832); c.stroke(); }
+      });
+      c.globalAlpha = 1;
+      var vp = viewPoly();
+      if (vp) { c.strokeStyle = '#22d3ee'; c.lineWidth = 2; c.beginPath(); vp.forEach(function (q, i) { var X = Math.max(-2, Math.min(W + 2, px(q[0]))), Y = Math.max(-2, Math.min(H + 2, pz(q[1]))); if (i) { c.lineTo(X, Y); } else { c.moveTo(X, Y); } }); c.closePath(); c.stroke(); }
+    }
+    function go(x, z) { userTouch(); flyTo(new THREE.Vector3(Math.max(MX0, Math.min(MX1, x)), 0, Math.max(MZ0, Math.min(MZ1, z))), zoom); }
+    function fromEvent(e) { var b = cv.getBoundingClientRect(); go(MX0 + (e.clientX - b.left) / b.width * (MX1 - MX0), MZ0 + (e.clientY - b.top) / b.height * (MZ1 - MZ0)); }
+    cv.addEventListener('pointerdown', function (e) { e.preventDefault(); e.stopPropagation(); fromEvent(e); });
+    cv.addEventListener('keydown', function (e) {
+      var d = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, -2], ArrowDown: [0, 2] }[e.key]; if (!d) { return; }
+      e.preventDefault(); go(target.x + d[0], target.z + d[1]);
+    });
+    setInterval(function () { if (open && !document.hidden) { try { draw(); } catch (e) { noteErr(e, 'minimap'); } } }, 500);
+    window.__o3Minimap = { draw: draw, poly: viewPoly };
+    sync();
+  })();
   window.__o3dbg = { people: people, charTpl: charTpl };
   initCharacters();
   window.Office3D = { ready: true, snapshot: function () { try { renderFinal(); return renderer.domElement.toDataURL('image/png'); } catch (e) { return ''; } }, search: function (q, f, fly) { srch.q = String(q || ''); srch.f = f || 'all'; srch.on = !!srch.q.trim() || srch.f !== 'all'; return applySearch(!!fly); }, setFloor: setFloor, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
