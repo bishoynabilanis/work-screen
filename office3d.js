@@ -70,7 +70,7 @@
   var desiredTarget = target.clone();
   var desiredZoom = 1.55;
   var baseSpan = 30, initZoomDone = false;
-  var floorSel = 0, deptObjs = {}, mgrWalls = [], camMode = 'free', followId = '', followT = 0, camBtns = {}, az = 0, azU = 0, azUT = 0, elU = 0.45, elUT = 0.45, camDir = { x: 0.7071, z: 0.7071 }, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
+  var floorSel = 0, deptObjs = {}, mgrWalls = [], camMode = 'free', followId = '', followT = 0, camBtns = {}, az = 0, azU = 0, azUT = 0, elU = 0.8, elUT = 0.8, camDir = { x: 0.7071, z: 0.7071 }, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
 
   function placeCamera() {
     var w = canvasWrap.clientWidth || 360, h = canvasWrap.clientHeight || 520;
@@ -579,7 +579,7 @@
     setBuilding(false);
     floorSel = f; applyFloor();
     Object.keys(floorBtns).forEach(function (k) { floorBtns[k].classList.toggle('on', +k === f); });
-    if (!noFly) { if (f === 4) { elUT = 1.0; } else if (f === 0) { elUT = 0.45; } var v = FLOOR_VIEW[f] || [12.5, 0, 9, 1]; flyTo(new THREE.Vector3(v[0], v[1], v[2]), v[3]); }
+    if (!noFly) { if (f === 4) { elUT = 1.0; } else if (f === 0) { elUT = 0.8; } var v = FLOOR_VIEW[f] || [12.5, 0, 9, 1]; flyTo(new THREE.Vector3(v[0], v[1], v[2]), v[3]); }
   }
   var floorBtns = {};
   // ---------- camera controls ----------
@@ -630,7 +630,7 @@
       if (drag.pan) { panBy(dx, dy); }
       else {
         azUT += dx * 0.006; elUT = Math.min(1.35, Math.max(0.12, elUT + dy * 0.004));
-        if (perspMode === false) { elUT = 0.45; }
+        if (perspMode === false) { elUT = 0.8; }
       }
     }
   });
@@ -650,7 +650,7 @@
     var dy = Math.max(-120, Math.min(120, e.deltaY)); if (e.deltaMode === 1) { dy *= 16; } desiredZoom = clampZ(desiredZoom * Math.exp(-dy * 0.0009));
   }, { passive: false });
 
-  el.addEventListener('dblclick', function () { userTouch(); azUT = 0; elUT = 0.45; desiredTarget.set(12.5, 0, 9); desiredZoom = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85 ? 0.66 : 1; });
+  el.addEventListener('dblclick', function () { userTouch(); azUT = 0; elUT = 0.8; desiredTarget.set(12.5, 0, 9); desiredZoom = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85 ? 0.66 : 1; });
   var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   function pick(cx, cy) {
     var r = el.getBoundingClientRect();
