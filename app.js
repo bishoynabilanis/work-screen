@@ -700,7 +700,11 @@
     var box = els.lastUpdated.parentNode;
     if (mode === 'live') { els.lastUpdated.textContent = fmtDubai(new Date()); }
     else if (mode === 'old') { els.lastUpdated.textContent = fmtDubai(new Date(nw)); }
-    else { els.lastUpdated.textContent = rx ? fmtDubai(new Date(rx)) : '—'; }
+    else {
+      var dt = nw > 0 ? nw : rx;  /* data time first (cache load time is not data age) */
+      var dage = dt ? Math.floor((now - dt) / 60000) : 0;
+      els.lastUpdated.textContent = dt ? fmtDubai(new Date(dt)) + (dage > 60 ? ' (من ' + ageWords(dage) + ')' : '') : '—';
+    }
     var txt = mode === 'live' ? 'مباشر' : (mode === 'old' ? 'بيانات قديمة، آخرها' : (mode === 'offline' ? 'بدون اتصال، آخر بيانات' : mode === 'down' ? 'متقطّع، آخر بيانات' : 'بدون تيار، آخر بيانات'));
     if (lab && lab.textContent !== txt) { lab.textContent = txt; }
     if (box) { box.classList.toggle('is-live', mode === 'live'); box.classList.toggle('is-stale', mode !== 'live'); }
