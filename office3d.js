@@ -988,16 +988,41 @@
     var showNames = zoom > (portrait ? 2.6 : 1.7);
     if (host.classList.contains('o3-portrait') !== portrait) { host.classList.toggle('o3-portrait', portrait); }
     var zRects = [];
+    (function () { /* keep labels clear of the floor menu, camera buttons and clock */
+      var cw = canvasWrap.getBoundingClientRect();
+      ['.o3-floors', '.o3-cams', '.o3-clock', '.o3-fs-btn'].forEach(function (sel) {
+        var e = host.querySelector(sel); if (!e || e.hidden) { return; }
+        var cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden') { return; }
+        var r = e.getBoundingClientRect(); if (!r.width) { return; }
+        zRects.push({ x: r.left - cw.left + r.width / 2, y: r.top - cw.top + r.height / 2, w: r.width / 2 + 4, h: r.height / 2 + 4 });
+      });
+    })();
+    var SHORT = { 'غرفة الاجتماعات': 'الاجتماعات', 'مكتب المالك': 'المالك', 'مكتب المديرة': 'المديرة' };
+    var zItems = [];
     Object.keys(zoneInfo).forEach(function (zid) {
       var zi = zoneInfo[zid]; if (!zi.el) { return; }
+      if (zi.full === undefined) { zi.full = zi.el.textContent; }
+      var want = (portrait && SHORT[zi.full]) ? SHORT[zi.full] : zi.full;
+      if (zi.el.textContent !== want) { zi.el.textContent = want; }
       project({ x: zi.cx, z: zi.cz - zi.d / 2 + 0.6 }, 0.6 + floorOff(zid), pt);
-      var zhw = (zi.el.offsetWidth || 0) / 2 + 6, zW = canvasWrap.clientWidth || 0, zx = zW > zhw * 2 ? Math.min(zW - zhw - (pt.y < 130 ? 58 : 0), Math.max(zhw, pt.x)) : pt.x;
-      var zhh = (zi.el.offsetHeight || 24) / 2 + 3, zy = pt.y;
-      for (var zr = 0; zr < zRects.length; zr++) { var q = zRects[zr]; if (Math.abs(zx - q.x) < zhw + q.w && Math.abs(zy - q.y) < zhh + q.h) { zy = q.y + q.h + zhh + 1; } }
-      if (pt.vis && !zi.hidden) { zRects.push({ x: zx, y: zy, w: zhw, h: zhh }); }
+      zItems.push({ zi: zi, zid: zid, px: pt.x, py: pt.y, vis: pt.vis });
+    });
+    zItems.sort(function (a, b) { return a.py - b.py; });
+    var zWc = canvasWrap.clientWidth || 0;
+    zItems.forEach(function (it) {
+      var zi = it.zi;
+      var zhw = (zi.el.offsetWidth || 0) / 2 + 6, zx = zWc > zhw * 2 ? Math.min(zWc - zhw - (it.py < 130 ? 58 : 0), Math.max(zhw, it.px)) : it.px;
+      var zhh = (zi.el.offsetHeight || 24) / 2 + 3, zy = it.py;
+      for (var pass = 0; pass < 10; pass++) {
+        var hit = false;
+        for (var zr = 0; zr < zRects.length; zr++) { var q = zRects[zr]; if (Math.abs(zx - q.x) < zhw + q.w && Math.abs(zy - q.y) < zhh + q.h) { zy = q.y + q.h + zhh + 1; hit = true; } }
+        if (!hit) { break; }
+      }
+      var show = !showNames && it.vis && !zi.hidden && !buildOn;
+      if (show) { zRects.push({ x: zx, y: zy, w: zhw, h: zhh }); }
       zi.el.style.transform = 'translate(' + zx.toFixed(1) + 'px,' + zy.toFixed(1) + 'px) translate(-50%,-50%)';
-      zi.el.style.display = (!showNames && pt.vis && !zi.hidden && !buildOn) ? '' : 'none';
-      zi.rx = pt.x; zi.ry = pt.y; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = !showNames && pt.vis && !zi.hidden && !buildOn;
+      zi.el.style.display = show ? '' : 'none';
+      zi.rx = it.px; zi.ry = it.py; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = show;
     });
     Object.keys(people).forEach(function (id) {
       var r = people[id], pa = r.person.parts;
