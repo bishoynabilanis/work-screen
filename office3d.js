@@ -53,7 +53,7 @@
   var hemi = new THREE.HemisphereLight(0xffffff, 0xb8c4d0, 0.95);
   scene.add(hemi);
   var winMats = [], cityLights = [], lampGlows = [];
-  var sun = new THREE.DirectionalLight(0xfff3dc, 0.75);
+  var sun = new THREE.DirectionalLight(0xfff3dc, 1.9);
   sun.position.set(1.5, 24, 22.5);
   sun.target.position.set(11.5, 0, 8.5); scene.add(sun.target);
   sun.castShadow = true; sun.shadow.mapSize.set(lowGpu ? 1024 : 2048, lowGpu ? 1024 : 2048);
@@ -65,10 +65,10 @@
   var camPersp = new THREE.PerspectiveCamera(34, 1, 0.5, 260);
   var camera = camOrtho, perspMode = false;
   try { var pv = localStorage.getItem('o3-persp'); perspMode = true; void pv; } catch (e) { perspMode = false; }
-  var target = new THREE.Vector3(12.5, 0, 9);
-  var zoom = 1;
+  var target = new THREE.Vector3(9.5, 0, 10.5);
+  var zoom = 1.55;
   var desiredTarget = target.clone();
-  var desiredZoom = 1;
+  var desiredZoom = 1.55;
   var baseSpan = 30, initZoomDone = false;
   var floorSel = 0, deptObjs = {}, mgrWalls = [], camMode = 'free', followId = '', followT = 0, camBtns = {}, az = 0, azU = 0, azUT = 0, elU = 0.45, elUT = 0.45, camDir = { x: 0.7071, z: 0.7071 }, cine = null, cineHome = null, cineDepth = 0, cineTimer = 0, lastTouch = -1e9, firstFeedDone = false;
 
@@ -298,6 +298,7 @@
     p.group.position.y = 0.0;
     scene.add(p.group);
     p.group.scale.setScalar(1);
+    if (!window.__o3NoChars) { p.group.visible = false; setTimeout(function () { p.group.visible = true; }, 90000); }
     // stand/sit: lift body to seat, tuck legs
     var ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.set(pos.x, 0.09, pos.z - 0.95); scene.add(ring);
@@ -365,12 +366,12 @@
       plant(8.9, -2.2); plant(14.1, -2.2);
       tile.visible = false;
       // separate closed office for the manager (solid walls, door, own furniture; near walls fade when the camera looks through them)
-      (function () {
-        var X0 = 8.3, X1 = 14.7, Z0 = -7.0, Z1 = -1.5, cxm = 11.5, czm = (Z0 + Z1) / 2, H = 3.7, T = 0.22;
+      function buildOffice(X0, X1, kind) {
+        var Z0 = -7.0, Z1 = -1.5, cxm = 11.5, czm = (Z0 + Z1) / 2, H = 3.7, T = 0.22;
         var fl = new THREE.Mesh(new THREE.BoxGeometry(X1 - X0, 0.12, Z1 - Z0), mat(0x8a5a3c)); fl.position.set(cxm, 0.06, czm); fl.receiveShadow = true; scene.add(fl);
         var rug = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.03, 3.2), mat(0x2f3e5c)); rug.position.set(cxm, 0.14, -3.9); rug.receiveShadow = true; scene.add(rug);
         var rug2 = new THREE.Mesh(new THREE.BoxGeometry(3.7, 0.035, 2.5), mat(0xd9b77a)); rug2.position.set(cxm, 0.15, -3.9); scene.add(rug2);
-        mgrWalls = [];
+        if (kind === 'mgr') { mgrWalls = []; }
         function wallM(nx, nz) { var m = new THREE.MeshLambertMaterial({ color: 0xf1ece2, transparent: true, opacity: 1 }); mgrWalls.push({ m: m, nx: nx, nz: nz }); return m; }
         function wall(cx, cz, w, d, nx, nz, h, y0) {
           var wm = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallM(nx, nz)); wm.position.set(cx, (y0 || 0) + h / 2, cz); wm.castShadow = false; scene.add(wm);
@@ -395,7 +396,7 @@
         var knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0xe8c15a)); knob.position.set(1.2, 0, 0.06); leaf.add(knob);
         var sign = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.42, 0.06), accentM); sign.position.set(cxm, 3.3, Z1 + 0.16); scene.add(sign);
         // furniture: bookshelf (left wall), sofa + coffee table (right side), credenza, wall art, floor lamp
-        var shelf = new THREE.Group(); var shBody = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.6, 3.2), mat(0x6b4a30)); shBody.position.set(0, 1.3, 0); shelf.add(shBody);
+        var shelf = new THREE.Group(); if (kind === 'meet') { shelf.visible = false; } var shBody = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.6, 3.2), mat(0x6b4a30)); shBody.position.set(0, 1.3, 0); shelf.add(shBody);
         var bc = [0xd04a3a, 0x3a7bd0, 0xe0b040, 0x3fa070, 0x8a5ac0, 0xf2f2ec];
         for (var r = 0; r < 4; r++) { for (var k = 0; k < 11; k++) { var bk = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.46, 0.2), mat(bc[(r * 3 + k) % bc.length])); bk.position.set(0.12, 0.45 + r * 0.6, -1.4 + k * 0.28); shelf.add(bk); } }
         shelf.position.set(X0 + 0.45, 0, -4.9); scene.add(shelf);
@@ -403,7 +404,7 @@
         var sb = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.5, 1.0), sm); sb.position.y = 0.4; sofa.add(sb);
         var sk = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.8, 0.28), sm); sk.position.set(0, 0.8, 0.4); sofa.add(sk);
         [-1.3, 1.3].forEach(function (x) { var ar = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.7, 1.0), sm); ar.position.set(x, 0.55, 0); sofa.add(ar); });
-        sofa.position.set(X1 - 0.9, 0, -5.6); sofa.rotation.y = -Math.PI / 2; scene.add(sofa);
+        sofa.position.set(X1 - 0.9, 0, -5.6); sofa.rotation.y = -Math.PI / 2; scene.add(sofa); if (kind === 'meet') { sofa.visible = false; }
         var ctab = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.12, 20), mat(0xe9dfcf)); ctab.position.set(X1 - 2.5, 0.5, -5.6); scene.add(ctab);
         var cleg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 8), trimM); cleg.position.set(X1 - 2.5, 0.25, -5.6); scene.add(cleg);
         var cred = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.9, 0.5), mat(0x6b4a30)); cred.position.set(cxm + 0.3, 0.45, Z0 + 0.5); scene.add(cred);
@@ -411,11 +412,23 @@
         var art2 = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.9, 0.08), mat(0xffe9d2)); art2.position.set(cxm + 0.3, 2.3, Z0 + 0.33); scene.add(art2);
         var lampP = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.0, 6), mat(0x333333)); lampP.position.set(X1 - 0.6, 1.0, -2.4); scene.add(lampP);
         var lampH = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.4, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe0a8, side: THREE.DoubleSide })); lampH.position.set(X1 - 0.6, 2.1, -2.4); scene.add(lampH);
+        var mt = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.1, 28), mat(0xf3ede2)); mt.position.set((X0 + 1.1), 0.85, -2.4); scene.add(mt);
+        var mtl = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.3, 0.75, 10), mat(0x2b2b30)); mtl.position.set((X0 + 1.1), 0.45, -2.4); scene.add(mtl);
+        [1.4, 2.4].forEach(function (an) { var ch = new THREE.Group(); var cs = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, 0.55), mat(0x2f3e5c)); cs.position.y = 0.55; ch.add(cs); var cb = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.1), mat(0x2f3e5c)); cb.position.set(0, 0.9, -0.25); ch.add(cb); var cl = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 6), mat(0x222226)); cl.position.y = 0.28; ch.add(cl); ch.position.set((X0 + 1.1) + Math.cos(an) * 1.05, 0, -2.4 + Math.sin(an) * 1.05); ch.rotation.y = -an - Math.PI / 2; scene.add(ch); });
+        var tvS = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.2, 0.08), mat(0x111418)); tvS.position.set((X0 + 1.3), 2.0, Z0 + 0.3); scene.add(tvS);
+        var tvG = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.0, 0.02), new THREE.MeshBasicMaterial({ color: 0x3a7bd0 })); tvG.position.set((X0 + 1.3), 2.0, Z0 + 0.36); scene.add(tvG);
+        var exd = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 1.3), mat(0x5b3a26)); exd.position.set(cxm, 0.9, -3.15); scene.add(exd); if (kind === 'meet') { exd.visible = false; }
+        [-1.05, 1.05].forEach(function (x) { var dl = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.85, 1.2), mat(0x4a2f1e)); dl.position.set(cxm + x, 0.45, -3.15); scene.add(dl); if (kind === 'meet') { dl.visible = false; } });
+        if (kind === 'owner') { var och = new THREE.Group(); var oc1 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.7), mat(0x1f2430)); oc1.position.y = 0.6; och.add(oc1); var oc2 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.95, 0.12), mat(0x1f2430)); oc2.position.set(0, 1.1, -0.34); och.add(oc2); och.position.set(cxm, 0, -3.95); scene.add(och); var omon = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.55, 0.05), mat(0x111418)); omon.position.set(cxm, 1.3, -3.4); scene.add(omon); var oscr = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.45, 0.02), new THREE.MeshBasicMaterial({ color: 0x3a7bd0 })); oscr.position.set(cxm, 1.3, -3.36); scene.add(oscr); }
+        var zl2 = document.createElement('button'); zl2.type = 'button'; zl2.className = 'o3-zone'; zl2.textContent = kind === 'meet' ? 'غرفة الاجتماعات' : (kind === 'owner' ? 'مكتب المالك' : 'مكتب المديرة'); if (kind !== 'mgr') { labelLayer.appendChild(zl2); zoneInfo[kind] = { cx: cxm, cz: czm, w: X1 - X0, d: Z1 - Z0, name: zl2.textContent, el: zl2 }; zl2.addEventListener('click', function () { flyTo(new THREE.Vector3(cxm, 0, -3.6), 3.0); }); }
         plant(X0 + 0.8, -2.4);
+        if (kind === 'meet') { var lt = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.1, 1.5), mat(0xf3ede2)); lt.position.set(cxm, 0.9, -4.2); scene.add(lt); [-1.4, 1.4].forEach(function (x) { var lg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.85, 1.2), mat(0x2b2b30)); lg.position.set(cxm + x, 0.45, -4.2); scene.add(lg); }); for (var ci = 0; ci < 6; ci++) { var chm = new THREE.Group(); var c1 = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, 0.55), mat(0x2f3e5c)); c1.position.y = 0.55; chm.add(c1); var c2 = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.1), mat(0x2f3e5c)); c2.position.set(0, 0.9, ci < 3 ? -0.25 : 0.25); chm.add(c2); chm.position.set(cxm - 1.3 + (ci % 3) * 1.3, 0, ci < 3 ? -5.2 : -3.2); scene.add(chm); } }
         var pl = new THREE.PointLight(0xffd9a8, 0.8, 9); pl.position.set(cxm, 3.2, czm); scene.add(pl);
-      })();
+      }
+      buildOffice(8.3, 14.7, 'mgr'); buildOffice(14.7, 19.5, 'meet'); buildOffice(19.5, 25.9, 'owner');
     }
     if (nm0 !== undefined) { tagDept('mgr', nm0); }
+    try { groupFloors(); } catch (e) { noteErr(e, 'floors'); }
     built = true;
     if (floorSel) { applyFloor(); }
   }
@@ -508,7 +521,7 @@
   }
 
   // ---------- floors ----------
-  var FLOOR = { mgr: 4, trend: 1, video: 1, content: 2, jessica: 2, seo: 3, tools: 3, mail: 3, qa: 3 };
+  var FLOOR = { mgr: 4, owner: 4, meet: 4, trend: 1, video: 1, content: 2, jessica: 2, seo: 3, tools: 3, mail: 3, qa: 3 };
   var FLOOR_VIEW = { 1: [18, 0, -1, 1.3], 2: [4, 0, 6, 1.2], 3: [12, 0, 14, 1.0], 4: [11.5, 0, -3.9, 2.3] };
   function tagDept(id, n0) {
     var arr = deptObjs[id] = deptObjs[id] || [];
@@ -520,10 +533,39 @@
     Object.keys(people).forEach(function (pid) { var r = people[pid]; r.hidden = !deptVisible(r.dept); });
     Object.keys(zoneInfo).forEach(function (zid) { zoneInfo[zid].hidden = !deptVisible(zid); });
   }
+  var FLOOR_DY = { 1: 0, 2: 6.5, 3: 13, 4: 19.5 }, floorGroups = {}, buildOn = false, glassObjs = [];
+  function groupFloors() {
+    [1, 2, 3, 4].forEach(function (f) {
+      var g = floorGroups[f] = new THREE.Group(); scene.add(g);
+      var slab = new THREE.Mesh(new THREE.BoxGeometry(33, 0.1, 31), new THREE.MeshStandardMaterial({ color: 0x9fd4ff, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0.3, depthWrite: false }));
+      slab.position.set(11.5, -0.04, 8.5); g.add(slab);
+      var shell = new THREE.Mesh(new THREE.BoxGeometry(33, 4.4, 31), new THREE.MeshStandardMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.07, roughness: 0.05, depthWrite: false, side: THREE.DoubleSide }));
+      shell.position.set(11.5, 2.2, 8.5); g.add(shell);
+      var edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(33, 4.4, 31)), new THREE.LineBasicMaterial({ color: 0xe8f4ff, transparent: true, opacity: 0.8 }));
+      edges.position.set(11.5, 2.2, 8.5); g.add(edges);
+      g.userData.glass = [slab, shell, edges]; glassObjs.push(slab, shell, edges);
+      slab.visible = shell.visible = edges.visible = false;
+    });
+    Object.keys(deptObjs).forEach(function (id) {
+      var f = FLOOR[id]; var g = floorGroups[f]; if (!g) { return; }
+      deptObjs[id].forEach(function (ob) { if (ob.parent === scene) { scene.remove(ob); g.add(ob); } });
+    });
+  }
+  function setBuilding(on) {
+    if (buildOn === on || !floorGroups[1]) { buildOn = on; return; }
+    buildOn = on;
+    [1, 2, 3, 4].forEach(function (f) { var g = floorGroups[f]; g.position.y = on ? FLOOR_DY[f] : 0; g.userData.glass.forEach(function (o) { o.visible = on; }); });
+    if (typeof carpet !== 'undefined') { carpet.visible = !on; }
+    if (typeof floor !== 'undefined') { floor.visible = !on; }
+    wallBack.visible = !on; wallLeft.visible = !on;
+  }
+  function floorOff(dept) { return buildOn ? (FLOOR_DY[FLOOR[dept]] || 0) : 0; }
   function setFloor(f, noFly) {
+    if (f === 5) { floorSel = 0; applyFloor(); setBuilding(true); Object.keys(floorBtns).forEach(function (k) { floorBtns[k].classList.toggle('on', +k === 5); }); if (!noFly) { flyTo(new THREE.Vector3(11.5, 10.5, 8.5), 0.46); } return; }
+    setBuilding(false);
     floorSel = f; applyFloor();
     Object.keys(floorBtns).forEach(function (k) { floorBtns[k].classList.toggle('on', +k === f); });
-    if (!noFly) { var v = FLOOR_VIEW[f] || [12.5, 0, 9, 1]; flyTo(new THREE.Vector3(v[0], v[1], v[2]), v[3]); }
+    if (!noFly) { if (f === 4) { elUT = 1.0; } else if (f === 0) { elUT = 0.45; } var v = FLOOR_VIEW[f] || [12.5, 0, 9, 1]; flyTo(new THREE.Vector3(v[0], v[1], v[2]), v[3]); }
   }
   var floorBtns = {};
   // ---------- camera controls ----------
@@ -748,16 +790,18 @@
   }
   applyTime(); setInterval(applyTime, 60000);
 
+  var walkRing = null, walkFor = null;
   function walk(item) {
     var from = people[String(item.from)], to = people[String(item.to)];
     if (from && to && from !== to) { sendEnvelope(from, to); }
     if (!from || !to || from === to || from.away) { return Promise.resolve(); }
-    from.away = true;
+    from.away = true; walkFor = from;
+    if (!walkRing) { walkRing = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.78, 40), new THREE.MeshBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthTest: false })); walkRing.rotation.x = -Math.PI / 2; walkRing.renderOrder = 50; scene.add(walkRing); }
     var g = from.person.group;
     standPose(from);
     g.position.set(from.seat.x, 0, from.seat.z);
     var pts = routeTo(from, to);
-    bubbleFor = from; bubbleEl.textContent = String(item.label || 'تسليم'); bubbleEl.hidden = false;
+    bubbleFor = from; bubbleEl.textContent = 'خلّصت ' + String(item.label || 'الشغل') + '، رايح أسلّمها لـ' + (to.nameText || 'زميلي'); bubbleEl.hidden = false;
     from.carry = true;
     var cineOn = cineGo(new THREE.Vector3((from.seat.x + to.seat.x) / 2, 0, (from.seat.z + to.seat.z) / 2), Math.max(1.5, Math.min(2.2, 40 / (from.seat.distanceTo(to.seat) + 8))));
     return followPath(from, pts, 3.4)
@@ -765,10 +809,10 @@
         g.rotation.y = Math.atan2(0, -1);
         var pa = from.person.parts; pa.legL.rotation.x = 0; pa.legR.rotation.x = 0; pa.armL.rotation.x = -1.2; pa.armR.rotation.x = -1.2;
         to.received = 1;
-        return wait(1300);
+        bubbleEl.textContent = 'اتفضل يا ' + (to.nameText || 'زميلي'); return wait(900).then(function () { bubbleFor = to; bubbleEl.textContent = 'استلمت منك يا ' + (from.nameText || 'زميلي') + '، تمام'; return wait(1100); });
       })
       .then(function () {
-        to.received = 0;
+        to.received = 0; bubbleFor = from; bubbleEl.textContent = 'تمام، راجع شغلي';
         from.carry = false;
         return followPath(from, pts.slice().reverse(), 3.4);
       })
@@ -821,7 +865,7 @@
         if (fp) { var pp = fp.away ? fp.person.group.position : fp.seat; desiredTarget.set(pp.x, 0, pp.z); desiredZoom = 2.6; elUT = 0.4; azUT += (0.9 - azUT) * dt * 0.3; }
       }
     }
-    mgrWalls.forEach(function (w) { var v = (camDir.x * w.nx + camDir.z * w.nz) > 0.12 ? 0.3 : 1; w.m.opacity += (v - w.m.opacity) * Math.min(1, dt * 6); w.m.depthWrite = w.m.opacity > 0.95; });
+    mgrWalls.forEach(function (w) { var v = (camDir.x * w.nx + camDir.z * w.nz) > 0.12 ? 0.06 : 1; w.m.opacity += (v - w.m.opacity) * Math.min(1, dt * 6); w.m.depthWrite = w.m.opacity > 0.95; });
     azU += (azUT - azU) * Math.min(1, dt * 9); elU += (elUT - elU) * Math.min(1, dt * 9);
     // slow orbit when idle in the wide view
     var idle = !cine && !cineHome && ptCount() === 0 && performance.now() - lastTouch > 20000 && zoom < 2.2;
@@ -829,15 +873,15 @@
     az += (azT - az) * (idle ? 0.012 : 0.05);
     placeCamera();
     var portrait = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85;
-    var showRole = zoom > (portrait ? 3.4 : 1.9);
-    var showNames = zoom > (portrait ? 2.4 : 1.35);
+    var showRole = zoom > (portrait ? 3.4 : 2.4);
+    var showNames = zoom > (portrait ? 2.6 : 1.7);
     if (host.classList.contains('o3-portrait') !== portrait) { host.classList.toggle('o3-portrait', portrait); }
     Object.keys(zoneInfo).forEach(function (zid) {
       var zi = zoneInfo[zid]; if (!zi.el) { return; }
-      project({ x: zi.cx, z: zi.cz - zi.d / 2 + 0.6 }, 0.6, pt);
+      project({ x: zi.cx, z: zi.cz - zi.d / 2 + 0.6 }, 0.6 + floorOff(zid), pt);
       zi.el.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-50%)';
-      zi.el.style.display = (!showNames && pt.vis && !zi.hidden) ? '' : 'none';
-      zi.rx = pt.x; zi.ry = pt.y; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = !showNames && pt.vis && !zi.hidden;
+      zi.el.style.display = (!showNames && pt.vis && !zi.hidden && !buildOn) ? '' : 'none';
+      zi.rx = pt.x; zi.ry = pt.y; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = !showNames && pt.vis && !zi.hidden && !buildOn;
     });
     Object.keys(people).forEach(function (id) {
       var r = people[id], pa = r.person.parts;
@@ -862,7 +906,8 @@
       if (r.received) { r.desk.group.position.y = Math.abs(Math.sin(time * 8)) * 0.05; } else { r.desk.group.position.y = 0; }
       // label
       var headPos = r.away ? r.person.group.position : r.seat;
-      project(headPos, 2.6, pt);
+      var fo = floorOff(r.dept); if (fo) { headPos = new THREE.Vector3(headPos.x, headPos.y + fo, headPos.z); }
+      project(headPos, 3.0 + fo, pt);
       var lb = r.label;
       lb.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-100%)';
       lb.style.display = (pt.vis && !r.hidden && (showNames || r.away)) ? '' : 'none';
@@ -883,7 +928,8 @@
       }
     });
     if (bubbleFor) {
-      project(bubbleFor.person.group.position, 3.6, pt);
+      project(bubbleFor.person.group.position, 2.45, pt);
+      if (walkRing) { walkRing.visible = !!(walkFor && walkFor.away); if (walkFor) { walkRing.position.set(walkFor.person.group.position.x, 0.06, walkFor.person.group.position.z); walkRing.rotation.z += dt * 2; } }
       bubbleEl.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-100%)';
     }
     stepEnvelopes();
@@ -1031,16 +1077,16 @@
     document.head.appendChild(sc);
   }
   function loadParts(key, n, ok, bad) {
-    if (n >= ({businessman:5,woman:5,man:5,scientist:4,doctor:5,nurse:6,teen:3,athlete:3}[key])) { ok(); return; }
-    loadScriptTag('o3g_' + key + '_' + n + '.js?v=2', function () { loadParts(key, n + 1, ok, bad); }, bad);
+    if (n >= ({businessman: 5, woman: 5, man: 5, scientist: 4, doctor: 5, nurse: 6, teen: 3, athlete: 3}[key])) { ok(); return; }
+    loadScriptTag('o3g_' + key + '_' + n + '.js?v=6', function () { loadParts(key, n + 1, ok, bad); }, bad);
   }
   function charKeyFor(id) {
     var rec = people[id], nm = rec && rec.nameText ? rec.nameText.trim() : '';
     var fem = id === 'mgr' || (nm && FEMALE.indexOf(' ' + nm + ' ') >= 0);
     var hh = hashStr(id + 'c');
     if (!nm && id !== 'mgr') { return CHAR_KEYS[hh % 8]; }
-    var FP = ['woman','scientist','nurse','athlete'], MP = ['man','businessman','doctor','teen'];
-    return fem ? (id === 'mgr' ? 'woman' : FP[hh % 4]) : MP[hh % 4];
+    var FP = ['woman','scientist','nurse','athlete','woman'], MP = ['man','businessman','doctor','teen','man'];
+    return fem ? (id === 'mgr' ? 'woman' : FP[hh % 5]) : MP[hh % 5];
   }
   function initCharacters() {
     if (window.__o3NoChars) { return; }
@@ -1078,7 +1124,7 @@
     var bones = {}; inst.traverse(function (o) { if (o.isBone) { bones[o.name] = o; o.userData.bp = o.position.clone(); o.userData.br = o.rotation.clone(); } });
     var g = rec.person.group;
     g.children.forEach(function (c) { c.visible = false; });
-    g.add(wrap);
+    g.add(wrap); g.visible = true;
     var mixer = new THREE.AnimationMixer(inst), acts = {};
     tpl.clips.forEach(function (cl) { acts[cl.name] = mixer.clipAction(cl); });
     rec.char = wrap; rec.inst = inst; rec.bones = bones; rec.mixer = mixer; rec.acts = acts; rec.cMode = ''; rec.lastPos = g.position.clone();
@@ -1167,12 +1213,30 @@
   document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && isFs()) { setFs(false); } });
   (host.querySelector('.o3-stage') || host).appendChild(fsBtn);
   var floorBar = document.createElement('div'); floorBar.className = 'o3-floors';
-  [[0, 'كل الأدوار'], [1, 'الدور 1'], [2, 'الدور 2'], [3, 'الدور 3'], [4, 'مكتب المديرة']].forEach(function (p) {
+  [[0, 'كل الأدوار'], [1, 'الدور 1'], [2, 'الدور 2'], [3, 'الدور 3'], [4, 'مكتب المديرة'], [5, 'المبنى الزجاجي']].forEach(function (p) {
     var b = document.createElement('button'); b.type = 'button'; b.textContent = p[1];
-    b.title = p[0] === 4 ? 'مكتب المديرة لوحدها، معزول عن الموظفين' : p[0] === 1 ? 'الترند، الفيديو' : p[0] === 2 ? 'المحتوى، جيسيكا' : p[0] === 3 ? 'السيو، الأدوات، الإيميل، المراجعة' : 'كل الأقسام';
+    b.title = p[0] === 5 ? 'كل الأدوار فوق بعض في مبنى زجاجي' : p[0] === 4 ? 'مكتب المديرة لوحدها، معزول عن الموظفين' : p[0] === 1 ? 'الترند، الفيديو' : p[0] === 2 ? 'المحتوى، جيسيكا' : p[0] === 3 ? 'السيو، الأدوات، الإيميل، المراجعة' : 'كل الأقسام';
     b.addEventListener('click', function () { userTouch(); setCamMode('free'); setFloor(p[0]); floorCap.textContent = p[0] ? b.title : ''; });
     floorBtns[p[0]] = b; floorBar.appendChild(b);
   });
+  // ---------- live roster panel ----------
+  var rosterBtn = document.createElement('button'); rosterBtn.type = 'button'; rosterBtn.className = 'o3-sound'; rosterBtn.textContent = '👥'; rosterBtn.setAttribute('aria-label', 'مين شغال دلوقتي'); rosterBtn.style.cssText = 'position:absolute;top:60px;left:12px;z-index:6;';
+  var rosterPanel = document.createElement('div'); rosterPanel.style.cssText = 'position:absolute;top:100px;left:12px;z-index:7;width:230px;max-height:55%;overflow:auto;background:rgba(14,20,34,.92);color:#fff;border-radius:12px;padding:8px;font-size:12px;direction:rtl;display:none;box-shadow:0 6px 24px rgba(0,0,0,.4)';
+  var STAT = { running: ['شغال', '#3aa0ff'], waiting: ['مستني', '#f6c453'], done: ['خلّص', '#4ade80'], blocked: ['واقف', '#f87171'], unknown: ['مش شغال', '#9aa0aa'] };
+  function renderRoster() {
+    var ids = Object.keys(people).filter(function (i) { return people[i].nameText; });
+    var cnt = { running: 0, waiting: 0, done: 0, blocked: 0, unknown: 0 };
+    var rows = ids.map(function (i) { var r = people[i], st = STAT[r.state] ? r.state : 'unknown'; cnt[st]++; return { st: st, n: r.nameText, role: r.roleText || '' }; });
+    var ord = { running: 0, waiting: 1, blocked: 2, done: 3, unknown: 4 };
+    rows.sort(function (a, b) { return ord[a.st] - ord[b.st]; });
+    var h = '<div style="font-weight:700;margin-bottom:6px">شغال ' + cnt.running + ' · مستني ' + cnt.waiting + ' · مش شغال ' + (cnt.unknown + cnt.done) + '</div>';
+    rows.forEach(function (x) { h += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-top:1px solid rgba(255,255,255,.08)"><span style="width:8px;height:8px;border-radius:50%;background:' + STAT[x.st][1] + ';flex:none"></span><b>' + x.n.replace(/</g, '') + '</b><span style="opacity:.65;flex:1">' + x.role.replace(/</g, '') + '</span><span style="color:' + STAT[x.st][1] + '">' + STAT[x.st][0] + '</span></div>'; });
+    rosterPanel.innerHTML = h;
+  }
+  var rosterTimer = 0;
+  rosterBtn.addEventListener('click', function () { var on = rosterPanel.style.display === 'none'; rosterPanel.style.display = on ? 'block' : 'none'; clearInterval(rosterTimer); if (on) { renderRoster(); rosterTimer = setInterval(renderRoster, 1500); } });
+  (host.querySelector('.o3-stage') || host).appendChild(rosterBtn); (host.querySelector('.o3-stage') || host).appendChild(rosterPanel);
+  window.__o3Roster = function () { rosterBtn.click(); };
   var floorCap = document.createElement('span'); floorCap.className = 'o3-floor-cap'; floorBar.appendChild(floorCap);
   floorBtns[0].classList.add('on');
   (host.querySelector('.o3-stage') || host).appendChild(floorBar);
