@@ -972,8 +972,8 @@
     if (now - Q.t0 < 3000) { return; }
     Q.fps = Q.frames * 1000 / (now - Q.t0); Q.frames = 0; Q.t0 = now;
     var order = ['low', 'med', 'high'], i = order.indexOf(Q.level);
-    if (Q.fps < 28 && i > 0) { Q.level = order[i - 1]; Q.okSince = 0; applyQuality(); }
-    else if (Q.fps > 50 && i < 2) { Q.okSince = Q.okSince || now; if (now - Q.okSince >= 10000) { Q.level = order[i + 1]; Q.okSince = 0; applyQuality(); } }
+    if (Q.fps < 28 && i > 0) { Q.level = order[i - 1]; Q.cap = i - 1; Q.okSince = 0; applyQuality(); }
+    else if (Q.fps > 50 && i < Math.min(2, Q.cap == null ? 2 : Q.cap)) { Q.okSince = Q.okSince || now; if (now - Q.okSince >= 60000) { Q.level = order[i + 1]; Q.okSince = 0; applyQuality(); } }
     else { Q.okSince = 0; }
   }
   window.__q = Q;
