@@ -1122,7 +1122,7 @@
           statusLines.push({ id: aid, name: nm, text: tx, state: stt, next: nx, done: dn, pending: pd, job: jb, result: rs, ms: (m.time || 0) * 1000 });
           changed = true;
         });
-        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 60); try { renderLog(); renderCard(); } catch (e) {} }
+        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 60); try { renderLog(); renderCard(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
       })
       .catch(function () {});
   }
@@ -1568,5 +1568,40 @@
     window.setInterval(renderLastUpdated, 1000);
   }
 
+  // ---- Org view (org.js/org.css/org.json): additive module; loaded after app boot ----
+  function bootOrgView() {
+    try {
+      var main = document.querySelector('main.wrap');
+      if (!main) { return; }
+      var sec = make('section', 'org-view');
+      sec.id = 'orgView';
+      sec.setAttribute('aria-labelledby', 'orgHeading');
+      var head = make('div', 'section-head');
+      var h2 = make('h2');
+      h2.id = 'orgHeading';
+      h2.textContent = '\u0627\u0644\u0647\u064a\u0643\u0644 \u0627\u0644\u062a\u0646\u0638\u064a\u0645\u064a';
+      var note = make('span', 'section-note');
+      note.textContent = '\u0645\u064a\u0646 \u0628\u064a\u0634\u062a\u063a\u0644 \u062a\u062d\u062a \u0645\u064a\u0646 \u00b7 \u0645\u0628\u0627\u0634\u0631';
+      head.appendChild(h2);
+      head.appendChild(note);
+      var body = make('div', 'org-body');
+      body.id = 'orgBody';
+      sec.appendChild(head);
+      sec.appendChild(body);
+      var anchor = main.querySelector('.handoffs');
+      main.insertBefore(sec, anchor || null);
+      var css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = 'org.css?v=2';
+      document.head.appendChild(css);
+      window.__orgStatusLines = function () { return statusLines; };
+      var sc = document.createElement('script');
+      sc.src = 'org.js?v=2';
+      sc.defer = true;
+      document.body.appendChild(sc);
+    } catch (e) {}
+  }
+
+  bootOrgView();
   init();
 })();
