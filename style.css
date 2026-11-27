@@ -1737,6 +1737,6 @@ body, .o3-clock, .o3-line-head, #o3-summary { font-variant-numeric: tabular-nums
 .o3-portrait .o3-label { font-size: 14px !important; }
 .o3-portrait .o3-label span { font-size: 14px !important; }
 .o3-zone { font-size: 14px !important; }
-@media (max-width: 600px) { #o3-summary { top: 64px !important; font-size: 15px !important; } }
+
 .o3-status { z-index: 1 !important; }
 .o3-zone { z-index: 4 !important; }
