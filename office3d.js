@@ -1649,6 +1649,7 @@
     var dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr;
     var tb = document.createElement('button'); tb.type = 'button'; tb.id = 'o3-tourbtn'; tb.textContent = 'الجولة'; tb.style.cssText = tg.style.cssText; tb.addEventListener('click', function () { if (window.__o3StartTour) { window.__o3StartTour(); } });
     var brow = document.createElement('div'); brow.style.cssText = 'display:flex;gap:6px'; brow.appendChild(tg); brow.appendChild(tb); wrap.appendChild(brow);
+    var capEl = document.createElement('div'); capEl.style.cssText = 'font-size:14px;line-height:1.7;color:#b9cce2;text-align:center;display:none'; wrap.appendChild(capEl);
     var mrow = document.createElement('div'); mrow.style.cssText = 'display:none;gap:12px;align-items:flex-start;justify-content:center;flex-wrap:wrap'; mrow.appendChild(cv);
     var lg = document.createElement('div'); lg.setAttribute('dir', 'rtl'); lg.style.cssText = 'font-size:14px;line-height:1.7;color:#e6eef8;flex:1 1 170px;min-width:0;max-width:300px;text-align:right';
     [['#3aa0ff', 'شغال', 0], ['#f6c453', 'مستني', 0], ['#4ade80', 'خلّص', 0], ['#9aa0aa', 'مش شغال', 0], ['#f87171', 'واقف: نقطة أكبر بحلقة بيضا', 2], ['#9aa0aa', 'من غير تحديث: رمادي بحلقة', 1]].forEach(function (it) {
@@ -1659,7 +1660,7 @@
     var lq = document.createElement('div'); lq.textContent = 'المضلع السيان: اللي الكاميرا شايفاه'; lg.appendChild(lq);
     mrow.appendChild(lg); wrap.appendChild(mrow); host.parentNode.insertBefore(wrap, host);
     var open = false; try { open = localStorage.getItem('o3-mm-open') === '1'; } catch (e) { open = false; }
-    function sync() { tg.textContent = open ? 'الخريطة ▴' : 'الخريطة ▾'; tg.setAttribute('aria-expanded', open ? 'true' : 'false'); mrow.style.display = open ? 'flex' : 'none'; if (open) { draw(); } }
+    function sync() { tg.textContent = open ? 'الخريطة ▴' : 'الخريطة ▾'; tg.setAttribute('aria-expanded', open ? 'true' : 'false'); mrow.style.display = open ? 'flex' : 'none'; capEl.style.display = open ? 'block' : 'none'; if (open) { draw(); } }
     tg.addEventListener('click', function () { open = !open; try { localStorage.setItem('o3-mm-open', open ? '1' : '0'); } catch (e) { /* ignore */ } sync(); });
     function px(x) { return (x - MX0) / (MX1 - MX0) * W; }
     function pz(z) { return (z - MZ0) / (MZ1 - MZ0) * H; }
@@ -1673,17 +1674,20 @@
     function draw() {
       var c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
       c.strokeStyle = 'rgba(185,204,226,.35)'; c.lineWidth = 1; c.strokeRect(0.5, 0.5, W - 1, H - 1);
+      var fAge = feedNewest > 0 ? Date.now() - feedNewest : 0, fOld = feedNewest > 0 && fAge >= 1800000, fT = feedNewest > 0 ? new Date(feedNewest + 4 * 3600000) : null;
+      var fHM = fT ? ('0' + fT.getUTCHours()).slice(-2) + ':' + ('0' + fT.getUTCMinutes()).slice(-2) : '';
+      capEl.textContent = fT ? ('آخر حالة معروفة الساعة ' + fHM + ' بتوقيت دبي، من ' + fmtAge(Math.max(1, Math.round(fAge / 60000))) + (fOld ? '. كل الحالات أقدم من 30 دقيقة، فالنقط رمادي بحلقة، زي الأعداد اللي فوق (آخر 30 دقيقة).' : '. الألوان بتوري حالة كل موظف في المشهد حسب آخر حالة معروفة، والأعداد اللي فوق بتعدّ اللي بعتوا تحديث في آخر 30 دقيقة بس.')) : 'لسه مفيش حالة وصلت.';
       var mc = { running: 0, waiting: 0, done: 0, blocked: 0, unknown: 0, stale: 0 };
       Object.keys(people).forEach(function (id) {
         var r = people[id]; if (!r || r.hidden || !r.seat) { return; }
-        mc[STATE_COLOR[r.state] ? r.state : 'unknown']++; if (r.stale) { mc.stale++; }
-        var x = px(r.seat.x), y = pz(r.seat.z), col = r.stale ? '#9aa0aa' : hex(STATE_COLOR[r.state] || STATE_COLOR.unknown), dim = srch.on && !r.match && r.state !== 'blocked';
+        var st0 = r.stale || (fOld && r.state !== 'blocked'); if (st0) { mc.stale++; } else { mc[STATE_COLOR[r.state] ? r.state : 'unknown']++; }
+        var x = px(r.seat.x), y = pz(r.seat.z), col = (r.stale || (fOld && r.state !== 'blocked')) ? '#9aa0aa' : hex(STATE_COLOR[r.state] || STATE_COLOR.unknown), dim = srch.on && !r.match && r.state !== 'blocked';
         c.globalAlpha = dim ? 0.3 : 1; c.fillStyle = col; c.beginPath(); c.arc(x, y, r.state === 'blocked' ? 4 : 3, 0, 6.2832); c.fill();
         if (r.state === 'blocked') { c.strokeStyle = '#ffffff'; c.lineWidth = 1.5; c.stroke(); }
-        if (r.stale) { c.strokeStyle = '#ffffff'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, 4.5, 0, 6.2832); c.stroke(); }
+        if (r.stale || (fOld && r.state !== 'blocked')) { c.strokeStyle = '#ffffff'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, 4.5, 0, 6.2832); c.stroke(); }
       });
       c.globalAlpha = 1;
-      cv.setAttribute('aria-label', 'خريطة المكتب. الموظفين في المشهد: شغال ' + mc.running + '، مستني ' + mc.waiting + '، خلّص ' + mc.done + '، واقف ' + mc.blocked + '، مش شغال ' + mc.unknown + '، من غير تحديث ' + mc.stale + '. اضغط على مكان أو استخدم الأسهم عشان الكاميرا تروح هناك');
+      cv.setAttribute('aria-label', 'خريطة المكتب. ' + (fT ? 'آخر حالة معروفة الساعة ' + fHM + ' بتوقيت دبي' + (fOld ? '، وكل الحالات أقدم من 30 دقيقة' : '') + '. ' : '') + 'الموظفين في المشهد: شغال ' + mc.running + '، مستني ' + mc.waiting + '، خلّص ' + mc.done + '، واقف ' + mc.blocked + '، مش شغال ' + mc.unknown + '، من غير تحديث ' + mc.stale + '. اضغط على مكان أو استخدم الأسهم عشان الكاميرا تروح هناك');
       var vp = viewPoly();
       if (vp) { c.strokeStyle = '#22d3ee'; c.lineWidth = 2; c.beginPath(); vp.forEach(function (q, i) { var X = Math.max(-2, Math.min(W + 2, px(q[0]))), Y = Math.max(-2, Math.min(H + 2, pz(q[1]))); if (i) { c.lineTo(X, Y); } else { c.moveTo(X, Y); } }); c.closePath(); c.stroke(); }
     }
