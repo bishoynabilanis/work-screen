@@ -1763,3 +1763,7 @@ body, .o3-clock, .o3-line-head, #o3-summary { font-variant-numeric: tabular-nums
 .o3-alertbar.on { display: block; }
 @media (pointer: coarse) { .o3-alertbar.on { display: flex; } }
 .o3-alertbar { direction: rtl; unicode-bidi: plaintext; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.o3-alertbar.calm { background: #374151; animation: none; box-shadow: 0 0 0 2px rgba(156,163,175,.45), 0 4px 14px rgba(0,0,0,.4); }
+.updated.is-stale .updated-label { display: inline-flex; align-items: center; gap: 5px; color: #fbbf24 !important; font-weight: 800; }
+.updated.is-stale .updated-label::before { content: '\25B2'; font-size: 10px; color: #fbbf24; }
+.updated.is-stale .updated-value { color: #fbbf24 !important; text-shadow: none !important; }

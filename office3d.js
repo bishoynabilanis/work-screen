@@ -227,6 +227,7 @@
   }
 
   // ---------- people ----------
+  var feedNewest = 0, staleShow = true;
   var people = {}; // id -> {id, group, deskPos, chairPos, parts, state, label, ...}
   var texLoader = new THREE.TextureLoader();
   texLoader.setCrossOrigin('anonymous');
@@ -493,6 +494,9 @@
         try { makePersonAt(String(s.id), slotFor(s.dept, deptsBuilt[s.dept]), s.dept, false); deptsBuilt[s.dept] += 1; } catch (e) { noteErr(e, 'new ' + s.id); }
       }
     });
+    var nw = isFinite(Date.parse(feed.updated)) ? Date.parse(feed.updated) : 0;
+    staff.forEach(function (s) { var t = s && s.time ? Date.parse(s.time) : NaN; if (isFinite(t) && t > nw) { nw = t; } });
+    feedNewest = nw;
     staff.forEach(function (s) {
       var rec = people[String(s.id)]; if (!rec) { return; }
       var prevSt = rec.state; rec.state = stateKey(s.state);
@@ -1007,14 +1011,24 @@
     if (Math.floor(time * 2) === alertBar.__t) { return; } alertBar.__t = Math.floor(time * 2);
     var ids = Object.keys(people).filter(function (k) { var r = people[k]; return r.alert && !r.hidden; });
     var nst = Object.keys(people).filter(function (k) { var r = people[k]; return r.stale && !r.alert && !r.hidden; }).length;
-    var key = ids.join(',') + '|' + nst;
+    staleShow = nst <= 3;
+    var feedOld = feedNewest > 0 && (Date.now() - feedNewest) >= 1800000;
+    var ageMin = feedNewest > 0 ? Math.floor((Date.now() - feedNewest) / 60000) : 0;
+    var port = host.classList.contains('o3-portrait');
+    var sst = window.__o3Stream, down = !!(sst && sst.down && Date.now() - sst.since > 10000);
+    var key = ids.join(',') + '|' + nst + '|' + (port ? 'p' : 'd') + '|' + (feedOld ? ageMin : 'f') + '|' + (down ? 'x' : 'u');
     if (key !== alertKey) {
       alertKey = key; alertIds = ids; alertIdx = 0;
-      if (!ids.length) { alertBar.classList.remove('on'); return; }
-      var port = host.classList.contains('o3-portrait');
-      var nm = ids.slice(0, port ? 1 : 2).map(function (k) { return people[k].nameText || '؟'; }).join('، ');
-      alertBar.textContent = '⚠ ' + ids.length + (ids.length === 1 ? ' محتاج تدخل: ' : ' محتاجين تدخل: ') + nm + (ids.length > (port ? 1 : 2) ? '…' : '');
-      if (nst && !port) { var sp = document.createElement('span'); sp.textContent = ' وفيه ' + nst + ' بدون تحديث'; alertBar.appendChild(sp); }
+      if (!ids.length && nst <= 3 && !feedOld && !down) { alertBar.classList.remove('on'); alertBar.classList.remove('calm'); return; }
+      alertBar.classList.toggle('calm', !ids.length);
+      if (!ids.length) { alertBar.textContent = down ? 'الاتصال بالتيار واقف' + (feedOld ? ' وبيانات قديمة من ' + ageMin + ' د' : '') : (feedOld ? 'بيانات قديمة: آخر بيانات من ' + ageMin + ' د' : nst + ' بدون تحديث من 30 د'); }
+      else {
+        var tail = nst ? ' وفيه ' + nst + ' بدون تحديث' : '';
+        if (feedOld) { tail += ' وبيانات قديمة'; }
+        if (down) { tail += ' والاتصال واقف'; }
+        var nm = ids.slice(0, port ? 1 : 2).map(function (k) { return people[k].nameText || '؟'; }).join('، ');
+        alertBar.textContent = '⚠ ' + ids.length + (ids.length === 1 ? ' محتاج تدخل' : ' محتاجين تدخل') + (tail && port ? '' : ': ' + nm + (ids.length > (port ? 1 : 2) ? '…' : '')) + tail;
+      }
       alertBar.classList.add('on');
     }
   }
@@ -1111,7 +1125,7 @@
       var r = people[id], pa = r.person.parts;
       if (!r.away) {
         var tt = time + r.time;
-        if (r.state === 'running') {
+        if (r.state === 'running' && !r.stale) {
           pa.armL.rotation.x = -0.95 + Math.sin(tt * 9) * 0.18; pa.armR.rotation.x = -0.95 + Math.sin(tt * 9 + 1.6) * 0.18;
           pa.head.rotation.x = Math.sin(tt * 1.6) * 0.05;
         } else if (r.state === 'waiting') {
@@ -1126,7 +1140,8 @@
       } else {
         r.ring.material.opacity = 0.25;
       }
-      var stale = r.state === 'running' && !r.away && (Date.now() - r.last) > 1800000;
+      var feedFresh = feedNewest > 0 && (Date.now() - feedNewest) < 1800000;
+      var stale = feedFresh && r.state === 'running' && !r.away && (Date.now() - r.last) > 1800000;
       var al = !r.away && r.state === 'blocked';
       r.stale = stale;
       if (al && !r.alert) { r.alert = true; r.alertAt = performance.now(); alertCam(r); }
@@ -1137,7 +1152,7 @@
         r.beam.material.opacity = 0.35 + 0.5 * pu;
         r.ring.material.color.setHex(0xef4444); r.ring.material.opacity = 0.5 + 0.5 * pu; r.ring.scale.setScalar(1 + 0.18 * pu);
       } else { r.ring.scale.setScalar(1); }
-      r.label.__a.textContent = al ? 'محتاج تدخل' : 'مفيش تحديث 30 د'; r.label.__a.classList.toggle('is-stale', !al);
+      var mins = Math.max(30, Math.floor((Date.now() - r.last) / 60000)); var wantTxt = al ? 'محتاج تدخل' : 'آخر تحديث من ' + mins + ' د'; if (r.label.__a.__txt !== wantTxt) { r.label.__a.__txt = wantTxt; r.label.__a.textContent = wantTxt; }  r.label.__a.classList.toggle('is-stale', !al);
       if (ambStamp !== time) { ambStamp = time; ambientLife(time); }
       updateChar(r, dt, tt);
       if (r.received) { r.desk.group.position.y = Math.abs(Math.sin(time * 8)) * 0.05; } else { r.desk.group.position.y = 0; }
@@ -1163,9 +1178,9 @@
         var lift = showNames ? (showRole ? 36 : 24) : 4;
         placeEl(sb, pt.x, pt.y - lift, 'b');
       }
-      var ab = lb.__a, showAl = (al || stale) && pt.vis && !r.hidden;
+      var ab = lb.__a, showAl = (al || (stale && staleShow)) && pt.vis && !r.hidden;
       ab.style.display = showAl ? 'block' : 'none';
-      if (showAl && !placeEl(ab, pt.x, pt.y + 30, 'b')) { ab.style.display = 'none'; }
+      if (showAl) { var okAl = false, offs = [30, 54, 8, 78]; for (var oi = 0; oi < offs.length && !okAl; oi++) { ab.style.display = 'block'; okAl = placeEl(ab, pt.x, pt.y + offs[oi], 'b'); } if (!okAl) { ab.style.display = 'none'; } }
     });
     if (bubbleFor) {
       project(bubbleFor.person.group.position, 2.45, pt);
