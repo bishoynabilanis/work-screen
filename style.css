@@ -1749,3 +1749,5 @@ body, .o3-clock, .o3-line-head, #o3-summary { font-variant-numeric: tabular-nums
 .o3-status { white-space: normal !important; max-width: min(240px, 66vw); }
 .o3-label span, .o3-portrait .o3-label span { font-size: 14px !important; }
 .o3-label, .o3-portrait .o3-label { font-size: 14px !important; }
+
+.o3-label span, .o3-portrait .o3-label span { color: #d5e0ee !important; }
