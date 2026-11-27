@@ -1078,7 +1078,7 @@
   }
   function loadParts(key, n, ok, bad) {
     if (n >= ({businessman: 5, woman: 5, man: 5, scientist: 4, doctor: 5, nurse: 6, teen: 3, athlete: 3}[key])) { ok(); return; }
-    loadScriptTag('o3g_' + key + '_' + n + '.js?v=6', function () { loadParts(key, n + 1, ok, bad); }, bad);
+    loadScriptTag('o3g_' + key + '_' + n + '.js?v=8', function () { loadParts(key, n + 1, ok, bad); }, bad);
   }
   function charKeyFor(id) {
     var rec = people[id], nm = rec && rec.nameText ? rec.nameText.trim() : '';
@@ -1113,7 +1113,7 @@
       })();
     });
   }
-  var G_H = 1.62;
+  var G_H = 1.45;
   function upgradePerson(rec) {
     if (rec.char) { return; }
     var key = charKeyFor(rec.id), tpl = charTpl[key]; if (!tpl) { return; }
@@ -1148,7 +1148,7 @@
     var walking = mode === 'walk' || mode === 'walkc';
     r.mixer.stopAllAction();
     if (walking && r.acts.walk) { resetBones(r); r.acts.walk.reset().fadeIn(instant ? 0 : 0.2).play(); r.char.position.set(0, -r.minY, 0); }
-    else if (mode === 'sit') { seatPose(r); r.char.position.set(0, 0.02 - r.minY * 0 + CHAR_SIT.y, CHAR_SIT.z); r.sitBase = true; }
+    else if (mode === 'sit') { seatPose(r); r.char.position.set(0, 0, 0); r.person.group.updateMatrixWorld(true); if (r.bones.Hips) { var hw = new THREE.Vector3(), gw = new THREE.Vector3(); r.bones.Hips.getWorldPosition(hw); r.person.group.getWorldPosition(gw); r.char.position.set(-(hw.x - gw.x), 0.67 - (hw.y - gw.y), -(hw.z - gw.z) + CHAR_SIT.z); } r.sitBase = true; }
     else { resetBones(r); r.char.position.set(0, -r.minY, 0); }
     r.cMode = mode;
   }
