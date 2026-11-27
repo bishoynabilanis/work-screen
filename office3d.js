@@ -153,12 +153,18 @@
   wallLeft.position.set(-5.6, 2.6, 8.5);
   scene.add(wallLeft);
 
+  var swayers = [], steams = [], ambStamp = -1;
+  function ambientLife(t) {
+    for (var i = 0; i < swayers.length; i++) { var s = swayers[i]; s.m.position.x = s.bx + Math.sin(t * 1.3 + s.ph) * 0.035; s.m.position.z = s.bz + Math.cos(t * 1.1 + s.ph) * 0.03; s.m.rotation.z = Math.sin(t * 1.3 + s.ph) * 0.08; }
+    for (var j = 0; j < steams.length; j++) { var st = steams[j], p = ((t * 0.35 + st.ph) % 1); st.m.position.y = st.y0 + p * 0.55; st.m.position.x = st.x0 + Math.sin(t * 2 + st.ph * 9) * 0.05 * p; st.m.material.opacity = Math.sin(p * Math.PI) * 0.35; var sc = 0.18 + p * 0.28; st.m.scale.set(sc, sc, 1); }
+  }
   function plant(x, z) {
     var g = new THREE.Group();
     var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.45, 8), mat(0xb0643c)); pot.position.y = 0.22; g.add(pot);
     for (var i = 0; i < 4; i++) {
       var leaf = new THREE.Mesh(new THREE.SphereGeometry(0.32, 6, 5), mat(i % 2 ? 0x3f8f4f : 0x57a863));
       leaf.position.set(Math.cos(i * 1.6) * 0.18, 0.7 + i * 0.12, Math.sin(i * 1.6) * 0.18); g.add(leaf);
+      swayers.push({ m: leaf, bx: leaf.position.x, bz: leaf.position.z, ph: x * 0.7 + z * 0.4 + i * 0.9 });
     }
     g.position.set(x, 0, z); scene.add(g);
   }
@@ -420,6 +426,12 @@
         [-1.3, 1.3].forEach(function (x) { var ar = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.7, 1.0), sm); ar.position.set(x, 0.55, 0); sofa.add(ar); });
         sofa.position.set(X1 - 0.9, 0, -5.6); sofa.rotation.y = -Math.PI / 2; scene.add(sofa); if (kind === 'meet') { sofa.visible = false; }
         var ctab = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.12, 20), mat(0xe9dfcf)); ctab.position.set(X1 - 2.5, 0.5, -5.6); scene.add(ctab);
+        (function () {
+          var mug = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.12, 10), mat(0xf4511e)); mug.position.set(X1 - 2.5, 0.62, -5.6); scene.add(mug);
+          var c = document.createElement('canvas'); c.width = c.height = 64; var x2 = c.getContext('2d'); var gr = x2.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x2.fillStyle = gr; x2.fillRect(0, 0, 64, 64);
+          var tex = new THREE.CanvasTexture(c);
+          for (var q = 0; q < 3; q++) { var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false })); sp.position.set(X1 - 2.5, 0.7, -5.6); scene.add(sp); steams.push({ m: sp, ph: q / 3, y0: 0.7, x0: X1 - 2.5 }); }
+        })();
         var cleg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 8), trimM); cleg.position.set(X1 - 2.5, 0.25, -5.6); scene.add(cleg);
         var cred = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.9, 0.5), mat(0x6b4a30)); cred.position.set(cxm + 0.3, 0.45, Z0 + 0.5); scene.add(cred);
         var art = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.2, 0.06), mat(0xf4511e)); art.position.set(cxm + 0.3, 2.3, Z0 + 0.35); scene.add(art);
@@ -917,6 +929,7 @@
       } else {
         r.ring.material.opacity = 0.25;
       }
+      if (ambStamp !== time) { ambStamp = time; ambientLife(time); }
       updateChar(r, dt, tt);
       if (r.received) { r.desk.group.position.y = Math.abs(Math.sin(time * 8)) * 0.05; } else { r.desk.group.position.y = 0; }
       // label
@@ -1181,6 +1194,22 @@
         fa.rotation.x = fa.userData.br.x + 1.1 + (run ? Math.sin(tt * 11 + i * 1.7) * 0.07 : 0);
       });
       if (b.Head) { b.Head.rotation.y = r.state === 'waiting' ? Math.sin(tt * 0.8) * 0.3 : (run ? Math.sin(tt * 1.1) * 0.06 : 0); }
+      if (b.Spine) { b.Spine.rotation.x = 0.08 + Math.sin(tt * 1.6 + (r.fidPh || 0)) * 0.012; }
+      // idle fidget every 8-20s: look around, nod, sip, lean back
+      var now = performance.now() / 1000;
+      if (!r.fidNext) { r.fidNext = now + 4 + Math.random() * 14; r.fidPh = Math.random() * 6; }
+      if (now > r.fidNext && !r.fid) { r.fid = { k: ['look', 'nod', 'sip', 'lean'][Math.floor(Math.random() * 4)], t0: now, d: 1.8 + Math.random() * 0.8, s: Math.random() < 0.5 ? 1 : -1 }; }
+      if (r.fid) {
+        var pr = (now - r.fid.t0) / r.fid.d;
+        if (pr >= 1) { r.fid = null; r.fidNext = now + 8 + Math.random() * 12; }
+        else {
+          var e = Math.sin(pr * Math.PI), k = r.fid.k;
+          if (k === 'look' && b.Head) { b.Head.rotation.y += r.fid.s * 0.55 * e; }
+          else if (k === 'nod' && b.Head) { b.Head.rotation.x += Math.sin(pr * Math.PI * 4) * 0.12 * e; }
+          else if (k === 'sip' && b.RightForeArm) { b.RightForeArm.rotation.x += 0.9 * e; if (b.RightArm) { b.RightArm.rotation.x += 0.35 * e; } if (b.Head) { b.Head.rotation.x -= 0.1 * e; } }
+          else if (k === 'lean' && b.Spine) { b.Spine.rotation.x -= 0.14 * e; if (b.Head) { b.Head.rotation.x -= 0.05 * e; } }
+        }
+      }
     }
   }
 
