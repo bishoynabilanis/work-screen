@@ -243,6 +243,7 @@
     var tx = document.createElement('span'); tx.className = 'o3-st-text';
     st.appendChild(dots); st.appendChild(tx); labelLayer.appendChild(st);
     el.__s = st; el.__st = tx;
+    var al = document.createElement('div'); al.className = 'o3-alert'; al.textContent = 'محتاج تدخل'; labelLayer.appendChild(al); el.__a = al;
     return el;
   }
 
@@ -343,8 +344,10 @@
     // stand/sit: lift body to seat, tuck legs
     var ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.set(pos.x, 0.09, pos.z - 0.72); scene.add(ring);
+    var beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3.4, 8), new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.8, depthWrite: false }));
+    beam.position.set(pos.x, 1.7, pos.z - 0.72); beam.visible = false; scene.add(beam);
     var rec = {
-      id: id, dept: deptId, desk: d, chair: chair, person: p, ring: ring, seat: seat, front: new THREE.Vector3(pos.x, 0, pos.z + 0.95),
+      beam: beam, last: Date.now(), alert: false, alertAt: 0, id: id, dept: deptId, desk: d, chair: chair, person: p, ring: ring, seat: seat, front: new THREE.Vector3(pos.x, 0, pos.z + 0.95),
       state: 'unknown', label: makeLabel(), away: false, time: Math.random() * 6, nameText: '', roleText: ''
     };
     // hit area
@@ -493,6 +496,7 @@
     staff.forEach(function (s) {
       var rec = people[String(s.id)]; if (!rec) { return; }
       var prevSt = rec.state; rec.state = stateKey(s.state);
+      var stT = s.time ? Date.parse(s.time) : NaN; rec.last = isFinite(stT) ? stT : ((prevSt !== rec.state || rec.step !== String(s.step || '')) ? Date.now() : rec.last);
       if (firstFeedDone && prevSt && prevSt !== 'done' && rec.state === 'done' && !rec.away && cineDepth === 0) {
         if (cineGo(new THREE.Vector3(rec.seat.x, 0, rec.seat.z), (host.classList.contains('o3-portrait') ? 2.6 : 2.4))) { cineEnd(2500); }
       }
@@ -761,6 +765,7 @@
       for (var i = 0; i < n.length; i++) { var r = n[i].getBoundingClientRect(); if (r.width > 4 && r.height > 4) { avoidRects.push({ l: r.left - lr.left - 4, t: r.top - lr.top - 4, r: r.right - lr.left + 4, b: r.bottom - lr.top + 4 }); } }
     });
     avoidRects.push({ l: lr.width - 64, t: 0, r: lr.width + 10, b: 120 });
+    if (alertBar && alertBar.style.display !== 'none') { var ar = alertBar.getBoundingClientRect(); avoidRects.push({ l: ar.left - lr.left - 4, t: ar.top - lr.top - 4, r: ar.right - lr.left + 4, b: ar.bottom - lr.top + 4 }); }
   }
   var placed = [];
   function placeEl(el, x, y, anchor, nocol) {
@@ -991,6 +996,29 @@
   }
   window.__q = Q;
 
+  var alertBar = document.createElement('button'); alertBar.className = 'o3-alertbar'; alertBar.type = 'button'; alertBar.style.display = 'none'; labelLayer.appendChild(alertBar);
+  var alertIds = [], alertKey = '';
+  alertBar.addEventListener('click', function () { var r = people[alertIds[0]]; if (r) { userTouch(); flyTo(new THREE.Vector3(r.seat.x, 0, r.seat.z), host.classList.contains('o3-portrait') ? 2.6 : 2.4); } });
+  function updateAlertBar(time) {
+    if (Math.floor(time * 2) === alertBar.__t) { return; } alertBar.__t = Math.floor(time * 2);
+    var ids = Object.keys(people).filter(function (k) { return people[k].alert; });
+    var key = ids.join(',');
+    if (key !== alertKey) {
+      alertKey = key; alertIds = ids;
+      if (!ids.length) { alertBar.style.display = 'none'; return; }
+      var nm = ids.slice(0, 2).map(function (k) { return people[k].nameText || '؟'; }).join('، ');
+      alertBar.textContent = '⚠ ' + ids.length + (ids.length === 1 ? ' محتاج تدخل: ' : ' محتاجين تدخل: ') + nm + (ids.length > 2 ? '…' : '');
+      alertBar.style.display = 'block';
+    }
+  }
+  function alertCam(r) {
+    if (!firstFeedDone) { return; }
+    setTimeout(function () {
+      if (!r.alert || cineDepth !== 0) { return; }
+      if (cineGo(new THREE.Vector3(r.seat.x, 0, r.seat.z), (host.classList.contains('o3-portrait') ? 2.6 : 2.4))) { cineEnd(4000); }
+    }, 2000);
+  }
+
   function frame() {
     requestAnimationFrame(frame);
     if (document.hidden) { return; }
@@ -1091,6 +1119,17 @@
       } else {
         r.ring.material.opacity = 0.25;
       }
+      var stale = r.state === 'running' && !r.away && (Date.now() - r.last) > 1200000;
+      var al = !r.away && (r.state === 'blocked' || stale);
+      if (al && !r.alert) { r.alert = true; r.alertAt = performance.now(); alertCam(r); }
+      if (!al && r.alert) { r.alert = false; }
+      r.beam.visible = al && !r.hidden;
+      if (al) {
+        var pu = 0.5 + 0.5 * Math.sin(time * 5);
+        r.beam.material.opacity = 0.35 + 0.5 * pu;
+        r.ring.material.color.setHex(0xef4444); r.ring.material.opacity = 0.5 + 0.5 * pu; r.ring.scale.setScalar(1 + 0.18 * pu);
+      } else { r.ring.scale.setScalar(1); }
+      r.label.__a.textContent = stale && r.state !== 'blocked' ? 'مفيش تحديث 20 د' : 'محتاج تدخل';
       if (ambStamp !== time) { ambStamp = time; ambientLife(time); }
       updateChar(r, dt, tt);
       if (r.received) { r.desk.group.position.y = Math.abs(Math.sin(time * 8)) * 0.05; } else { r.desk.group.position.y = 0; }
@@ -1116,12 +1155,16 @@
         var lift = showNames ? (showRole ? 36 : 24) : 4;
         placeEl(sb, pt.x, pt.y - lift, 'b');
       }
+      var ab = lb.__a, showAl = al && pt.vis && !r.hidden;
+      ab.style.display = showAl ? 'block' : 'none';
+      if (showAl && !placeEl(ab, pt.x, pt.y + 30, 'b')) { ab.style.display = 'none'; }
     });
     if (bubbleFor) {
       project(bubbleFor.person.group.position, 2.45, pt);
       if (walkRing) { walkRing.visible = !!(walkFor && walkFor.away); if (walkFor) { walkRing.position.set(walkFor.person.group.position.x, 0.06, walkFor.person.group.position.z); walkRing.rotation.z += dt * 2; } }
       bubbleEl.style.display = ''; if (!bubbleEl.hidden) { placeEl(bubbleEl, pt.x, pt.y, 'b'); }
     }
+    updateAlertBar(time);
     stepEnvelopes();
     renderFinal();
   }
