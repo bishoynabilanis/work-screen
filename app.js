@@ -1402,7 +1402,7 @@
 
 
   // ---- Idea 20: "محتاج قرارك" read-only decision card. Display only: the answer goes to Reem outside the screen. ----
-  var decOpen = false, decPick = {}, decFocus = '';
+  var decOpen = false, decPick = {}, decFocus = '', decCopied = {};
   function decAge(ms) { var m = Math.max(0, Math.floor((Date.now() - ms) / 60000)); return m < 60 ? 'من ' + Math.max(1, m) + ' د' : 'من ' + Math.floor(m / 60) + ' س'; }
   function pendingDecisions() {
     var latest = {}, out = [], cut = Date.now() - 86400000;
@@ -1446,14 +1446,15 @@
         var r = document.createElement('div'); r.style.cssText = 'margin-top:6px;padding:8px 10px;border-radius:10px;background:#111b30;border:1px dashed #22d3ee'; r.setAttribute('dir', 'rtl');
         var tt = document.createElement('div'); tt.textContent = txt; tt.style.cssText = 'user-select:all;-webkit-user-select:all;font-weight:700'; r.appendChild(tt);
         var cb = document.createElement('button'); cb.type = 'button'; cb.textContent = 'انسخ'; cb.style.cssText = 'margin-top:6px;padding:6px 14px;min-height:44px;min-width:44px;border-radius:999px;background:#f4511e;border:0;color:#fff;font:700 15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
-        cb.addEventListener('click', function () { copyText(txt, function (ok) { cb.textContent = ok ? 'اتنسخ ✓' : 'انسخ الجملة بإيدك'; }); });
+        if (decCopied[key + '#' + decPick[key]]) { cb.textContent = decCopied[key + '#' + decPick[key]]; }
+        cb.addEventListener('click', function () { copyText(txt, function (ok) { cb.textContent = ok ? 'اتنسخ ✓' : 'انسخ الجملة بإيدك'; decCopied[key + '#' + decPick[key]] = cb.textContent; }); });
         r.appendChild(cb);
         var nt = document.createElement('div'); nt.style.cssText = 'font-size:14px;color:#b9cce2;margin-top:4px'; nt.textContent = 'الشاشة للعرض بس. ابعت الجملة لريم على واتساب.'; r.appendChild(nt);
         box.appendChild(r);
       }
       pan.appendChild(box);
     });
-    if (decFocus) { var fb2 = pan.querySelector('[data-dk="' + decFocus.replace(/"/g, '') + '"]'); decFocus = ''; if (fb2) { try { fb2.focus(); } catch (e) {} } }
+    if (decFocus) { var fb2 = null; try { fb2 = pan.querySelector('[data-dk="' + decFocus.replace(/["\\\]\[]/g, '') + '"]'); } catch (e) { fb2 = null; } decFocus = ''; if (fb2) { try { fb2.focus(); } catch (e) {} } }
   }
   setInterval(function () { try { renderDecisions(); } catch (e) {} }, 60000);
 
