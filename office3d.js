@@ -928,7 +928,8 @@
 
 
   /* Step 3: post-processing (bloom + vignette) with automatic quality levels (high / med / low) */
-  var Q = { level: /[?&]q=(low|med|high|ultra)/.test(location.search) ? RegExp.$1 : (lowGpu ? 'med' : 'high'), locked: /[?&]q=(low|med|high|ultra)/.test(location.search), fps: 60, okSince: 0, frames: 0, t0: performance.now() };
+  var COARSE = false; try { COARSE = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches); } catch (e) { COARSE = false; }
+  var Q = { level: /[?&]q=(low|med|high|ultra)/.test(location.search) ? RegExp.$1 : ((lowGpu || COARSE) ? 'med' : 'high'), locked: /[?&]q=(low|med|high|ultra)/.test(location.search), fps: 60, okSince: 0, frames: 0, t0: performance.now() };
   var POST = { rt: null, a: null, b: null, quad: null, cam: null, mats: null, w: 0, h: 0 };
   function postSupported() { if (/[?&]nopost=1/.test(location.search)) { return false; } try { return !!(renderer.capabilities.isWebGL2 && renderer.extensions.get('EXT_color_buffer_float') || renderer.extensions.get('EXT_color_buffer_half_float')); } catch (e) { return false; } }
   function postBuild() {
@@ -971,18 +972,32 @@
     postPass(M.comp, null);
   }
   /* Render resolution targets by long side of the drawing buffer, capped by pixel count (ultra 8.3 MP = 4K UHD, high 3.7 MP = 1440p, med 2.1 MP = 1080p): ultra ~3840 (4K), high ~2560 (2K+), med ~1920 (never below the device's own pixels up to 2x). Low keeps 1.5x max. */
+  function hwLimits() {
+    var gl = renderer.getContext(), tex = 4096, ms = 4;
+    try { tex = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)); } catch (e) { /* default */ }
+    try { ms = renderer.capabilities.maxSamples || 4; } catch (e) { /* default */ }
+    return { tex: tex, ms: ms };
+  }
+  function ultraOk() { var h = hwLimits(); return !COARSE && h.ms >= 4 && h.tex >= 8192; }
+  /* Estimated bytes per pixel of the scene target: MSAA half-float colour x samples + resolve + MSAA depth. */
+  var BYTES_PER_PX = 8 * 4 + 8 + 4 * 4;
   function targetPR() {
+    if (Q.level === 'ultra' && !ultraOk()) { Q.level = 'high'; }
     var dpr = window.devicePixelRatio || 1, w = canvasWrap.clientWidth || 360, h = canvasWrap.clientHeight || 520, long = Math.max(w, h);
     var cfg = { ultra: [3840, 3840, 3, 8294400], high: [2560, 3200, 3, 3686400], med: [1920, 2560, 2, 2073600] }[Q.level];
     if (!cfg) { return Math.min(dpr, 1.5); }
-    var pr = Math.min(dpr, cfg[2]);
-    if (long * pr < cfg[0]) { pr = cfg[0] / long; }
-    if (long * pr > cfg[1]) { pr = cfg[1] / long; }
-    if (w * h * pr * pr > cfg[3]) { pr = Math.sqrt(cfg[3] / (w * h)); }
-    var gl = renderer.getContext(), hw = 4096;
-    try { hw = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), 8192); } catch (e) { /* default */ }
+    var pr, area = cfg[3], mem = (COARSE ? 200e6 : 400e6) / BYTES_PER_PX;
+    if (COARSE) { pr = Math.min(dpr, cfg[2]); }  /* phones and tablets: never above the device's own pixel ratio */
+    else {
+      pr = Math.min(dpr, cfg[2]);
+      if (long * pr < cfg[0]) { pr = cfg[0] / long; }
+      if (long * pr > cfg[1]) { pr = cfg[1] / long; }
+    }
+    area = Math.min(area, mem);
+    if (w * h * pr * pr > area) { pr = Math.sqrt(area / (w * h)); }
+    var hw = Math.min(hwLimits().tex, 8192);
     if (long * pr > hw) { pr = hw / long; }
-    return Math.max(1, pr);
+    return Math.max(1, Math.min(pr, COARSE ? dpr : 4));
   }
   var anisoSet = 0;
   function setAniso(n) {
@@ -992,14 +1007,15 @@
   }
   function fmtAge(m) {
     if (m < 60) { return m + ' د'; }
-    var d = Math.floor(m / 1440); if (d >= 1) { return d === 1 ? 'يوم' : (d === 2 ? 'يومين' : (d <= 10 ? d + ' أيام' : d + ' يوم')); }
-    var h = Math.floor(m / 60), r = m % 60, hw = h === 1 ? 'ساعة' : (h === 2 ? 'ساعتين' : (h <= 10 ? h + ' ساعات' : h + ' ساعة'));
-    return r ? hw + ' و' + r + ' د' : hw;
+    var d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), r = m % 60;
+    function hw(n) { return n === 1 ? 'ساعة' : (n === 2 ? 'ساعتين' : (n <= 10 ? n + ' ساعات' : n + ' ساعة')); }
+    if (d >= 1) { var dw = d === 1 ? 'يوم' : (d === 2 ? 'يومين' : (d <= 10 ? d + ' أيام' : d + ' يوم')); return h ? dw + ' و' + hw(h) : dw; }
+    return r ? hw(h) + ' و' + r + ' د' : hw(h);
   }
   function applyQuality() {
     var pr = targetPR();
-    renderer.setPixelRatio(pr); setAniso(Q.level === 'high' || Q.level === 'ultra' ? 16 : 4); renderer.shadowMap.enabled = Q.level !== 'low'; sun.castShadow = Q.level !== 'low';
-    scene.traverse(function (o) { if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { m.needsUpdate = true; }); } });
+    renderer.setPixelRatio(pr); setAniso(Q.level === 'high' || Q.level === 'ultra' ? 16 : 4); var shOn = Q.level !== 'low', shChanged = renderer.shadowMap.enabled !== shOn; renderer.shadowMap.enabled = shOn; sun.castShadow = shOn;
+    if (shChanged) { scene.traverse(function (o) { if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { m.needsUpdate = true; }); } }); }
     POST.w = 0; resize();
   }
   function qualityReset() { Q.frames = 0; Q.t0 = performance.now(); Q.okSince = 0; Q.lowWin = 0; }
@@ -1021,7 +1037,7 @@
       if (Q.lowWin >= 2) { Q.level = order[i - 1]; Q.cap = i - 1; Q.capAt = now; Q.lowWin = 0; applyQuality(); }
     } else {
       Q.lowWin = 0;
-      if (Q.fps > 55 && i < Math.min(3, Q.cap == null ? 3 : Q.cap)) { Q.okSince = Q.okSince || now; if (now - Q.okSince >= 60000) { Q.level = order[i + 1]; Q.okSince = 0; applyQuality(); } }
+      if (Q.fps > 55 && i < Math.min(ultraOk() ? 3 : 2, Q.cap == null ? 3 : Q.cap)) { Q.okSince = Q.okSince || now; if (now - Q.okSince >= 60000) { Q.level = order[i + 1]; Q.okSince = 0; applyQuality(); } }
       else { Q.okSince = 0; }
     }
   }
