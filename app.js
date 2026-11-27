@@ -126,6 +126,8 @@
     return typeof raw === 'string' && raw.trim() ? raw : STATE_LABEL.unknown;
   }
 
+  function arN(n, a) { return n === 1 ? a[0] : (n === 2 ? a[1] : n + ' ' + (n <= 10 ? a[2] : a[3])); }  /* Arabic counted nouns (Rule 110) */
+  var A_TASK = ['مهمة', 'مهمتين', 'مهام', 'مهمة'], A_UPD = ['تحديث', 'تحديثين', 'تحديثات', 'تحديث'], A_EMP = ['موظف واحد', 'موظفين', 'موظفين', 'موظف'], A_JOB = ['شغلانة', 'شغلانتين', 'شغلانات', 'شغلانة'], A_MIN = ['دقيقة', 'دقيقتين', 'دقايق', 'دقيقة'];
   function minutesLabel(m) {
     if (m === 1) {
       return 'من دقيقة';
@@ -1369,7 +1371,7 @@
       ag.forEach(function (e) { if (e.done >= 0 && e.pending >= 0) { dn += e.done; pd += e.pending; hasNum = true; } if (e.state !== 'done') { fin = false; } if (e.result === 'got') { res = 'got'; } else if (e.result === 'pending' && res !== 'got') { res = 'pending'; } else if (e.result === 'none' && !res) { res = 'none'; } });
       if (hasNum && pd > 0) { fin = false; }
       var li = make('li', 'o3-line'); li.style.marginBottom = '8px';
-      var t = make('div', ''); t.style.cssText = 'font-weight:800;font-size:13px'; t.textContent = jn + ' · ' + ag.length + ' موظف · ' + (fin ? '✓ خلصت' : '● لسه شغالة'); li.appendChild(t);
+      var t = make('div', ''); t.style.cssText = 'font-weight:800;font-size:13px'; t.textContent = jn + '، ' + arN(ag.length, A_EMP) + '، ' + (fin ? '✓ خلصت' : '● لسه شغالة'); li.appendChild(t);
       var rl = make('div', ''); rl.style.cssText = 'font-size:14px;color:#b9cce2'; rl.textContent = 'النتيجة: ' + (res === 'got' ? 'طلعت نتيجة' : res === 'none' ? 'مفيش نتيجة' : res === 'pending' ? 'لسه مستنية' : 'لسه ما اتبعتش'); li.appendChild(rl);
       if (hasNum) { var tot = dn + pd, pc = tot ? Math.round(dn * 100 / tot) : 0; var bar = make('div', ''); bar.style.cssText = 'height:7px;border-radius:6px;background:rgba(255,255,255,.12);margin:5px 0;overflow:hidden'; var f = make('div', ''); f.style.cssText = 'height:100%;background:#2bb0a0;width:' + pc + '%'; bar.appendChild(f); li.appendChild(bar); var pl = make('div', ''); pl.style.cssText = 'font-size:11px;color:#8aa3bf'; pl.textContent = dn + ' اتعمل / ' + pd + ' فاضل (' + pc + '%)'; li.appendChild(pl); }
       ag.forEach(function (e) { var d = make('div', ''); d.style.cssText = 'font-size:14px;margin-top:3px'; d.textContent = (e.name || e.id || '؟') + ': ' + (e.state === 'done' ? '✓ ' : e.state === 'blocked' ? '■ واقف ' : '● ') + e.text + (e.next ? ' ← الجاي: ' + e.next : ''); li.appendChild(d); });
@@ -1391,9 +1393,9 @@
     Object.keys(latest).forEach(function (id) { var e = latest[id]; if (e.ms < cutoff) { return; } if (e.state === 'done') { done++; } else if (e.state === 'blocked') { stuck++; } else { working++; } if (e.job) { jobs[e.job] = 1; } if (e.pending > 0) { pend += e.pending; } });
     var nj = Object.keys(jobs).length;
     function build(short) {
-      var parts = [['\u25CF ' + working + (short ? ' شغال' : ' شغالين'), '#f4511e'], ['\u2713 ' + done + (short ? ' خلص' : ' خلصوا'), '#22d3ee']];
-      if (stuck) { parts.push(['\u25A0 ' + stuck + ' واقف', '#f87171']); }
-      parts.push([nj + (short ? ' شغلانة' : ' شغلانات'), '#8b5cf6']);
+      var parts = [['\u25CF ' + working + (short || working === 1 ? ' شغال' : ' شغالين'), '#f4511e'], ['\u2713 ' + done + (short || done === 1 ? ' خلص' : ' خلصوا'), '#22d3ee']];
+      if (stuck) { parts.push(['\u25A0 ' + stuck + (stuck === 1 ? ' واقف' : ' واقفين'), '#f87171']); }
+      parts.push([(nj === 1 ? '1 شغلانة' : arN(nj, A_JOB)), '#8b5cf6']);
       if (pend && !short) { parts.push([pend + ' معلّق', '#9aa8bd']); }
       bar.textContent = '';
       parts.forEach(function (p) { var sp = document.createElement('span'); sp.textContent = p[0]; sp.style.color = p[1]; bar.appendChild(sp); });
@@ -1411,11 +1413,11 @@
   // ---- Idea 20: "محتاج قرارك" read-only decision card. Display only: the answer goes to Reem outside the screen. ----
   var decOpen = false, decPick = {}, decFocus = '', decCopied = {};
   function ageWords(m) {
-    if (m < 60) { return Math.max(1, m) + ' د'; }
+    if (m < 60) { return arN(Math.max(1, m), A_MIN); }
     var d = Math.floor(m / 1440), hh = Math.floor((m % 1440) / 60), r = m % 60;
     function hw(h) { return h === 1 ? 'ساعة' : (h === 2 ? 'ساعتين' : (h <= 10 ? h + ' ساعات' : h + ' ساعة')); }
     if (d >= 1) { var dw = d === 1 ? 'يوم' : (d === 2 ? 'يومين' : (d <= 10 ? d + ' أيام' : d + ' يوم')); return hh ? dw + ' و' + hw(hh) : dw; }
-    return r ? hw(hh) + ' و' + r + ' د' : hw(hh);
+    return r ? hw(hh) + ' و' + arN(r, A_MIN) : hw(hh);
   }
   function decAge(ms) { return 'من ' + ageWords(Math.max(0, Math.floor((Date.now() - ms) / 60000))); }
   /* Idea 22: pending count per staff member from the latest status line that carries real numbers. Missing = no data (never zero). */
@@ -1561,14 +1563,14 @@
     function row(t, strong) { var d = document.createElement('div'); d.textContent = t; if (strong) { d.style.fontWeight = '700'; } pan.appendChild(d); return d; }
     if (!st.ev.length) { row('مفيش بيانات النهارده اتخزنت على الجهاز ده لسه.', true); }
     else {
-      row('عدد المهام النهارده: ' + st.total + ' مهمة (مهمة = موظف وشغلانة مختلفة)، خلص منها ' + st.done + ' مهمة', true);
-      row('عدد التحديثات النهارده: ' + st.ev.length + ' تحديث (كل سطر حالة يتعدّ مرة)');
+      row('عدد المهام النهارده: ' + arN(st.total, A_TASK) + ' (المهمة = موظف وشغلانة مختلفة)، خلص منها ' + arN(st.done, A_TASK), true);
+      row('عدد التحديثات النهارده: ' + arN(st.ev.length, A_UPD) + ' (كل سطر حالة يتعدّ مرة)');
       row('أكتر ناس خلّصت مهام:');
-      if (st.rank.length) { var shown = st.rank.slice(0, 5), more = st.rank.length - shown.length, tie = shown.length > 1 && shown[0][1] === shown[shown.length - 1][1]; shown.forEach(function (r, i) { row((i + 1) + '. ' + r[0] + ': خلّص ' + r[1] + ' مهمة' + (tie ? ' (تعادل)' : '')).style.paddingInlineStart = '12px'; }); if (more > 0) { row('و ' + more + ' موظف كمان بنفس العدد (' + shown[4][1] + ' مهمة)').style.paddingInlineStart = '12px'; } } else { row('لسه محدش خلّص مهمة').style.paddingInlineStart = '12px'; }
-      row(st.busy.length ? ('أزحم ' + (st.busy.length > 1 ? 'ساعات (تعادل): ' : 'ساعة: ') + st.busy.slice(0, 3).map(hrRange).join('، ') + (st.busy.length > 3 ? ' وغيرها' : '') + ' بتوقيت دبي، ' + st.busiestN + ' تحديث في الساعة') : 'أزحم ساعة: مفيش بيانات');
+      if (st.rank.length) { var shown = st.rank.slice(0, 5), more = st.rank.length - shown.length, tie = shown.length > 1 && shown[0][1] === shown[shown.length - 1][1]; shown.forEach(function (r, i) { row((i + 1) + '. ' + r[0] + ': خلّص ' + arN(r[1], A_TASK) + (tie ? ' (تعادل)' : '')).style.paddingInlineStart = '12px'; }); if (more > 0) { row('و' + arN(more, A_EMP) + ' كمان بنفس العدد (' + arN(shown[4][1], A_TASK) + ')').style.paddingInlineStart = '12px'; } } else { row('لسه محدش خلّص مهمة').style.paddingInlineStart = '12px'; }
+      row(st.busy.length ? ('أزحم ' + (st.busy.length > 1 ? 'ساعات (تعادل): ' : 'ساعة: ') + st.busy.slice(0, 3).map(hrRange).join('، ') + (st.busy.length > 3 ? ' وغيرها' : '') + ' بتوقيت دبي، ' + arN(st.busiestN, A_UPD) + ' في الساعة') : 'أزحم ساعة: مفيش بيانات');
       row(st.wait ? ('أطول وقفة: ' + st.wait.who + '، ' + ageWords(Math.max(1, Math.floor(st.wait.ms / 60000))) + (st.wait.open ? ' ولسه واقف' : '')) : 'أطول وقفة: مفيش وقفات النهارده');
       var cv = document.createElement('canvas'); cv.setAttribute('role', 'img');
-      cv.setAttribute('aria-label', 'رسم أعمدة لعدد التحديثات في كل ساعة بتوقيت دبي. ' + (st.busy.length ? 'أعلى ساعة ' + hrRange(st.busy[0]) + ' بـ ' + st.busiestN + ' تحديث.' : 'مفيش تحديثات.'));
+      cv.setAttribute('aria-label', 'رسم أعمدة لعدد التحديثات في كل ساعة بتوقيت دبي. ' + (st.busy.length ? 'أعلى ساعة ' + hrRange(st.busy[0]) + ' بـ ' + arN(st.busiestN, A_UPD) + '.' : 'مفيش تحديثات.'));
       cv.style.cssText = 'display:block;margin:8px auto 2px;direction:ltr'; pan.appendChild(cv); drawHours(cv, st.hours);
       row('عدد التحديثات في كل ساعة بتوقيت دبي (الساعات من 0 لـ23، الرقم الأبيض هو أعلى عمود)').style.color = '#b9cce2';
       row('الأرقام من اللي الجهاز ده شافه وخزّنه: أقدم سطر محتفظ بيه النهارده الساعة ' + hhmm(st.first) + ' بتوقيت دبي، والوقت دلوقتي ' + hhmm(st.now) + (st.capped ? '. الجهاز بيحتفظ بآخر 500 سطر بس، فالأقدم ممكن يكون اتشال.' : '. لو الصفحة اتفتحت متأخر ممكن يكون فيه تحديثات أقدم ما اتخزنتش.')).style.color = '#b9cce2';
@@ -1600,10 +1602,10 @@
   }
   /* Idea 25: 4-step first-visit tour. Static card in the page flow (never over the scene or alerts); remembered in localStorage. */
   var TOUR = [
-    'ده مكتب الشغل. كل مكتب فيه موظف، ولون الحلقة بيقول حالته: شغال أو مستني أو خلّص أو واقف.',
+    'ده مكتب الشغل. كل مكتب فيه موظف، ولون الحلقة وشكلها واللابل بيقولوا حالته: شغال أو مستني أو خلّص أو واقف.',
     'اضغط على أي موظف أو مكتب تشوف شغله الحالي والجاي.',
-    'الخريطة الصغيرة على شمال المشهد بتوديك لأي مكان، والبحث فوق بيدوّر باسم أو مهمة ويفلتر بالحالة.',
-    'زر ملخص اليوم بيجمع أرقام اليوم، وفيه لقطة بتتحفظ على جهازك. تقدر ترجع للجولة من زر الجولة تحت الخريطة.'
+    'زر الخريطة فوق المشهد بيفتح خريطة صغيرة بتوديك لأي مكان، والبحث بيدوّر باسم أو مهمة ويفلتر بالحالة.',
+    'زر ملخص اليوم بيجمع أرقام اليوم، وفيه لقطة بتتحفظ على جهازك. تقدر ترجع للجولة من زر الجولة جنب زر الخريطة.'
   ], tourStep = -1, TOUR_KEY = 'o3-tour-done';
   function tourDone() { try { return localStorage.getItem(TOUR_KEY) === '1'; } catch (e) { return false; } }
   function renderTour() {
@@ -1775,7 +1777,7 @@
     if (!evs.length && statusLines.length) { return; }
     if (!evs.length) {
       var stf = (baseFeed && baseFeed.staff) || [];
-      var ago = function (iso) { var m = Math.round((Date.now() - new Date(iso).getTime()) / 60000); if (!(m >= 0)) { return ''; } if (m < 2) { return 'دلوقتي'; } if (m < 60) { return 'من ' + m + ' دقيقة'; } if (m < 1440) { return 'من ' + Math.round(m / 60) + ' ساعة'; } return 'من ' + Math.round(m / 1440) + ' يوم'; };
+      var ago = function (iso) { var m = Math.round((Date.now() - new Date(iso).getTime()) / 60000); if (!(m >= 0)) { return ''; } if (m < 2) { return 'دلوقتي'; } if (m < 60) { return minutesLabel(m); } if (m < 1440) { return hoursLabel(Math.round(m / 60)); } var dd = Math.round(m / 1440); return dd === 1 ? 'من يوم' : (dd === 2 ? 'من يومين' : 'من ' + dd + (dd <= 10 ? ' أيام' : ' يوم')); };
       var stl = { running: 'شغّال', waiting: 'مستني', done: 'خلّص', idle: 'فاضي' };
       var upd = baseFeed && baseFeed.updated ? ago(baseFeed.updated) : '';
       var em = make('li', 'o3-empty'); em.textContent = 'مفيش تسليمات النهاردة. دي آخر حالات الموظفين من الداتا' + (upd ? ' (آخر تحديث ' + upd + ')' : '') + ':'; lines.appendChild(em);
