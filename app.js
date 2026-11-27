@@ -1119,7 +1119,7 @@
   var statusLines = [], statusSeen = {}, statusSince = '12h';
   var TL_KEY = 'ws-timeline-v1';
   function saveTL() { try { localStorage.setItem(TL_KEY, JSON.stringify(statusLines.slice(0, 500).map(function (e) { return { mid: e.mid, id: e.id, name: e.name, text: e.text, state: e.state, job: e.job, ms: e.ms, ask: e.ask || '', options: e.options || [], done: e.done, pending: e.pending }; }))); } catch (e) { /* storage full or blocked */ } }
-  function restoreTL() { try { var a = JSON.parse(localStorage.getItem(TL_KEY) || '[]'); if (Array.isArray(a)) { a.forEach(function (e) { if (e && e.mid && e.ms && e.text) { statusSeen[e.mid] = true; statusSince = e.mid; statusLines.push({ mid: String(e.mid), id: cleanText(e.id, 40), name: cleanText(e.name, 40), text: cleanText(e.text, 160), state: e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'start'), next: '', done: (isFinite(+e.done) && +e.done >= 0 ? Math.min(9999, Math.floor(+e.done)) : -1), pending: (isFinite(+e.pending) && +e.pending >= 0 ? Math.min(9999, Math.floor(+e.pending)) : -1), job: cleanText(e.job, 60), result: '', ms: +e.ms, ask: (cleanText(e.ask, 140) === PRIV_PH ? '' : cleanText(e.ask, 140)), options: cleanOpts(e.options) }); } }); statusLines.sort(function (x, y) { return y.ms - x.ms; }); } } catch (e) { console.warn('restoreTL', String(e)); statusLines = []; } }
+  function restoreTL() { try { var a = JSON.parse(localStorage.getItem(TL_KEY) || '[]'); if (Array.isArray(a)) { a.slice(0, 500).forEach(function (e) { if (e && e.mid && e.ms && e.text) { statusSeen[e.mid] = true; statusSince = e.mid; statusLines.push({ mid: String(e.mid), id: cleanText(e.id, 40), name: cleanText(e.name, 40), text: cleanText(e.text, 160), state: e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'start'), next: '', done: (isFinite(+e.done) && +e.done >= 0 ? Math.min(9999, Math.floor(+e.done)) : -1), pending: (isFinite(+e.pending) && +e.pending >= 0 ? Math.min(9999, Math.floor(+e.pending)) : -1), job: cleanText(e.job, 60), result: '', ms: +e.ms, ask: (cleanText(e.ask, 140) === PRIV_PH ? '' : cleanText(e.ask, 140)), options: cleanOpts(e.options) }); } }); statusLines.sort(function (x, y) { return y.ms - x.ms; }); } } catch (e) { console.warn('restoreTL', String(e)); statusLines = []; } }
   var PRIV_PH = 'نشاط على حساب، التفاصيل مخفية';
   function cleanOpts(a) { var o = []; if (Array.isArray(a)) { a.slice(0, 3).forEach(function (x) { var t = cleanText(typeof x === 'string' ? x : '', 50); if (t && t !== PRIV_PH) { o.push(t); } }); } return o; }
   function pollStatus() {
@@ -1492,6 +1492,114 @@
     if (e.code === 'Slash') { e.preventDefault(); sInput.focus(); }
     else if (/^Digit[1-5]$/.test(e.code)) { e.preventDefault(); sFilter = SF[+e.code.slice(5) - 1][0]; runSearch(true); }
   });
+  /* Idea 24: "ملخص اليوم". All numbers come from the stored status lines (what this browser has seen), Dubai day. No upload; the PNG is saved on the device. */
+  var sumOpen = false;
+  function dubaiHour(ms) { return new Date(ms + 4 * 3600000).getUTCHours(); }  /* Dubai is UTC+4 all year (no DST), so this never depends on the device zone */
+  function dubaiMidnight(now) { var d = new Date(now + 4 * 3600000); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - 4 * 3600000; }
+  function hhmm(ms) { try { return fmtDubai(new Date(ms)).slice(0, 5); } catch (e) { return ''; } }
+  function p2(n) { return (n < 10 ? '0' : '') + n; }
+  function dubaiParts(ms) { var d = new Date(ms + 4 * 3600000); return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate(), h: d.getUTCHours(), mi: d.getUTCMinutes() }; }
+  window.__o3Day = { hour: dubaiHour, midnight: dubaiMidnight };
+  /* A "task" = one employee + one job (distinct). An "update" = one status line. Three updates on the same job = 1 task, 3 updates. */
+  function dayStats() {
+    var now = Date.now(), t0 = dubaiMidnight(now), ev = statusLines.filter(function (e) { return e && e.ms >= t0 && e.ms <= now + 60000; }).sort(function (a, b) { return a.ms - b.ms; });
+    var hours = []; for (var h = 0; h < 24; h++) { hours.push(0); }
+    var tasks = {}, last = {}, wait = null;
+    ev.forEach(function (e) {
+      hours[dubaiHour(e.ms)]++;
+      var who = e.name || e.id || '؟', tk = who + '|' + (e.job || '(بدون شغلانة)');
+      tasks[tk] = { who: who, state: e.state };
+      var k = e.id || e.name || '?';
+      if (last[k] && last[k].state === 'blocked') { var d = e.ms - last[k].ms; if (!wait || d > wait.ms) { wait = { ms: d, who: who, open: false }; } }
+      last[k] = e;
+    });
+    Object.keys(last).forEach(function (k) { var e = last[k]; if (e.state === 'blocked') { var d = now - e.ms; if (!wait || d > wait.ms) { wait = { ms: d, who: e.name || e.id || '؟', open: true }; } } });
+    var tk = Object.keys(tasks), doneBy = {}, doneT = 0;
+    tk.forEach(function (k) { if (tasks[k].state === 'done') { doneT++; doneBy[tasks[k].who] = (doneBy[tasks[k].who] || 0) + 1; } });
+    var rank = Object.keys(doneBy).map(function (k) { return [k, doneBy[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+    if (rank.length > 5) { var cut5 = rank[4][1]; rank = rank.filter(function (r, i) { return i < 5 || r[1] === cut5; }); }
+    var bm = 0; hours.forEach(function (v) { if (v > bm) { bm = v; } });
+    var busy = []; if (bm > 0) { hours.forEach(function (v, i) { if (v === bm) { busy.push(i); } }); }
+    return { ev: ev, hours: hours, rank: rank, total: tk.length, done: doneT, busy: busy, busiestN: bm, wait: wait, first: ev.length ? ev[0].ms : 0, now: now, capped: statusLines.length >= 500 };
+  }
+  function hrRange(h) { return p2(h) + ':00 إلى ' + p2(h) + ':59'; }
+  function drawHours(cv, hours) {
+    var W = 320, H = 126, dpr = Math.min(3, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr; cv.style.width = '100%'; cv.style.maxWidth = W + 'px'; cv.style.height = 'auto';
+    var c = cv.getContext('2d'); c.scale(dpr, dpr); c.clearRect(0, 0, W, H);
+    var mx = Math.max(1, Math.max.apply(null, hours)), bw = W / 24, top = 20, base = H - 20;
+    c.fillStyle = '#22d3ee'; c.font = '14px "Noto Sans Mono",monospace'; c.textAlign = 'center';
+    hours.forEach(function (v, i) { var bh = Math.round((base - top) * v / mx); if (v) { c.fillRect(i * bw + 2, base - bh, bw - 4, bh); } });
+    /* One label per run of adjacent max bars (centred over the run); a label is skipped if it would touch the previous one (Rule 105). */
+    var lastR = -1e9, i2 = 0;
+    while (i2 < 24) {
+      if (hours[i2] === mx && mx > 0) {
+        var j2 = i2; while (j2 + 1 < 24 && hours[j2 + 1] === mx) { j2++; }
+        var cx = (i2 + j2 + 1) * bw / 2, tw = c.measureText(String(mx)).width;
+        if (cx - tw / 2 > lastR + 4) { c.fillStyle = '#ffffff'; c.fillText(String(mx), cx, top - 6); c.fillStyle = '#22d3ee'; lastR = cx + tw / 2; }
+        i2 = j2 + 1;
+      } else { i2++; }
+    }
+    c.fillStyle = '#b9cce2';
+    [0, 6, 12, 18, 23].forEach(function (i) { c.fillText(String(i), i * bw + bw / 2, H - 2); });
+    c.fillStyle = '#f4511e'; c.fillRect(0, base + 1, W, 1);
+  }
+  function renderDaySummary() {
+    var sum = document.getElementById('o3-summary'); if (!sum) { return; }
+    var btn = document.getElementById('o3-daybtn'), pan = document.getElementById('o3-daypan');
+    if (!btn) {
+      btn = document.createElement('button'); btn.id = 'o3-daybtn'; btn.type = 'button'; btn.textContent = 'ملخص اليوم'; btn.setAttribute('aria-expanded', 'false');
+      btn.style.cssText = 'display:block;margin:4px auto;padding:6px 18px;min-height:44px;border-radius:999px;background:#070d18;border:1px solid #22d3ee;color:#fff;font:700 15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+      btn.addEventListener('click', function () { sumOpen = !sumOpen; renderDaySummary(); });
+      var anchor = document.getElementById('o3-search') || sum; anchor.parentNode.insertBefore(btn, anchor.nextSibling);
+    }
+    btn.setAttribute('aria-expanded', sumOpen ? 'true' : 'false'); btn.textContent = sumOpen ? 'ملخص اليوم ▴' : 'ملخص اليوم ▾';
+    if (!sumOpen) { if (pan) { pan.remove(); } return; }
+    var st = dayStats(), sig = st.ev.length + ':' + (st.ev.length ? st.ev[st.ev.length - 1].ms : 0) + ':' + Math.floor(st.now / 60000);
+    if (pan && pan.__sig === sig) { return; }
+    if (!pan) { pan = document.createElement('div'); pan.id = 'o3-daypan'; pan.setAttribute('dir', 'rtl'); pan.setAttribute('role', 'region'); pan.setAttribute('aria-label', 'ملخص اليوم'); pan.style.cssText = 'margin:4px auto 8px;width:min(560px,calc(100vw - 20px));box-sizing:border-box;padding:12px 14px;border-radius:18px;background:rgba(7,13,24,.88);border:1px solid rgba(34,211,238,.45);color:#fff;font-size:14px;line-height:1.8;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)'; btn.parentNode.insertBefore(pan, btn.nextSibling); }
+    pan.__sig = sig; pan.textContent = '';
+    function row(t, strong) { var d = document.createElement('div'); d.textContent = t; if (strong) { d.style.fontWeight = '700'; } pan.appendChild(d); return d; }
+    if (!st.ev.length) { row('مفيش بيانات النهارده اتخزنت على الجهاز ده لسه.', true); }
+    else {
+      row('عدد المهام النهارده: ' + st.total + ' مهمة (مهمة = موظف وشغلانة مختلفة)، خلص منها ' + st.done + ' مهمة', true);
+      row('عدد التحديثات النهارده: ' + st.ev.length + ' تحديث (كل سطر حالة يتعدّ مرة)');
+      row('أكتر ناس خلّصت مهام:');
+      if (st.rank.length) { var tie = st.rank.length > 1 && st.rank[0][1] === st.rank[st.rank.length - 1][1]; st.rank.forEach(function (r, i) { row((i + 1) + '. ' + r[0] + ': خلّص ' + r[1] + ' مهمة' + (tie ? ' (تعادل)' : '')).style.paddingInlineStart = '12px'; }); } else { row('لسه محدش خلّص مهمة').style.paddingInlineStart = '12px'; }
+      row(st.busy.length ? ('أزحم ' + (st.busy.length > 1 ? 'ساعات (تعادل): ' : 'ساعة: ') + st.busy.slice(0, 3).map(hrRange).join('، ') + (st.busy.length > 3 ? ' وغيرها' : '') + ' بتوقيت دبي، ' + st.busiestN + ' تحديث في الساعة') : 'أزحم ساعة: مفيش بيانات');
+      row(st.wait ? ('أطول وقفة: ' + st.wait.who + '، ' + ageWords(Math.max(1, Math.floor(st.wait.ms / 60000))) + (st.wait.open ? ' ولسه واقف' : '')) : 'أطول وقفة: مفيش وقفات النهارده');
+      var cv = document.createElement('canvas'); cv.setAttribute('role', 'img');
+      cv.setAttribute('aria-label', 'رسم أعمدة لعدد التحديثات في كل ساعة بتوقيت دبي. ' + (st.busy.length ? 'أعلى ساعة ' + hrRange(st.busy[0]) + ' بـ ' + st.busiestN + ' تحديث.' : 'مفيش تحديثات.'));
+      cv.style.cssText = 'display:block;margin:8px auto 2px;direction:ltr'; pan.appendChild(cv); drawHours(cv, st.hours);
+      row('عدد التحديثات في كل ساعة بتوقيت دبي (الساعات من 0 لـ23، الرقم الأبيض هو أعلى عمود)').style.color = '#b9cce2';
+      row('الأرقام من اللي الجهاز ده شافه وخزّنه: أقدم سطر محتفظ بيه النهارده الساعة ' + hhmm(st.first) + ' بتوقيت دبي، والوقت دلوقتي ' + hhmm(st.now) + (st.capped ? '. الجهاز بيحتفظ بآخر 500 سطر بس، فالأقدم ممكن يكون اتشال.' : '. لو الصفحة اتفتحت متأخر ممكن يكون فيه تحديثات أقدم ما اتخزنتش.')).style.color = '#b9cce2';
+    }
+    var sb = document.createElement('button'); sb.type = 'button'; sb.textContent = 'لقطة'; sb.title = 'حفظ صورة للمشهد على جهازك';
+    sb.style.cssText = 'margin-top:8px;min-height:44px;min-width:44px;padding:6px 18px;border-radius:999px;border:1px solid #f4511e;background:#c2410c;color:#fff;cursor:pointer;font:700 14px "Noto Kufi Arabic",sans-serif';
+    var msg = document.createElement('span'); msg.setAttribute('role', 'status'); msg.style.cssText = 'margin-inline-start:10px;color:#b9cce2';
+    sb.addEventListener('click', function () {
+      var u = ''; try { u = window.Office3D && window.Office3D.snapshot ? window.Office3D.snapshot() : ''; } catch (e) { u = ''; }
+      if (!u || u.length < 5000) { msg.textContent = 'مقدرتش آخد اللقطة دلوقتي.'; return; }
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var W = img.width, bar = Math.max(44, Math.round(W / 22)), fs = Math.max(14, Math.round(bar * 0.45)), cvs = document.createElement('canvas'); cvs.width = W; cvs.height = img.height + bar;
+          var c = cvs.getContext('2d'), P = dubaiParts(Date.now()), stamp = P.y + '-' + p2(P.m) + '-' + p2(P.d) + ' ' + p2(P.h) + ':' + p2(P.mi);
+          c.fillStyle = '#070d18'; c.fillRect(0, 0, W, bar); c.drawImage(img, 0, bar);
+          c.fillStyle = '#f4511e'; c.fillRect(0, bar - 3, W, 3);
+          c.fillStyle = '#ffffff'; c.font = '700 ' + fs + 'px "Noto Kufi Arabic",sans-serif'; c.direction = 'rtl'; c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText('مكتب الشغل', W - Math.round(fs * 0.8) - Math.round(fs * 1.6), bar / 2 - 1); c.fillStyle = '#f4511e'; var isz = Math.round(fs * 1.1); c.beginPath(); if (c.roundRect) { c.roundRect(W - Math.round(fs * 0.8) - isz, bar / 2 - isz / 2, isz, isz, Math.round(isz / 4)); } else { c.rect(W - Math.round(fs * 0.8) - isz, bar / 2 - isz / 2, isz, isz); } c.fill();
+          c.fillStyle = '#b9cce2'; c.direction = 'rtl'; c.textAlign = 'left'; c.font = '600 ' + fs + 'px "Noto Kufi Arabic",sans-serif'; var tzw = c.measureText('توقيت دبي').width; c.fillText('توقيت دبي', Math.round(fs * 0.8), bar / 2 - 1); c.direction = 'ltr'; c.font = '600 ' + fs + 'px "Noto Sans Mono",monospace'; c.fillText(stamp, Math.round(fs * 0.8) + tzw + Math.round(fs * 0.6), bar / 2 - 1);
+          var fn = 'work-screen-' + P.y + p2(P.m) + p2(P.d) + '-' + p2(P.h) + p2(P.mi) + '.png';
+          var done = function (href) { var a = document.createElement('a'); a.href = href; a.download = fn; document.body.appendChild(a); a.click(); a.remove(); msg.textContent = 'اتحفظت على جهازك باسم ' + fn + ' (من غير رفع). اللقطة للمشهد ثلاثي الأبعاد: الشخصيات بتظهر لو كانت اتحمّلت وقت اللقطة، واللابلز والأزرار مش داخلة.'; };
+          if (cvs.toBlob) { cvs.toBlob(function (b) { if (b) { var url = URL.createObjectURL(b); done(url); setTimeout(function () { URL.revokeObjectURL(url); }, 20000); } else { msg.textContent = 'مقدرتش آخد اللقطة دلوقتي.'; } }, 'image/png'); } else { done(cvs.toDataURL('image/png')); }
+        } catch (e) { msg.textContent = 'مقدرتش آخد اللقطة دلوقتي.'; }
+      };
+      img.onerror = function () { msg.textContent = 'مقدرتش آخد اللقطة دلوقتي.'; };
+      img.src = u;
+    });
+    pan.appendChild(sb); pan.appendChild(msg);
+  }
+  setInterval(function () { try { if (sumOpen) { renderDaySummary(); } else if (!document.getElementById('o3-daybtn')) { renderDaySummary(); } } catch (e) {} }, 5000);
+  setTimeout(function () { try { renderDaySummary(); } catch (e) {} }, 2500);
   setInterval(function () { try { ensureSearch(); } catch (e) {} }, 2000);
   setInterval(function () { try { publishLoad(); } catch (e) {} }, 5000); setTimeout(function () { try { publishLoad(); } catch (e) {} }, 1800);
   function pendingDecisions() {
