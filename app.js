@@ -1564,7 +1564,7 @@
       row('عدد المهام النهارده: ' + st.total + ' مهمة (مهمة = موظف وشغلانة مختلفة)، خلص منها ' + st.done + ' مهمة', true);
       row('عدد التحديثات النهارده: ' + st.ev.length + ' تحديث (كل سطر حالة يتعدّ مرة)');
       row('أكتر ناس خلّصت مهام:');
-      if (st.rank.length) { var tie = st.rank.length > 1 && st.rank[0][1] === st.rank[st.rank.length - 1][1]; st.rank.forEach(function (r, i) { row((i + 1) + '. ' + r[0] + ': خلّص ' + r[1] + ' مهمة' + (tie ? ' (تعادل)' : '')).style.paddingInlineStart = '12px'; }); } else { row('لسه محدش خلّص مهمة').style.paddingInlineStart = '12px'; }
+      if (st.rank.length) { var shown = st.rank.slice(0, 5), more = st.rank.length - shown.length, tie = shown.length > 1 && shown[0][1] === shown[shown.length - 1][1]; shown.forEach(function (r, i) { row((i + 1) + '. ' + r[0] + ': خلّص ' + r[1] + ' مهمة' + (tie ? ' (تعادل)' : '')).style.paddingInlineStart = '12px'; }); if (more > 0) { row('و ' + more + ' موظف كمان بنفس العدد (' + shown[4][1] + ' مهمة)').style.paddingInlineStart = '12px'; } } else { row('لسه محدش خلّص مهمة').style.paddingInlineStart = '12px'; }
       row(st.busy.length ? ('أزحم ' + (st.busy.length > 1 ? 'ساعات (تعادل): ' : 'ساعة: ') + st.busy.slice(0, 3).map(hrRange).join('، ') + (st.busy.length > 3 ? ' وغيرها' : '') + ' بتوقيت دبي، ' + st.busiestN + ' تحديث في الساعة') : 'أزحم ساعة: مفيش بيانات');
       row(st.wait ? ('أطول وقفة: ' + st.wait.who + '، ' + ageWords(Math.max(1, Math.floor(st.wait.ms / 60000))) + (st.wait.open ? ' ولسه واقف' : '')) : 'أطول وقفة: مفيش وقفات النهارده');
       var cv = document.createElement('canvas'); cv.setAttribute('role', 'img');
@@ -1598,6 +1598,37 @@
     });
     pan.appendChild(sb); pan.appendChild(msg);
   }
+  /* Idea 25: 4-step first-visit tour. Static card in the page flow (never over the scene or alerts); remembered in localStorage. */
+  var TOUR = [
+    'ده مكتب الشغل. كل مكتب فيه موظف، ولون الحلقة بيقول حالته: شغال أو مستني أو خلّص أو واقف.',
+    'اضغط على أي موظف أو مكتب تشوف شغله الحالي والجاي.',
+    'الخريطة الصغيرة على شمال المشهد بتوديك لأي مكان، والبحث فوق بيدوّر باسم أو مهمة ويفلتر بالحالة.',
+    'زر ملخص اليوم بيجمع أرقام اليوم، وفيه لقطة بتتحفظ على جهازك. تقدر ترجع للجولة من زر الجولة تحت الخريطة.'
+  ], tourStep = -1, TOUR_KEY = 'o3-tour-done';
+  function tourDone() { try { return localStorage.getItem(TOUR_KEY) === '1'; } catch (e) { return false; } }
+  function renderTour() {
+    var card = document.getElementById('o3-tour');
+    if (tourStep < 0) { if (card) { card.remove(); } return; }
+    var anchor = document.getElementById('o3-search') || document.getElementById('o3-summary'); if (!anchor) { return; }
+    if (!card) {
+      card = document.createElement('div'); card.id = 'o3-tour'; card.setAttribute('dir', 'rtl'); card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', 'جولة سريعة'); card.setAttribute('aria-modal', 'false');
+      card.style.cssText = 'margin:6px auto;width:min(560px,calc(100vw - 20px));box-sizing:border-box;padding:12px 14px;border-radius:18px;background:rgba(7,13,24,.92);border:1px solid #f4511e;color:#fff;font-size:15px;line-height:1.8';
+      anchor.parentNode.insertBefore(card, anchor);
+      card.addEventListener('keydown', function (e) { if (e.key === 'Escape') { endTour(); } });
+    }
+    card.textContent = '';
+    var t = document.createElement('div'); t.textContent = 'خطوة ' + (tourStep + 1) + ' من ' + TOUR.length; t.style.cssText = 'color:#b9cce2;font-size:14px'; card.appendChild(t);
+    var m = document.createElement('div'); m.setAttribute('role', 'status'); m.textContent = TOUR[tourStep]; card.appendChild(m);
+    var row = document.createElement('div'); row.style.cssText = 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap';
+    function mk(txt, fn, primary) { var b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.style.cssText = 'min-height:44px;min-width:44px;padding:6px 18px;border-radius:999px;border:1px solid ' + (primary ? '#c2410c' : '#22d3ee') + ';background:' + (primary ? '#c2410c' : '#070d18') + ';color:#fff;cursor:pointer;font:700 14px "Noto Kufi Arabic",sans-serif'; b.addEventListener('click', fn); row.appendChild(b); return b; }
+    var nx = mk(tourStep < TOUR.length - 1 ? 'التالي' : 'تمام', function () { if (tourStep < TOUR.length - 1) { tourStep++; renderTour(); } else { endTour(); } }, true);
+    mk('تخطّي', endTour, false);
+    card.appendChild(row);
+    try { nx.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+  }
+  function endTour() { tourStep = -1; try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) { /* ignore */ } var f = document.getElementById('o3-tourbtn'); renderTour(); if (f) { try { f.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } }
+  window.__o3StartTour = function () { tourStep = 0; renderTour(); };
+  (function () { var tries = 0, iv = setInterval(function () { tries++; try { if (tourDone() || tries > 90) { clearInterval(iv); return; } if (window.Office3D && window.Office3D.ready && document.getElementById('o3-search')) { clearInterval(iv); window.__o3StartTour(); } } catch (e) { clearInterval(iv); } }, 1000); })();
   setInterval(function () { try { if (sumOpen) { renderDaySummary(); } else if (!document.getElementById('o3-daybtn')) { renderDaySummary(); } } catch (e) {} }, 5000);
   setTimeout(function () { try { renderDaySummary(); } catch (e) {} }, 2500);
   setInterval(function () { try { ensureSearch(); } catch (e) {} }, 2000);
