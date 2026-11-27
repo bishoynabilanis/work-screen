@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-26T18:34:00+04:00",
+  "updated": "2026-11-27T13:16:35+04:00",
   "assistant": {
     "name": "ريم",
     "title": "المديرة",
@@ -46,8 +46,8 @@
       "title": "جدول النشر",
       "dept": "content",
       "level": "lead",
-      "state": "running",
-      "time": "2026-11-26T17:56:00+04:00"
+      "state": "done",
+      "time": "2026-11-27T13:16:35+04:00"
     },
     {
       "id": "c2",
@@ -91,8 +91,8 @@
       "title": "تجهيز الموافقات",
       "dept": "content",
       "level": "specialist",
-      "state": "waiting",
-      "time": "2026-11-26T17:56:00+04:00"
+      "state": "done",
+      "time": "2026-11-27T13:16:35+04:00"
     },
     {
       "id": "r1",
@@ -100,8 +100,8 @@
       "title": "بناء الشورتس",
       "dept": "trend",
       "level": "lead",
-      "state": "waiting",
-      "time": "2026-11-26T17:56:00+04:00"
+      "state": "running",
+      "time": "2026-11-27T13:16:35+04:00"
     },
     {
       "id": "r2",
@@ -118,8 +118,8 @@
       "title": "رفع الشورتس",
       "dept": "trend",
       "level": "specialist",
-      "state": "waiting",
-      "time": "2026-11-26T17:56:00+04:00"
+      "state": "blocked",
+      "time": "2026-11-27T13:16:35+04:00"
     },
     {
       "id": "v1",
@@ -145,8 +145,8 @@
       "title": "المونتاج والتصدير",
       "dept": "video",
       "level": "specialist",
-      "state": "waiting",
-      "time": "2026-11-26T17:56:00+04:00"
+      "state": "running",
+      "time": "2026-11-27T13:16:35+04:00"
     },
     {
       "id": "j1",
@@ -209,7 +209,7 @@
       "dept": "seo",
       "level": "lead",
       "state": "running",
-      "time": "2026-11-26T17:56:00+04:00"
+      "time": "2026-11-27T13:16:35+04:00"
     },
     {
       "id": "s2",
@@ -370,8 +370,8 @@
       "title": "الأمان",
       "dept": "qa",
       "level": "specialist",
-      "state": "waiting",
-      "time": "2026-11-26T17:56:00+04:00"
+      "state": "done",
+      "time": "2026-11-27T13:16:35+04:00"
     },
     {
       "id": "q7",
@@ -379,8 +379,8 @@
       "title": "النبرة والأسلوب",
       "dept": "qa",
       "level": "specialist",
-      "state": "waiting",
-      "time": "2026-11-26T17:56:00+04:00"
+      "state": "done",
+      "time": "2026-11-27T13:16:35+04:00"
     },
     {
       "id": "q8",
