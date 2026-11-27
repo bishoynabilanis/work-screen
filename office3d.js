@@ -629,14 +629,14 @@
   }
   var floorBtns = {};
   // ---------- camera controls ----------
-  var drag = null, pinch = null, moved = false;
+  var drag = null, pinch = null, moved = false, lastTap = null;
   var el = renderer.domElement;
   el.style.touchAction = 'none';
   var pointers = {};
   function ptCount() { return Object.keys(pointers).length; }
   el.addEventListener('pointerdown', function (e) {
     userTouch(); setCamMode('free');
-    el.setPointerCapture(e.pointerId);
+    try { el.setPointerCapture(e.pointerId); } catch (err) { /* pointer already gone */ }
     pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
     moved = false;
     if (ptCount() === 1) { drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, pan: e.button === 2 || e.shiftKey || e.button === 1 }; }
@@ -685,7 +685,11 @@
     delete pointers[e.pointerId];
     if (ptCount() < 2) { pinch = null; }
     if (ptCount() === 0) {
-      if (had && !moved) { pick(e.clientX, e.clientY); }
+      if (had && !moved) {
+        var nowT = e.timeStamp;
+        if (e.pointerType === 'touch' && lastTap && nowT - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { lastTap = null; resetView(); }
+        else { lastTap = { t: nowT, x: e.clientX, y: e.clientY }; pick(e.clientX, e.clientY); }
+      }
       drag = null;
     }
   }
@@ -696,7 +700,9 @@
     var dy = Math.max(-120, Math.min(120, e.deltaY)); if (e.deltaMode === 1) { dy *= 16; } desiredZoom = clampZ(desiredZoom * Math.exp(-dy * 0.0009));
   }, { passive: false });
 
-  el.addEventListener('dblclick', function () { userTouch(); azUT = 0; elUT = 0.8; desiredTarget.set(12.5, 0, 9); desiredZoom = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85 ? 0.66 : 1; });
+  function resetView() { userTouch(); setCamMode('free'); azUT = 0; elUT = 0.8; desiredTarget.set(12.5, 0, 9); desiredZoom = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85 ? 0.66 : 1; var rm = false; try { rm = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e2) { rm = false; } if (rm) { target.copy(desiredTarget); zoom = desiredZoom; az = azUT; azU = azUT; elU = elUT; } }
+  el.addEventListener('dblclick', resetView);
+  window.__o3Reset = resetView;
   var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   function pick(cx, cy) {
     var r = el.getBoundingClientRect();
@@ -709,7 +715,7 @@
       flyTo(new THREE.Vector3(2.46, 0, -9.9), pr ? 1.9 : 2.7);
       return;
     }
-    if (hits.length && typeof window.__openSheet === 'function') {
+    if (!hits.length && typeof window.__closeCard === 'function') { window.__closeCard(); }     if (hits.length && typeof window.__openSheet === 'function') {
       var id = hits[0].object.userData.id;
       window.__openSheet(id === 'mgr' ? '__manager__' : id);
     }
@@ -1642,13 +1648,13 @@
     var stage = host.querySelector('.o3-stage') || host, MX0 = -5.5, MX1 = 28.5, MZ0 = -7.5, MZ1 = 24.5, W = 136, H = Math.round(W * (MZ1 - MZ0) / (MX1 - MX0));
     var wrap = document.createElement('div'); wrap.className = 'o3-minimap'; wrap.setAttribute('dir', 'rtl');
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;align-items:center;margin:6px auto;width:min(560px,calc(100vw - 20px));box-sizing:border-box;padding:0 6px';
-    var tg = document.createElement('button'); tg.type = 'button'; tg.style.cssText = 'min-height:44px;min-width:44px;padding:4px 12px;border-radius:999px;background:rgba(7,13,24,.9);border:1px solid #22d3ee;color:#fff;font:700 14px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+    var tg = document.createElement('button'); tg.type = 'button'; tg.style.cssText = 'min-height:48px;min-width:48px;padding:4px 14px;border-radius:999px;background:rgba(7,13,24,.9);border:1px solid #22d3ee;color:#fff;font:700 14px "Noto Kufi Arabic",sans-serif;cursor:pointer';
     var cv = document.createElement('canvas'); cv.tabIndex = 0; cv.setAttribute('role', 'img');
     cv.setAttribute('aria-label', 'خريطة المكتب. اضغط على مكان أو استخدم الأسهم عشان الكاميرا تروح هناك');
     cv.style.cssText = 'width:' + W + 'px;height:' + H + 'px;border-radius:10px;background:#070d18;border:1px solid rgba(34,211,238,.6);touch-action:none;cursor:pointer';
     var dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr;
     var tb = document.createElement('button'); tb.type = 'button'; tb.id = 'o3-tourbtn'; tb.textContent = 'الجولة'; tb.style.cssText = tg.style.cssText; tb.addEventListener('click', function () { if (window.__o3StartTour) { window.__o3StartTour(); } });
-    var brow = document.createElement('div'); brow.style.cssText = 'display:flex;gap:6px'; brow.appendChild(tg); brow.appendChild(tb); wrap.appendChild(brow);
+    var brow = document.createElement('div'); brow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center'; var rb = document.createElement('button'); rb.type = 'button'; rb.id = 'o3-resetbtn'; rb.textContent = 'المنظر العام'; rb.setAttribute('aria-label', 'رجوع للمنظر العام للمكتب'); rb.style.cssText = tg.style.cssText; rb.addEventListener('click', function () { resetView(); }); brow.appendChild(tg); brow.appendChild(tb); brow.appendChild(rb); wrap.appendChild(brow); var gh = document.createElement('div'); gh.id = 'o3-gesturehint'; gh.textContent = 'اضغط مرتين بسرعة على المشهد أو اضغط زر المنظر العام عشان ترجع للمنظر الكامل'; gh.style.cssText = 'font-size:14px;line-height:1.5;color:#c9d3e6;text-align:center;padding:2px 8px'; wrap.appendChild(gh); cv.title = 'اضغط مرتين بسرعة للرجوع للمنظر الكامل';
     var capEl = document.createElement('div'); capEl.style.cssText = 'font-size:14px;line-height:1.7;color:#b9cce2;text-align:center;display:none'; wrap.appendChild(capEl);
     var mrow = document.createElement('div'); mrow.style.cssText = 'display:none;gap:12px;align-items:flex-start;justify-content:center;flex-wrap:wrap'; mrow.appendChild(cv);
     var lg = document.createElement('div'); lg.setAttribute('dir', 'rtl'); lg.style.cssText = 'font-size:14px;line-height:1.7;color:#e6eef8;flex:1 1 170px;min-width:0;max-width:300px;text-align:right';
@@ -1703,7 +1709,7 @@
     window.__o3Minimap = { draw: draw, poly: viewPoly };
     sync();
   })();
-  window.__o3dbg = { people: people, charTpl: charTpl };
+  window.__o3dbg = { live: function () { return { az: az, azU: azU, el: elU, zoom: zoom, tx: target.x, tz: target.z }; }, people: people, charTpl: charTpl, cam: function () { return { az: azUT, el: elUT, zoom: desiredZoom, tx: desiredTarget.x, tz: desiredTarget.z }; } };
   initCharacters();
   window.Office3D = { ready: true, snapshot: function () { try { renderFinal(); return renderer.domElement.toDataURL('image/png'); } catch (e) { return ''; } }, search: function (q, f, fly) { srch.q = String(q || ''); srch.f = f || 'all'; srch.on = !!srch.q.trim() || srch.f !== 'all'; return applySearch(!!fly); }, setFloor: setFloor, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
   if (hint) { hint.hidden = false; }
