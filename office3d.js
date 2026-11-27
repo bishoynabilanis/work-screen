@@ -331,10 +331,10 @@
     d.group.position.set(pos.x, 0, pos.z);
     scene.add(d.group);
     var chair = buildChair();
-    chair.position.set(pos.x, 0, pos.z - 0.95);
+    chair.position.set(pos.x, 0, pos.z - 0.85);
     scene.add(chair);
     var p = buildPerson(id);
-    var seat = new THREE.Vector3(pos.x, 0.12, pos.z - 0.95);
+    var seat = new THREE.Vector3(pos.x, 0.12, pos.z - 0.85);
     p.group.position.copy(seat);
     p.group.position.y = 0.0;
     scene.add(p.group);
@@ -342,7 +342,7 @@
     if (!window.__o3NoChars) { p.group.visible = false; setTimeout(function () { p.group.visible = true; }, 90000); }
     // stand/sit: lift body to seat, tuck legs
     var ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
-    ring.rotation.x = -Math.PI / 2; ring.position.set(pos.x, 0.09, pos.z - 0.95); scene.add(ring);
+    ring.rotation.x = -Math.PI / 2; ring.position.set(pos.x, 0.09, pos.z - 0.85); scene.add(ring);
     var rec = {
       id: id, dept: deptId, desk: d, chair: chair, person: p, ring: ring, seat: seat, front: new THREE.Vector3(pos.x, 0, pos.z + 0.95),
       state: 'unknown', label: makeLabel(), away: false, time: Math.random() * 6, nameText: '', roleText: ''
@@ -1255,14 +1255,15 @@
       })();
     });
   }
-  var G_H = 1.45;
+  var G_H = 1.7;
   function upgradePerson(rec) {
     if (rec.char) { return; }
     var key = charKeyFor(rec.id), tpl = charTpl[key]; if (!tpl) { return; }
     var L = window.O3Loaders, inst = L.SkeletonUtils.clone(tpl.scene);
     inst.traverse(function (o) { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; o.receiveShadow = false; } });
     var h = hashStr(rec.id), wrap = new THREE.Group(); wrap.add(inst);
-    var sc = G_H / tpl.h * (0.96 + (h % 9) * 0.01); inst.scale.setScalar(sc);
+    if (!tpl.hh) { inst.updateMatrixWorld(true); var tb = {}; inst.traverse(function (o) { if (o.isBone) { tb[o.name] = o; } }); var vh = new THREE.Vector3(), vt = new THREE.Vector3(), vt2 = new THREE.Vector3(); if (tb.Head && tb.LeftToeBase) { tb.Head.getWorldPosition(vh); tb.LeftToeBase.getWorldPosition(vt); (tb.RightToeBase || tb.LeftToeBase).getWorldPosition(vt2); var ty = Math.min(vt.y, vt2.y); tpl.hh = (vh.y - ty) * 1.12; tpl.my = ty - (vh.y - ty) * 0.02; } else { tpl.hh = tpl.h; tpl.my = tpl.minY; } }
+    var sc = G_H / tpl.hh * (0.96 + (h % 9) * 0.01); inst.scale.setScalar(sc);
     var bones = {}; inst.traverse(function (o) { if (o.isBone) { bones[o.name] = o; o.userData.bp = o.position.clone(); o.userData.br = o.rotation.clone(); } });
     var g = rec.person.group;
     g.children.forEach(function (c) { c.visible = false; });
@@ -1270,20 +1271,26 @@
     var mixer = new THREE.AnimationMixer(inst), acts = {};
     tpl.clips.forEach(function (cl) { acts[cl.name] = mixer.clipAction(cl); });
     rec.char = wrap; rec.inst = inst; rec.bones = bones; rec.mixer = mixer; rec.acts = acts; rec.cMode = ''; rec.lastPos = g.position.clone();
-    rec.gh = tpl.h * sc; rec.minY = tpl.minY * sc;
+    rec.gh = tpl.hh * sc; rec.minY = tpl.my * sc;
     setCharMode(rec, 'sit', true);
   }
   function resetBones(r) { Object.keys(r.bones).forEach(function (k) { var b = r.bones[k]; b.position.copy(b.userData.bp); b.rotation.copy(b.userData.br); }); }
+  var WX = new THREE.Vector3(1, 0, 0), WZ = new THREE.Vector3(0, 0, 1);
+  function wrot(r, bone, ax, ang) {
+    if (!bone || !bone.parent) { return; }
+    r.person.group.updateMatrixWorld(true);
+    var pq = new THREE.Quaternion(); bone.parent.getWorldQuaternion(pq);
+    var qw = new THREE.Quaternion().setFromAxisAngle(ax, ang);
+    bone.quaternion.copy(pq.clone().invert().multiply(qw).multiply(pq).multiply(bone.quaternion));
+  }
   function seatPose(r) {
     resetBones(r); var b = r.bones; if (!b.Hips) { return; }
-    b.Hips.position.y *= 0.60;
     ['Left', 'Right'].forEach(function (sd, i) {
       var sg = i === 0 ? 1 : -1;
-      if (b[sd + 'UpLeg']) { b[sd + 'UpLeg'].rotation.x += -1.45; } if (b[sd + 'Leg']) { b[sd + 'Leg'].rotation.x += 1.5; } if (b[sd + 'Foot']) { b[sd + 'Foot'].rotation.x += -0.1; }
-      if (b[sd + 'Arm']) { b[sd + 'Arm'].rotation.z += sg * -0.5; b[sd + 'Arm'].rotation.x += 0.6; }
-      if (b[sd + 'ForeArm']) { b[sd + 'ForeArm'].rotation.x += 0.9; }
+      wrot(r, b[sd + 'UpLeg'], WX, -1.5); wrot(r, b[sd + 'Leg'], WX, 1.5); wrot(r, b[sd + 'Foot'], WX, -0.1);
+      wrot(r, b[sd + 'Arm'], WZ, sg * 0.45); wrot(r, b[sd + "Arm"], WX, -1.25); wrot(r, b[sd + "ForeArm"], WX, -0.8);
     });
-    if (b.Spine) { b.Spine.rotation.x += 0.08; }
+    wrot(r, b.Spine, WX, -0.08);
   }
   function setCharMode(r, mode, instant) {
     if (r.cMode === mode || !r.acts) { return; }
