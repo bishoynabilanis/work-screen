@@ -1,7 +1,7 @@
 'use strict';
 
-var CACHE_NAME = 'office-scene-v7';
-var SHELL = ['./', './index.html', './style.css', './app.js', './office3d.js', './7-three.min.js', './4-kufi-regular.woff', './5-kufi-bold.woff', './6-mono.woff', './manifest.json', './feed.json'];
+var CACHE_NAME = 'office-scene-v8';
+var SHELL = ['./', './index.html', './style.css', './app.js', './office3d.js', './7-three.min.js', './4-kufi-regular.woff', './5-kufi-bold.woff', './6-mono.woff', './manifest.json'];
 
 self.addEventListener('install', function (event) {
   self.skipWaiting();
@@ -60,7 +60,7 @@ function handleFeed(request) {
       }
       var copy = response.clone();
       return caches.open(CACHE_NAME).then(function (cache) {
-        return cache.put(key, copy);
+        return null; /* feed.json is never stored here: public screen, no free text at rest */
       }).then(function () {
         return response;
       });
