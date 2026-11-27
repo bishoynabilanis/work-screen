@@ -178,6 +178,20 @@
     edge.position.set(cx, 0.06, cz + d / 2); scene.add(edge);
     var edge2 = edge.clone(); edge2.position.set(cx, 0.06, cz - d / 2); scene.add(edge2);
     (function () {
+      var H = 2.7, ac = ACCENT[id] || 0xcccccc;
+      var gm = new THREE.MeshPhysicalMaterial({ color: 0xcfeeff, transparent: true, opacity: 0.16, roughness: 0.05, metalness: 0, side: THREE.DoubleSide, depthWrite: false });
+      var fm = mat(ac);
+      function pane(px, pz, pw, pd) { var m = new THREE.Mesh(new THREE.BoxGeometry(pw, H, pd), gm); m.position.set(px, H / 2 + 0.05, pz); m.renderOrder = 5; scene.add(m); }
+      function rail(px, pz, pw, pd) { var r = new THREE.Mesh(new THREE.BoxGeometry(pw, 0.1, pd), fm); r.position.set(px, H + 0.1, pz); scene.add(r); var r2 = new THREE.Mesh(new THREE.BoxGeometry(pw, 0.08, pd), fm); r2.position.set(px, 0.1, pz); scene.add(r2); }
+      var x0 = cx - w / 2, x1 = cx + w / 2, z0 = cz - d / 2, z1 = cz + d / 2, gap = 0.9;
+      pane(cx, z0, w, 0.06); rail(cx, z0, w, 0.12);
+      pane(x0, cz, 0.06, d); rail(x0, cz, 0.12, d);
+      pane(x1, cz, 0.06, d); rail(x1, cz, 0.12, d);
+      pane((x0 + cx - gap) / 2, z1, (cx - gap) - x0, 0.06); pane((x1 + cx + gap) / 2, z1, x1 - (cx + gap), 0.06);
+      rail((x0 + cx - gap) / 2, z1, (cx - gap) - x0, 0.12); rail((x1 + cx + gap) / 2, z1, x1 - (cx + gap), 0.12);
+      [[x0, z0], [x1, z0], [x0, z1], [x1, z1], [cx - gap, z1], [cx + gap, z1]].forEach(function (p) { var po = new THREE.Mesh(new THREE.BoxGeometry(0.14, H + 0.2, 0.14), fm); po.position.set(p[0], (H + 0.2) / 2, p[1]); scene.add(po); });
+    })();
+    (function () {
       var c = document.createElement('canvas'); c.width = c.height = 128; var x = c.getContext('2d');
       var gr = x.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(255,236,200,0.55)'); gr.addColorStop(1, 'rgba(255,236,200,0)'); x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
       var pool = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.25, d * 1.25), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.55 }));
@@ -1078,7 +1092,7 @@
   }
   function loadParts(key, n, ok, bad) {
     if (n >= ({businessman: 5, woman: 5, man: 5, scientist: 4, doctor: 5, nurse: 6, teen: 3, athlete: 3}[key])) { ok(); return; }
-    loadScriptTag('o3g_' + key + '_' + n + '.js?v=8', function () { loadParts(key, n + 1, ok, bad); }, bad);
+    loadScriptTag('o3g_' + key + '_' + n + '.js?v=6', function () { loadParts(key, n + 1, ok, bad); }, bad);
   }
   function charKeyFor(id) {
     var rec = people[id], nm = rec && rec.nameText ? rec.nameText.trim() : '';
@@ -1138,7 +1152,7 @@
     ['Left', 'Right'].forEach(function (sd, i) {
       var sg = i === 0 ? 1 : -1;
       if (b[sd + 'UpLeg']) { b[sd + 'UpLeg'].rotation.x += -1.45; } if (b[sd + 'Leg']) { b[sd + 'Leg'].rotation.x += 1.5; } if (b[sd + 'Foot']) { b[sd + 'Foot'].rotation.x += -0.1; }
-      if (b[sd + 'Arm']) { b[sd + 'Arm'].rotation.z += sg * 0.9; b[sd + 'Arm'].rotation.x += 0.55; }
+      if (b[sd + 'Arm']) { b[sd + 'Arm'].rotation.z += sg * -0.5; b[sd + 'Arm'].rotation.x += 0.6; }
       if (b[sd + 'ForeArm']) { b[sd + 'ForeArm'].rotation.x += 0.9; }
     });
     if (b.Spine) { b.Spine.rotation.x += 0.08; }
@@ -1163,7 +1177,7 @@
       var b = r.bones, run = r.state === 'running';
       ['Left', 'Right'].forEach(function (sd, i) {
         var fa = b[sd + 'ForeArm']; if (!fa) { return; }
-        fa.rotation.x = fa.userData.br.x + 0.9 + (run ? Math.sin(tt * 11 + i * 1.7) * 0.07 : 0);
+        fa.rotation.x = fa.userData.br.x + 1.1 + (run ? Math.sin(tt * 11 + i * 1.7) * 0.07 : 0);
       });
       if (b.Head) { b.Head.rotation.y = r.state === 'waiting' ? Math.sin(tt * 0.8) * 0.3 : (run ? Math.sin(tt * 1.1) * 0.06 : 0); }
     }
