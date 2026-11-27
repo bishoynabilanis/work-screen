@@ -532,6 +532,7 @@
     try { applyShadows(); } catch (e) { noteErr(e, 'shadow'); }
     buildChips(feed);
     firstFeedDone = true;
+    if (srch.on) { applySearch(false); }
   }
 
   function buildChips(feed) {
@@ -1012,19 +1013,50 @@
   var HEAT_C = [new THREE.Color(0x22d3ee), new THREE.Color(0x8b5cf6), new THREE.Color(0xf4511e)];
   function heatColor(t, out) { t = Math.max(0, Math.min(1, t)); if (t < 0.5) { out.copy(HEAT_C[0]).lerp(HEAT_C[1], t * 2); } else { out.copy(HEAT_C[1]).lerp(HEAT_C[2], (t - 0.5) * 2); } return out; }
   var heatTmp = new THREE.Color(), heatKey = '';
+  /* Idea 23: search and filter. Dims the others (labels, rings, heat discs), glows the matches, camera goes to them on user action. */
+  var srch = { q: '', f: 'all', on: false };
+  function srchKey() { return srch.on ? srch.f + ':' + srch.q + ':' + Object.keys(people).filter(function (k) { return people[k].match; }).join(',') : '-'; }
+  function nrm(x) { return String(x || '').toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[\u0623\u0625\u0622]/g, '\u0627').replace(/\u0649/g, '\u064A').replace(/\u0629/g, '\u0647'); }
+  function recMatch(r) {
+    if (r.hidden) { return false; }
+    var f = srch.f;
+    if (f === 'running' && !(r.state === 'running' && !r.stale)) { return false; }
+    if (f === 'waiting' && r.state !== 'waiting') { return false; }
+    if (f === 'done' && r.state !== 'done') { return false; }
+    if (f === 'late' && !(r.state === 'blocked' || r.stale)) { return false; }
+    var toks = nrm(srch.q).split(/\s+/).filter(Boolean); if (!toks.length) { return true; }
+    var hay = nrm((r.nameText || '') + ' ' + (r.roleText || '') + ' ' + (r.step || '') + ' ' + (r.label && r.label.__st ? r.label.__st.textContent : ''));
+    return toks.every(function (t) { return hay.indexOf(t) > -1; });
+  }
+  function applySearch(fly) {
+    var ids = Object.keys(people), n = 0, total = 0, pts = [];
+    ids.forEach(function (id) {
+      var r = people[id]; if (!r.hidden) { total++; }
+      r.match = srch.on ? recMatch(r) : true;
+      if (r.match && srch.on && !r.hidden) { n++; pts.push(r.seat); if (!r.hl) { r.hl = new THREE.Mesh(new THREE.RingGeometry(1.08, 1.26, 40), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })); r.hl.rotation.x = -Math.PI / 2; r.hl.position.set(r.seat.x, 0.13, r.seat.z + 0.42); scene.add(r.hl); } }
+      var dm = (srch.on && !r.match) ? '0.25' : ''; r.label.style.opacity = dm; if (r.label.__s) { r.label.__s.style.opacity = dm; }
+    });
+    heatKey = '';
+    if (fly && srch.on && pts.length) {
+      var cx = 0, cz = 0; pts.forEach(function (q) { cx += q.x; cz += q.z; }); cx /= pts.length; cz /= pts.length;
+      var sp = 0; pts.forEach(function (q) { sp = Math.max(sp, Math.hypot(q.x - cx, q.z - cz)); });
+      userTouch(); flyTo(new THREE.Vector3(cx, 0, cz), pts.length === 1 ? 2.4 : Math.max(1, Math.min(2.2, 20 / (sp + 7))));
+    }
+    return { n: srch.on ? n : total, total: total, on: srch.on };
+  }
   function updateHeat() {
     var L = window.__o3Load || {}, ids = Object.keys(people);
-    var LM = window.__o3LoadMs || {}, key = JSON.stringify(L) + '|' + ids.length + '|' + Math.floor(Date.now() / 60000) + '|' + (Q.level === 'low' ? 'l' : 'n');
+    var LM = window.__o3LoadMs || {}, key = JSON.stringify(L) + '|' + srchKey() + '|' + ids.length + '|' + Math.floor(Date.now() / 60000) + '|' + (Q.level === 'low' ? 'l' : 'n');
     if (key === heatKey) { return; } heatKey = key;
     ids.forEach(function (id) {
       var r = people[id], h = r && r.heat; if (!h) { return; }
       var v = L[id];
       if (Q.level === 'low' || typeof v !== 'number' || v < 0) { h.visible = false; return; }
       var t = Math.min(1, v / 8), old = LM[id] && (Date.now() - LM[id]) > 3600000;  /* absolute scale: 8 pending or more = full. Two cues: colour and disc size. Older than 1 h = dimmer. */
-      heatColor(t, heatTmp); h.material.color.copy(heatTmp); h.material.opacity = (0.5 + 0.38 * t) * (old ? 0.55 : 1); var sc = 0.55 + 0.45 * t; h.scale.set(sc, sc, 1); h.visible = true;
+      heatColor(t, heatTmp); h.material.color.copy(heatTmp); h.material.opacity = (0.5 + 0.38 * t) * (old ? 0.55 : 1) * (srch.on && !r.match ? 0.25 : 1); var sc = 0.55 + 0.45 * t; h.scale.set(sc, sc, 1); h.visible = true;
     });
   }
-  setInterval(function () { try { updateHeat(); } catch (e) { noteErr(e, 'heat'); } }, 1500);
+  setInterval(function () { try { if (srch.on) { applySearch(false); } updateHeat(); } catch (e) { noteErr(e, 'heat'); } }, 1500);
   function fmtAge(m) {
     if (m < 60) { return m + ' د'; }
     var d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), r = m % 60;
@@ -1216,6 +1248,10 @@
         r.beam.material.opacity = 0.35 + 0.5 * pu;
         r.ring.material.color.setHex(0xef4444); r.ring.material.opacity = 0.5 + 0.5 * pu; r.ring.scale.setScalar(1 + 0.18 * pu);
       } else { r.ring.scale.setScalar(1); }
+      if (srch.on) {
+        if (!r.match) { r.ring.material.opacity *= 0.25; }
+        if (r.hl) { r.hl.visible = !!r.match && !r.hidden; if (r.hl.visible) { var hp = 0.5 + 0.5 * Math.sin(time * 4); r.hl.material.opacity = 0.6 + 0.4 * hp; r.hl.scale.setScalar(1 + 0.1 * hp); } }
+      } else if (r.hl && r.hl.visible) { r.hl.visible = false; }
       var mins = Math.max(30, Math.floor((Date.now() - r.last) / 60000)); var wantTxt = al ? 'محتاج تدخل' : 'آخر تحديث من ' + fmtAge(mins); if (r.label.__a.__txt !== wantTxt) { r.label.__a.__txt = wantTxt; r.label.__a.textContent = wantTxt; }  r.label.__a.classList.toggle('is-stale', !al);
       if (ambStamp !== time) { ambStamp = time; ambientLife(time); }
       updateChar(r, dt, tt);
@@ -1598,6 +1634,6 @@
 
   window.__o3dbg = { people: people, charTpl: charTpl };
   initCharacters();
-  window.Office3D = { ready: true, setFloor: setFloor, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
+  window.Office3D = { ready: true, search: function (q, f, fly) { srch.q = String(q || ''); srch.f = f || 'all'; srch.on = !!srch.q.trim() || srch.f !== 'all'; return applySearch(!!fly); }, setFloor: setFloor, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
   if (hint) { hint.hidden = false; }
 })();
