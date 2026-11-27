@@ -70,13 +70,14 @@
   }
   try {
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
-    fetch('hdr/studio_small_09_1k.hdr').then(function (r) { return r.arrayBuffer(); }).then(function (b) {
-      var r = parseRGBE(b); if (!r) { return; }
-      var tex = new THREE.DataTexture(r.data, r.w, r.h, THREE.RGBAFormat, THREE.HalfFloatType);
+    if (window.__ENV) {
+      var E = window.__ENV, bin = atob(E.b64), u8 = new Uint8Array(bin.length), k;
+      for (k = 0; k < bin.length; k++) { u8[k] = bin.charCodeAt(k); }
+      var tex = new THREE.DataTexture(new Uint16Array(u8.buffer), E.w, E.h, THREE.RGBAFormat, THREE.HalfFloatType);
       tex.mapping = THREE.EquirectangularReflectionMapping; tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
       var pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(tex).texture; tex.dispose(); pm.dispose();
       hemi.intensity = 0.8;
-    }).catch(function () {});
+    }
   } catch (e) { /* lighting stays as before */ }
   var winMats = [], cityLights = [], lampGlows = [];
   var sun = new THREE.DirectionalLight(0xfff3dc, 1.9);
@@ -293,9 +294,17 @@
     return { group: g, parts: parts };
   }
 
+  var WOODM = null, FLOORT = null;
+  (function () {
+    if (!window.__TEX) { return; }
+    function lt(src, rx, ry, srgb) { var t = new THREE.TextureLoader().load(src); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 4; if (srgb && THREE.sRGBEncoding) { t.encoding = THREE.sRGBEncoding; } return t; }
+    WOODM = new THREE.MeshStandardMaterial({ color: 0xffffff, map: lt(window.__TEX.wood, 1, 1, true), roughnessMap: lt(window.__TEX.woodR, 1, 1, false), roughness: 1, metalness: 0.02, envMapIntensity: 0.35 });
+    FLOORT = { map: lt(window.__TEX.floor, 9, 8.5, true), rmap: lt(window.__TEX.floorR, 9, 8.5, false) };
+    carpet.material.map = FLOORT.map; carpet.material.roughnessMap = FLOORT.rmap; carpet.material.roughness = 1; carpet.material.metalness = 0.04; carpet.material.envMapIntensity = 0.4; carpet.material.color.setRGB(2.3, 2.3, 2.4); carpet.material.needsUpdate = true; WOODM.color.setRGB(1.7, 1.55, 1.4);
+  })();
   function buildDesk(color) {
     var d = new THREE.Group();
-    var top = box(1.7, 0.1, 0.95, 0xc08f62); top.position.y = 0.78; d.add(top);
+    var top = box(1.7, 0.1, 0.95, 0xc08f62); if (WOODM) { top.material = WOODM; } top.position.y = 0.78; d.add(top);
     var side1 = box(0.08, 0.76, 0.9, 0x39414d); side1.position.set(-0.8, 0.38, 0); d.add(side1);
     var side2 = box(0.08, 0.76, 0.9, 0x39414d); side2.position.set(0.8, 0.38, 0); d.add(side2);
     var mon = box(0.78, 0.5, 0.05, 0x1b1e24); mon.position.set(0, 1.12, 0.05); d.add(mon);
