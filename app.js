@@ -1155,7 +1155,7 @@
     return null;
   }
   var cardEl = null, cardFor = null;
-  function closeCard() { if (cardEl) { cardEl.remove(); cardEl = null; cardFor = null; } }
+  function closeCard() { if (cardEl) { cardEl.remove(); cardEl = null; cardFor = null; } } window.__closeCard = closeCard; document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { closeCard(); } });
   function renderCard() {
     if (!cardEl || !cardFor) { return; }
     var id = cardFor, sf = (baseFeed && baseFeed.staff || []).filter(function (p) { return String(p.id) === id; })[0];
@@ -1166,7 +1166,7 @@
     var st = function (css) { return css; };
     var h = make('div', ''); h.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px';
     var t = make('b', ''); t.textContent = nm + (title ? ' · ' + title : ''); h.appendChild(t);
-    var x = make('button', ''); x.type = 'button'; x.textContent = '✕'; x.style.cssText = 'background:none;border:0;color:#fff;font-size:16px;cursor:pointer'; x.addEventListener('click', closeCard); h.appendChild(x);
+    var x = make('button', ''); x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'إغلاق كارت الموظف'); x.style.cssText = 'background:none;border:0;color:#fff;font-size:16px;cursor:pointer;min-width:44px;min-height:44px;margin:-12px;display:flex;align-items:center;justify-content:center;flex:none'; x.addEventListener('click', closeCard); h.appendChild(x);
     cardEl.appendChild(h);
     function row(label, val) { var r = make('div', ''); r.style.cssText = 'font-size:14px;line-height:1.6'; var l = make('span', ''); l.textContent = label + ': '; l.style.color = '#8aa3bf'; var v = make('span', ''); v.textContent = val; r.appendChild(l); r.appendChild(v); cardEl.appendChild(r); }
     var now = lv ? (lv.state === 'done' ? 'خلّص: ' : 'بيشتغل على: ') + lv.text : (sf && sf.step ? sf.step + ' (من الداتا القديمة)' : 'مفيش حالة حية');
