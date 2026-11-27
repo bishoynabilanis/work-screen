@@ -769,7 +769,6 @@
       for (var i = 0; i < n.length; i++) { var r = n[i].getBoundingClientRect(); if (r.width > 4 && r.height > 4) { avoidRects.push({ l: r.left - lr.left - 4, t: r.top - lr.top - 4, r: r.right - lr.left + 4, b: r.bottom - lr.top + 4 }); } }
     });
     avoidRects.push({ l: lr.width - 64, t: 0, r: lr.width + 10, b: 120 });
-    if (typeof connBar !== 'undefined' && connBar.classList.contains('on')) { var cr = connBar.getBoundingClientRect(); avoidRects.push({ l: cr.left - lr.left - 4, t: cr.top - lr.top - 4, r: cr.right - lr.left + 4, b: cr.bottom - lr.top + 4 }); }
     if (alertBar && alertBar.classList.contains('on')) { var ar = alertBar.getBoundingClientRect(); avoidRects.push({ l: ar.left - lr.left - 4, t: ar.top - lr.top - 4, r: ar.right - lr.left + 4, b: ar.bottom - lr.top + 4 }); }
   }
   var placed = [];
@@ -1013,24 +1012,26 @@
     var ids = Object.keys(people).filter(function (k) { var r = people[k]; return r.alert && !r.hidden; });
     var nst = Object.keys(people).filter(function (k) { var r = people[k]; return r.stale && !r.alert && !r.hidden; }).length;
     staleShow = nst <= 3;
-    var key = ids.join(',') + '|' + nst + '|' + (host.classList.contains('o3-portrait') ? 'p' : 'd');
+    var feedOld = feedNewest > 0 && (Date.now() - feedNewest) >= 1800000;
+    var ageMin = feedNewest > 0 ? Math.floor((Date.now() - feedNewest) / 60000) : 0;
+    var port = host.classList.contains('o3-portrait');
+    var sst = window.__o3Stream, down = !!(sst && sst.down && Date.now() - sst.since > 10000);
+    var key = ids.join(',') + '|' + nst + '|' + (port ? 'p' : 'd') + '|' + (feedOld ? ageMin : 'f') + '|' + (down ? 'x' : 'u');
     if (key !== alertKey) {
       alertKey = key; alertIds = ids; alertIdx = 0;
-      if (!ids.length && nst <= 3) { alertBar.classList.remove('on'); alertBar.classList.remove('calm'); return; }
-      var port = host.classList.contains('o3-portrait');
+      if (!ids.length && nst <= 3 && !feedOld && !down) { alertBar.classList.remove('on'); alertBar.classList.remove('calm'); return; }
       alertBar.classList.toggle('calm', !ids.length);
-      if (!ids.length) { alertBar.textContent = nst + ' بدون تحديث من 30 د'; }
+      if (!ids.length) { alertBar.textContent = down ? 'الاتصال بالتيار واقف' + (feedOld ? ' وبيانات قديمة من ' + ageMin + ' د' : '') : (feedOld ? 'بيانات قديمة: آخر بيانات من ' + ageMin + ' د' : nst + ' بدون تحديث من 30 د'); }
       else {
+        var tail = nst ? ' وفيه ' + nst + ' بدون تحديث' : '';
+        if (feedOld) { tail += ' وبيانات قديمة'; }
+        if (down) { tail += ' والاتصال واقف'; }
         var nm = ids.slice(0, port ? 1 : 2).map(function (k) { return people[k].nameText || '؟'; }).join('، ');
-        alertBar.textContent = '⚠ ' + ids.length + (ids.length === 1 ? ' محتاج تدخل: ' : ' محتاجين تدخل: ') + nm + (ids.length > (port ? 1 : 2) ? '…' : '');
-        if (nst && !port) { var sp = document.createElement('span'); sp.textContent = ' وفيه ' + nst + ' بدون تحديث'; alertBar.appendChild(sp); }
+        alertBar.textContent = '⚠ ' + ids.length + (ids.length === 1 ? ' محتاج تدخل' : ' محتاجين تدخل') + (tail && port ? '' : ': ' + nm + (ids.length > (port ? 1 : 2) ? '…' : '')) + tail;
       }
       alertBar.classList.add('on');
     }
   }
-  // stream connection bar (EventSource state comes from app.js as window.__o3Stream)
-  var connBar = document.createElement('div'); connBar.className = 'o3-connbar'; connBar.textContent = 'الاتصال بالتيار واقف'; labelLayer.appendChild(connBar);
-  setInterval(function () { var st = window.__o3Stream; connBar.classList.toggle('on', !!(st && st.down && Date.now() - st.since > 10000)); }, 3000);
   function alertCam(r) {
     if (!firstFeedDone) { return; }
     setTimeout(function () {
