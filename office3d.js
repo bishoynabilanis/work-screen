@@ -345,11 +345,14 @@
     if (!window.__o3NoChars) { p.group.visible = false; setTimeout(function () { p.group.visible = true; }, 90000); }
     // stand/sit: lift body to seat, tuck legs
     var ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
-    ring.rotation.x = -Math.PI / 2; ring.position.set(pos.x, 0.09, pos.z - 0.72); scene.add(ring);
+    ring.rotation.x = -Math.PI / 2; ring.position.set(pos.x, 0.125, pos.z - 0.72); scene.add(ring);
+    var heat = new THREE.Mesh(new THREE.CircleGeometry(1.0, 32), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0, depthWrite: false }));
+    heat.rotation.x = -Math.PI / 2; heat.position.set(pos.x, 0.1, pos.z - 0.3); heat.visible = false; heat.renderOrder = 1; scene.add(heat);
+    var heatEdge = new THREE.Mesh(new THREE.RingGeometry(0.96, 1.05, 32), new THREE.MeshBasicMaterial({ color: 0x070d18, transparent: true, opacity: 0.75, depthWrite: false })); heatEdge.position.z = 0.002; heatEdge.renderOrder = 2; heat.add(heatEdge);
     var beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3.4, 8), new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.8, depthWrite: false }));
     beam.position.set(pos.x, 1.7, pos.z - 0.72); beam.visible = false; scene.add(beam);
     var rec = {
-      beam: beam, last: Date.now(), alert: false, alertAt: 0, id: id, dept: deptId, desk: d, chair: chair, person: p, ring: ring, seat: seat, front: new THREE.Vector3(pos.x, 0, pos.z + 0.95),
+      beam: beam, last: Date.now(), alert: false, alertAt: 0, id: id, dept: deptId, desk: d, chair: chair, person: p, ring: ring, heat: heat, seat: seat, front: new THREE.Vector3(pos.x, 0, pos.z + 0.95),
       state: 'unknown', label: makeLabel(), away: false, time: Math.random() * 6, nameText: '', roleText: ''
     };
     // hit area
@@ -1005,6 +1008,24 @@
     var v = Math.max(1, Math.min(n, mx)); if (v === anisoSet) { return; } anisoSet = v;
     scene.traverse(function (o) { if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { ['map', 'normalMap', 'roughnessMap', 'aoMap', 'emissiveMap'].forEach(function (k) { var t = m[k]; if (t && t.anisotropy !== v) { t.anisotropy = v; t.needsUpdate = true; } }); }); } });
   }
+  /* Idea 22: load heat map under each desk. Colour = lerp of pending / max pending over the screen's own colours (cyan, violet, orange). No data = no disc. */
+  var HEAT_C = [new THREE.Color(0x22d3ee), new THREE.Color(0x8b5cf6), new THREE.Color(0xf4511e)];
+  function heatColor(t, out) { t = Math.max(0, Math.min(1, t)); if (t < 0.5) { out.copy(HEAT_C[0]).lerp(HEAT_C[1], t * 2); } else { out.copy(HEAT_C[1]).lerp(HEAT_C[2], (t - 0.5) * 2); } return out; }
+  var heatTmp = new THREE.Color(), heatKey = '';
+  function updateHeat() {
+    var L = window.__o3Load || {}, ids = Object.keys(people), mx = 0, any = false;
+    ids.forEach(function (id) { var v = L[id]; if (typeof v === 'number' && v >= 0) { any = true; if (v > mx) { mx = v; } } });
+    var key = JSON.stringify(L) + '|' + (Q.level === 'low' ? 'l' : 'n');
+    if (key === heatKey) { return; } heatKey = key;
+    ids.forEach(function (id) {
+      var r = people[id], h = r && r.heat; if (!h) { return; }
+      var v = L[id];
+      if (Q.level === 'low' || typeof v !== 'number' || v < 0) { h.visible = false; return; }
+      var t = mx > 0 ? v / mx : 0;
+      heatColor(t, heatTmp); h.material.color.copy(heatTmp); h.material.opacity = 0.5 + 0.38 * t; h.visible = true;
+    });
+  }
+  setInterval(function () { try { updateHeat(); } catch (e) { noteErr(e, 'heat'); } }, 1500);
   function fmtAge(m) {
     if (m < 60) { return m + ' د'; }
     var d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), r = m % 60;
