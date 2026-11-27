@@ -1115,18 +1115,56 @@
           if (!m || m.event !== 'message' || !m.id || statusSeen[m.id]) { return; }
           statusSeen[m.id] = true; statusSince = m.id;
           var b = null; try { b = JSON.parse(m.message); } catch (e) { b = null; }
-          var nm = '', tx = '', stt = '';
-          if (b && typeof b === 'object') { nm = cleanText(b.name, 40); tx = cleanText(b.text, 160); stt = b.state === 'done' ? 'done' : 'start'; }
+          var nm = '', tx = '', stt = '', aid = '', nx = '', dn = -1, pd = -1;
+          if (b && typeof b === 'object') { nm = cleanText(b.name, 40); tx = cleanText(b.text, 160); stt = b.state === 'done' ? 'done' : 'start'; aid = cleanText(b.id, 40); nx = cleanText(b.next, 120); dn = isFinite(+b.done) && b.done !== null && b.done !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.done))) : -1; pd = isFinite(+b.pending) && b.pending !== null && b.pending !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.pending))) : -1; }
           else { tx = cleanText(m.message, 160); nm = cleanText(m.title, 40); stt = 'start'; }
           if (!tx) { return; }
-          statusLines.push({ name: nm, text: tx, state: stt, ms: (m.time || 0) * 1000 });
+          statusLines.push({ id: aid, name: nm, text: tx, state: stt, next: nx, done: dn, pending: pd, ms: (m.time || 0) * 1000 });
           changed = true;
         });
-        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 60); try { renderLog(); } catch (e) {} }
+        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 60); try { renderLog(); renderCard(); } catch (e) {} }
       })
       .catch(function () {});
   }
   pollStatus(); setInterval(pollStatus, 5000);
+
+  // ---- Per-agent card: now / next / progress, from the live status stream (text only) ----
+  function agentLive(id, name) {
+    var i; for (i = 0; i < statusLines.length; i++) { var e = statusLines[i]; if ((id && e.id && e.id === id) || (name && e.name && e.name === name)) { return e; } }
+    return null;
+  }
+  var cardEl = null, cardFor = null;
+  function closeCard() { if (cardEl) { cardEl.remove(); cardEl = null; cardFor = null; } }
+  function renderCard() {
+    if (!cardEl || !cardFor) { return; }
+    var id = cardFor, sf = (baseFeed && baseFeed.staff || []).filter(function (p) { return String(p.id) === id; })[0];
+    var nm = id === '__manager__' ? ((baseFeed && baseFeed.assistant && baseFeed.assistant.name) || 'ريم') : (sf ? sf.name : id);
+    var title = id === '__manager__' ? 'المديرة' : (sf && sf.title || '');
+    var lv = agentLive(id, nm);
+    cardEl.textContent = '';
+    var st = function (css) { return css; };
+    var h = make('div', ''); h.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px';
+    var t = make('b', ''); t.textContent = nm + (title ? ' · ' + title : ''); h.appendChild(t);
+    var x = make('button', ''); x.type = 'button'; x.textContent = '✕'; x.style.cssText = 'background:none;border:0;color:#fff;font-size:16px;cursor:pointer'; x.addEventListener('click', closeCard); h.appendChild(x);
+    cardEl.appendChild(h);
+    function row(label, val) { var r = make('div', ''); r.style.cssText = 'font-size:13px;line-height:1.6'; var l = make('span', ''); l.textContent = label + ': '; l.style.color = '#8aa3bf'; var v = make('span', ''); v.textContent = val; r.appendChild(l); r.appendChild(v); cardEl.appendChild(r); }
+    var now = lv ? (lv.state === 'done' ? 'خلّص: ' : 'بيشتغل على: ') + lv.text : (sf && sf.step ? sf.step + ' (من الداتا القديمة)' : 'مفيش حالة حية');
+    row('دلوقتي', now);
+    row('الجاي', lv && lv.next ? lv.next : 'لسه ما بعتش');
+    if (lv && lv.done >= 0 && lv.pending >= 0) {
+      var tot = lv.done + lv.pending, pc = tot ? Math.round(lv.done * 100 / tot) : 0;
+      row('اتعمل / فاضل', lv.done + ' / ' + lv.pending);
+      var bar = make('div', ''); bar.style.cssText = 'height:8px;border-radius:6px;background:rgba(255,255,255,.12);margin-top:6px;overflow:hidden';
+      var fill = make('div', ''); fill.style.cssText = 'height:100%;background:#2bb0a0;width:' + pc + '%'; bar.appendChild(fill); cardEl.appendChild(bar);
+      var pt = make('div', ''); pt.style.cssText = 'font-size:11px;color:#8aa3bf;margin-top:3px'; pt.textContent = pc + '% خلص النهاردة'; cardEl.appendChild(pt);
+    } else { row('اتعمل / فاضل', 'لسه ما بعتش الأرقام'); }
+    if (lv && lv.ms) { var tt = make('div', ''); tt.style.cssText = 'font-size:11px;color:#8aa3bf;margin-top:6px'; try { tt.textContent = 'آخر تحديث ' + new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }).format(new Date(lv.ms)); } catch (e) {} cardEl.appendChild(tt); }
+  }
+  function showCard(id) {
+    var host = document.getElementById('office3d'); if (!host) { return false; }
+    if (!cardEl) { cardEl = make('div', 'o3-agentcard'); cardEl.style.cssText = 'position:absolute;z-index:30;top:160px;inset-inline-start:12px;width:min(300px,86%);padding:12px 14px;border-radius:14px;background:rgba(8,14,30,.92);color:#fff;border:1px solid rgba(80,200,230,.45);backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,0,0,.5)'; host.appendChild(cardEl); }
+    cardFor = String(id); renderCard(); return true;
+  }
 
   function cleanText(v, n) {
     return typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n || 200) : '';
@@ -1442,7 +1480,8 @@
   }
 
   function init() {
-    window.__openSheet = openSheet;
+    window.__openSheet = function (id) { if (!showCard(id)) { openSheet(id); } };
+    window.__openSheetFull = openSheet;
     els.offlineBanner = byId('offlineBanner');
     els.lastUpdated = byId('lastUpdated');
     els.office = byId('office');
