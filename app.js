@@ -1540,6 +1540,8 @@
       .catch(function () { return null; })
       .then(function () {
         liveSource = new EventSource(LIVE_BASE + '/sse' + (liveLastId ? '?since=' + liveLastId : ''));
+        liveSource.onopen = function () { window.__o3Stream = { down: false, since: Date.now() }; };
+        liveSource.onerror = function () { if (!window.__o3Stream || !window.__o3Stream.down) { window.__o3Stream = { down: true, since: Date.now() }; } };
         liveSource.onmessage = function (e) {
           try {
             if (ingestLive(JSON.parse(e.data))) {
