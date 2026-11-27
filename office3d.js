@@ -1676,7 +1676,7 @@
       c.strokeStyle = 'rgba(185,204,226,.35)'; c.lineWidth = 1; c.strokeRect(0.5, 0.5, W - 1, H - 1);
       var fAge = feedNewest > 0 ? Date.now() - feedNewest : 0, fOld = feedNewest > 0 && fAge >= 1800000, fT = feedNewest > 0 ? new Date(feedNewest + 4 * 3600000) : null;
       var fHM = fT ? ('0' + fT.getUTCHours()).slice(-2) + ':' + ('0' + fT.getUTCMinutes()).slice(-2) : '';
-      capEl.textContent = fT ? ('آخر حالة معروفة الساعة ' + fHM + ' بتوقيت دبي، من ' + fmtAge(Math.max(1, Math.round(fAge / 60000))) + (fOld ? '. كل الحالات أقدم من 30 دقيقة، فالنقط رمادي بحلقة، زي الأعداد اللي فوق (آخر 30 دقيقة).' : '. الألوان بتوري حالة كل موظف في المشهد حسب آخر حالة معروفة، والأعداد اللي فوق بتعدّ اللي بعتوا تحديث في آخر 30 دقيقة بس.')) : 'لسه مفيش حالة وصلت.';
+      capEl.textContent = fT ? ('آخر حالة معروفة الساعة ' + fHM + ' بتوقيت دبي، من ' + fmtAge(Math.max(1, Math.round(fAge / 60000))) + (fOld ? '. كل الحالات أقدم من 30 دقيقة، فالنقط رمادي بحلقة، زي الأعداد اللي فوق (آخر 30 دقيقة).' : '. الألوان بتوري حالة كل موظف في المشهد حسب آخر حالة معروفة (بيشمل موظفين حالتهم من بيانات الفريق مش من خط الحالة الحي)، والأعداد اللي فوق بتعدّ اللي بعتوا تحديث في آخر 30 دقيقة بس.')) : 'لسه مفيش حالة وصلت.';
       var mc = { running: 0, waiting: 0, done: 0, blocked: 0, unknown: 0, stale: 0 };
       Object.keys(people).forEach(function (id) {
         var r = people[id]; if (!r || r.hidden || !r.seat) { return; }
@@ -1687,7 +1687,8 @@
         if (r.stale || (fOld && r.state !== 'blocked')) { c.strokeStyle = '#ffffff'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, 4.5, 0, 6.2832); c.stroke(); }
       });
       c.globalAlpha = 1;
-      cv.setAttribute('aria-label', 'خريطة المكتب. ' + (fT ? 'آخر حالة معروفة الساعة ' + fHM + ' بتوقيت دبي' + (fOld ? '، وكل الحالات أقدم من 30 دقيقة' : '') + '. ' : '') + 'الموظفين في المشهد: شغال ' + mc.running + '، مستني ' + mc.waiting + '، خلّص ' + mc.done + '، واقف ' + mc.blocked + '، مش شغال ' + mc.unknown + '، من غير تحديث ' + mc.stale + '. اضغط على مكان أو استخدم الأسهم عشان الكاميرا تروح هناك');
+      var totP = mc.running + mc.waiting + mc.done + mc.blocked + mc.unknown + mc.stale;
+      cv.setAttribute('aria-label', 'خريطة المكتب. ' + (fT ? 'آخر حالة معروفة الساعة ' + fHM + ' بتوقيت دبي. ' + (fOld ? 'كل الحالات أقدم من 30 دقيقة. ' : '') : '') + 'الأعداد اللي في أعلى الصفحة بتعدّ اللي بعتوا تحديث في آخر 30 دقيقة بس. الموظفين في المشهد حسب آخر حالة معروفة (بيشمل موظفين حالتهم من بيانات الفريق مش من خط الحالة الحي)، ' + totP + ' موظف، وكل موظف بيتعدّ مرة واحدة: شغال (حالته حديثة) ' + mc.running + '، مستني ' + mc.waiting + '، خلّص ' + mc.done + '، واقف ' + mc.blocked + '، مش شغال ' + mc.unknown + '، من غير تحديث من 30 دقيقة ' + mc.stale + '. اضغط على مكان أو استخدم الأسهم عشان الكاميرا تروح هناك');
       var vp = viewPoly();
       if (vp) { c.strokeStyle = '#22d3ee'; c.lineWidth = 2; c.beginPath(); vp.forEach(function (q, i) { var X = Math.max(-2, Math.min(W + 2, px(q[0]))), Y = Math.max(-2, Math.min(H + 2, pz(q[1]))); if (i) { c.lineTo(X, Y); } else { c.moveTo(X, Y); } }); c.closePath(); c.stroke(); }
     }
