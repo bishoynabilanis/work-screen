@@ -446,7 +446,7 @@
         var exd = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 1.3), mat(0x5b3a26)); exd.position.set(cxm, 0.9, -3.15); scene.add(exd); if (kind === 'meet') { exd.visible = false; }
         [-1.05, 1.05].forEach(function (x) { var dl = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.85, 1.2), mat(0x4a2f1e)); dl.position.set(cxm + x, 0.45, -3.15); scene.add(dl); if (kind === 'meet') { dl.visible = false; } });
         if (kind === 'owner') { var och = new THREE.Group(); var oc1 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.7), mat(0x1f2430)); oc1.position.y = 0.6; och.add(oc1); var oc2 = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.95, 0.12), mat(0x1f2430)); oc2.position.set(0, 1.1, -0.34); och.add(oc2); och.position.set(cxm, 0, -3.95); scene.add(och); var omon = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.55, 0.05), mat(0x111418)); omon.position.set(cxm, 1.3, -3.4); scene.add(omon); var oscr = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.45, 0.02), new THREE.MeshBasicMaterial({ color: 0x3a7bd0 })); oscr.position.set(cxm, 1.3, -3.36); scene.add(oscr); }
-        var zl2 = document.createElement('button'); zl2.type = 'button'; zl2.className = 'o3-zone'; zl2.textContent = kind === 'meet' ? 'غرفة الاجتماعات' : (kind === 'owner' ? 'مكتب المالك' : 'مكتب المديرة'); if (kind !== 'mgr') { labelLayer.appendChild(zl2); zoneInfo[kind] = { cx: cxm, cz: czm, w: X1 - X0, d: Z1 - Z0, name: zl2.textContent, el: zl2 }; zl2.addEventListener('click', function () { flyTo(new THREE.Vector3(cxm, 0, -3.6), 3.0); }); }
+        var zl2 = document.createElement('button'); zl2.type = 'button'; zl2.className = 'o3-zone'; zl2.textContent = kind === 'meet' ? 'غرفة الاجتماعات' : (kind === 'owner' ? 'مكتب المالك' : 'مكتب المديرة'); if (kind !== 'mgr') { labelLayer.appendChild(zl2); zoneInfo[kind] = { cx: (X0 + X1) / 2, cz: czm, w: X1 - X0, d: Z1 - Z0, name: zl2.textContent, el: zl2 }; zl2.addEventListener('click', function () { flyTo(new THREE.Vector3((X0 + X1) / 2, 0, -3.6), 3.0); }); }
         plant(X0 + 0.8, -2.4);
         if (kind === 'meet') { var lt = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.1, 1.5), mat(0xf3ede2)); lt.position.set(cxm, 0.9, -4.2); scene.add(lt); [-1.4, 1.4].forEach(function (x) { var lg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.85, 1.2), mat(0x2b2b30)); lg.position.set(cxm + x, 0.45, -4.2); scene.add(lg); }); for (var ci = 0; ci < 6; ci++) { var chm = new THREE.Group(); var c1 = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, 0.55), mat(0x2f3e5c)); c1.position.y = 0.55; chm.add(c1); var c2 = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.1), mat(0x2f3e5c)); c2.position.set(0, 0.9, ci < 3 ? -0.25 : 0.25); chm.add(c2); chm.position.set(cxm - 1.3 + (ci % 3) * 1.3, 0, ci < 3 ? -5.2 : -3.2); scene.add(chm); } }
         var pl = new THREE.PointLight(0xffd9a8, 0.8, 9); pl.position.set(cxm, 3.2, czm); scene.add(pl);
@@ -814,7 +814,7 @@
     clockEl.textContent = (isDay ? '☀ ' : '☾ ') + 'دبي ' + (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
     clockEl.className = 'o3-clock' + (night > 0.5 ? ' is-night' : '');
   }
-  applyTime(); setInterval(applyTime, 60000);
+  applyTime(); setInterval(applyTime, 15000);
 
   var walkRing = null, walkFor = null;
   function walk(item) {
@@ -1284,6 +1284,13 @@
   var floorCap = document.createElement('span'); floorCap.className = 'o3-floor-cap'; floorBar.appendChild(floorCap);
   floorBtns[0].classList.add('on');
   (host.querySelector('.o3-stage') || host).appendChild(floorBar);
+  var floorTog = document.createElement('button'); floorTog.type = 'button'; floorTog.className = 'o3-floors-toggle'; floorTog.textContent = 'الأدوار ▾'; floorTog.setAttribute('aria-expanded', 'false');
+  (host.querySelector('.o3-stage') || host).appendChild(floorTog);
+  var phoneMQ = window.matchMedia ? window.matchMedia('(max-width: 600px)') : { matches: false };
+  function syncFloorMenu(open) { var closed = phoneMQ.matches && !open; floorBar.classList.toggle('is-closed', closed); floorTog.setAttribute('aria-expanded', open ? 'true' : 'false'); floorTog.textContent = open ? 'الأدوار ▴' : 'الأدوار ▾'; }
+  floorTog.addEventListener('click', function () { syncFloorMenu(floorBar.classList.contains('is-closed')); });
+  floorBar.addEventListener('click', function (e) { if (phoneMQ.matches && e.target && e.target.tagName === 'BUTTON') { setTimeout(function () { syncFloorMenu(false); }, 60); } });
+  syncFloorMenu(false);
   camBtns.free.classList.add('on');
   (host.querySelector('.o3-stage') || host).appendChild(camBar);
   syncViewBtn();
