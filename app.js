@@ -1176,7 +1176,7 @@
     /https?:\/\/[^\s]*[?&](?:token|key|sig|auth|code)=/i,
     /(?:اسم العميل|رقم الحساب|رقم الكارت|رقم الموبايل)/
   ];
-  var ACCOUNT_RX = /(log[\s-]?in|sign[\s-]?in|signed in|studio|2fa|two[\s-]?factor|otp|verification code|captcha|session|cookie|تسجيل\s*(?:ال)?دخول|طلب\s*(?:ال)?دخول|دخول مؤقت|رمز\s*(?:ال)?تحقق|تحقق بخطوتين|كلمة\s*(?:ال)?(?:سر|مرور)|كلمه\s*(?:ال)?(?:سر|مرور)|حظر\s*(?:ال)?حساب|اتحظر|تعليق\s*(?:ال)?حساب)/i;
+  var ACCOUNT_RX = /(ستوديو|جلسة\s*جوجل|جلسه\s*جوجل|log[\s-]?in|sign[\s-]?in|signed in|studio|2fa|two[\s-]?factor|otp|verification code|captcha|session|cookie|تسجيل\s*(?:ال)?دخول|طلب\s*(?:ال)?دخول|دخول مؤقت|رمز\s*(?:ال)?تحقق|تحقق بخطوتين|كلمة\s*(?:ال)?(?:سر|مرور)|كلمه\s*(?:ال)?(?:سر|مرور)|حظر\s*(?:ال)?حساب|اتحظر|تعليق\s*(?:ال)?حساب)/i;
   function looksPrivate(t) {
     for (var i = 0; i < SECRET_RX.length; i++) { if (SECRET_RX[i].test(t)) { return true; } }
     return false;
