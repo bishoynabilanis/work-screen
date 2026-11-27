@@ -1340,7 +1340,7 @@
     var bar = document.getElementById('o3-summary');
     if (!bar) {
       bar = document.createElement('div'); bar.id = 'o3-summary';
-      bar.style.cssText = 'position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:30;display:flex;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(7,13,24,.82);border:1px solid rgba(244,81,30,.55);color:#fff;font-size:12px;font-weight:700;pointer-events:none;backdrop-filter:blur(6px);white-space:nowrap;direction:rtl';
+      bar.style.cssText = 'position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:30;display:flex;gap:8px;padding:6px 12px;border-radius:999px;background:rgba(7,13,24,.82);border:1px solid rgba(244,81,30,.55);color:#fff;font-size:15px;font-weight:700;pointer-events:none;backdrop-filter:blur(6px);white-space:nowrap;direction:rtl';
       document.body.appendChild(bar);
     }
     var cutoff = Date.now() - 30 * 60000, latest = {}, k;
