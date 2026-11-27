@@ -893,7 +893,8 @@
     Object.keys(zoneInfo).forEach(function (zid) {
       var zi = zoneInfo[zid]; if (!zi.el) { return; }
       project({ x: zi.cx, z: zi.cz - zi.d / 2 + 0.6 }, 0.6 + floorOff(zid), pt);
-      zi.el.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-50%)';
+      var zhw = (zi.el.offsetWidth || 0) / 2 + 6, zW = canvasWrap.clientWidth || 0, zx = zW > zhw * 2 ? Math.min(zW - zhw, Math.max(zhw, pt.x)) : pt.x;
+      zi.el.style.transform = 'translate(' + zx.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-50%)';
       zi.el.style.display = (!showNames && pt.vis && !zi.hidden && !buildOn) ? '' : 'none';
       zi.rx = pt.x; zi.ry = pt.y; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = !showNames && pt.vis && !zi.hidden && !buildOn;
     });
