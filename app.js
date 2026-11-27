@@ -1119,7 +1119,7 @@
   var statusLines = [], statusSeen = {}, statusSince = '12h';
   var TL_KEY = 'ws-timeline-v1';
   function saveTL() { try { localStorage.setItem(TL_KEY, JSON.stringify(statusLines.slice(0, 500).map(function (e) { return { mid: e.mid, id: e.id, name: e.name, text: e.text, state: e.state, job: e.job, ms: e.ms, ask: e.ask || '', options: e.options || [], done: e.done, pending: e.pending }; }))); } catch (e) { /* storage full or blocked */ } }
-  function restoreTL() { try { var a = JSON.parse(localStorage.getItem(TL_KEY) || '[]'); if (Array.isArray(a)) { a.forEach(function (e) { if (e && e.mid && e.ms && e.text) { statusSeen[e.mid] = true; statusSince = e.mid; statusLines.push({ mid: String(e.mid), id: cleanText(e.id, 40), name: cleanText(e.name, 40), text: cleanText(e.text, 160), state: e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'start'), next: '', done: (isFinite(+e.done) && +e.done >= 0 ? Math.min(9999, Math.floor(+e.done)) : -1), pending: (isFinite(+e.pending) && +e.pending >= 0 ? Math.min(9999, Math.floor(+e.pending)) : -1), job: cleanText(e.job, 60), result: '', ms: +e.ms, ask: (cleanText(e.ask, 140) === PRIV_PH ? '' : cleanText(e.ask, 140)), options: cleanOpts(e.options) }); } }); statusLines.sort(function (x, y) { return y.ms - x.ms; }); } } catch (e) { console.warn('restoreTL', String(e)); statusLines = []; } }
+  function restoreTL() { try { var a = JSON.parse(localStorage.getItem(TL_KEY) || '[]'); if (Array.isArray(a)) { a.slice(0, 500).forEach(function (e) { if (e && e.mid && e.ms && e.text) { statusSeen[e.mid] = true; statusSince = e.mid; statusLines.push({ mid: String(e.mid), id: cleanText(e.id, 40), name: cleanText(e.name, 40), text: cleanText(e.text, 160), state: e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'start'), next: '', done: (isFinite(+e.done) && +e.done >= 0 ? Math.min(9999, Math.floor(+e.done)) : -1), pending: (isFinite(+e.pending) && +e.pending >= 0 ? Math.min(9999, Math.floor(+e.pending)) : -1), job: cleanText(e.job, 60), result: '', ms: +e.ms, ask: (cleanText(e.ask, 140) === PRIV_PH ? '' : cleanText(e.ask, 140)), options: cleanOpts(e.options) }); } }); statusLines.sort(function (x, y) { return y.ms - x.ms; }); } } catch (e) { console.warn('restoreTL', String(e)); statusLines = []; } }
   var PRIV_PH = 'نشاط على حساب، التفاصيل مخفية';
   function cleanOpts(a) { var o = []; if (Array.isArray(a)) { a.slice(0, 3).forEach(function (x) { var t = cleanText(typeof x === 'string' ? x : '', 50); if (t && t !== PRIV_PH) { o.push(t); } }); } return o; }
   function pollStatus() {
@@ -1528,7 +1528,17 @@
     var c = cv.getContext('2d'); c.scale(dpr, dpr); c.clearRect(0, 0, W, H);
     var mx = Math.max(1, Math.max.apply(null, hours)), bw = W / 24, top = 20, base = H - 20;
     c.fillStyle = '#22d3ee'; c.font = '14px "Noto Sans Mono",monospace'; c.textAlign = 'center';
-    hours.forEach(function (v, i) { var bh = Math.round((base - top) * v / mx); if (v) { c.fillRect(i * bw + 2, base - bh, bw - 4, bh); if (v === mx) { c.fillStyle = '#ffffff'; c.fillText(String(v), i * bw + bw / 2, base - bh - 4); c.fillStyle = '#22d3ee'; } } });
+    hours.forEach(function (v, i) { var bh = Math.round((base - top) * v / mx); if (v) { c.fillRect(i * bw + 2, base - bh, bw - 4, bh); } });
+    /* One label per run of adjacent max bars (centred over the run); a label is skipped if it would touch the previous one (Rule 105). */
+    var lastR = -1e9, i2 = 0;
+    while (i2 < 24) {
+      if (hours[i2] === mx && mx > 0) {
+        var j2 = i2; while (j2 + 1 < 24 && hours[j2 + 1] === mx) { j2++; }
+        var cx = (i2 + j2 + 1) * bw / 2, tw = c.measureText(String(mx)).width;
+        if (cx - tw / 2 > lastR + 4) { c.fillStyle = '#ffffff'; c.fillText(String(mx), cx, top - 6); c.fillStyle = '#22d3ee'; lastR = cx + tw / 2; }
+        i2 = j2 + 1;
+      } else { i2++; }
+    }
     c.fillStyle = '#b9cce2';
     [0, 6, 12, 18, 23].forEach(function (i) { c.fillText(String(i), i * bw + bw / 2, H - 2); });
     c.fillStyle = '#f4511e'; c.fillRect(0, base + 1, W, 1);
@@ -1576,7 +1586,7 @@
           var c = cvs.getContext('2d'), P = dubaiParts(Date.now()), stamp = P.y + '-' + p2(P.m) + '-' + p2(P.d) + ' ' + p2(P.h) + ':' + p2(P.mi);
           c.fillStyle = '#070d18'; c.fillRect(0, 0, W, bar); c.drawImage(img, 0, bar);
           c.fillStyle = '#f4511e'; c.fillRect(0, bar - 3, W, 3);
-          c.fillStyle = '#ffffff'; c.font = '700 ' + fs + 'px "Noto Kufi Arabic",sans-serif'; c.direction = 'rtl'; c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText('مكتب الشغل', W - Math.round(fs * 0.8), bar / 2 - 1);
+          c.fillStyle = '#ffffff'; c.font = '700 ' + fs + 'px "Noto Kufi Arabic",sans-serif'; c.direction = 'rtl'; c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText('مكتب الشغل', W - Math.round(fs * 0.8) - Math.round(fs * 1.6), bar / 2 - 1); c.fillStyle = '#f4511e'; var isz = Math.round(fs * 1.1); c.beginPath(); if (c.roundRect) { c.roundRect(W - Math.round(fs * 0.8) - isz, bar / 2 - isz / 2, isz, isz, Math.round(isz / 4)); } else { c.rect(W - Math.round(fs * 0.8) - isz, bar / 2 - isz / 2, isz, isz); } c.fill();
           c.fillStyle = '#b9cce2'; c.direction = 'rtl'; c.textAlign = 'left'; c.font = '600 ' + fs + 'px "Noto Kufi Arabic",sans-serif'; var tzw = c.measureText('توقيت دبي').width; c.fillText('توقيت دبي', Math.round(fs * 0.8), bar / 2 - 1); c.direction = 'ltr'; c.font = '600 ' + fs + 'px "Noto Sans Mono",monospace'; c.fillText(stamp, Math.round(fs * 0.8) + tzw + Math.round(fs * 0.6), bar / 2 - 1);
           var fn = 'work-screen-' + P.y + p2(P.m) + p2(P.d) + '-' + p2(P.h) + p2(P.mi) + '.png';
           var done = function (href) { var a = document.createElement('a'); a.href = href; a.download = fn; document.body.appendChild(a); a.click(); a.remove(); msg.textContent = 'اتحفظت على جهازك باسم ' + fn + ' (من غير رفع). اللقطة للمشهد ثلاثي الأبعاد: الشخصيات بتظهر لو كانت اتحمّلت وقت اللقطة، واللابلز والأزرار مش داخلة.'; };
