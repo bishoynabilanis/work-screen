@@ -1167,8 +1167,23 @@
     cardFor = String(id); renderCard(); return true;
   }
 
+  var SECRET_RX = [
+    /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
+    /(?:\+|00)?\d[\d\s().-]{8,}\d/,
+    /\b(?:sk|pk|ghp|gho|ghs|xox[abp]|AKIA|AIza|eyJ|tk|glpat)[-_A-Za-z0-9]{8,}/i,
+    /\b[A-Za-z0-9_\-+/=]{28,}\b/,
+    /(?:password|passwd|pwd|token|secret|api[-_ ]?key|bearer|cookie|otp|cvv|iban|كلمة\s*(?:السر|المرور)|باسورد|توكن|مفتاح)\s*[:=]/i,
+    /https?:\/\/[^\s]*[?&](?:token|key|sig|auth|code)=/i,
+    /(?:اسم العميل|رقم الحساب|رقم الكارت|رقم الموبايل)/
+  ];
+  function looksPrivate(t) {
+    for (var i = 0; i < SECRET_RX.length; i++) { if (SECRET_RX[i].test(t)) { return true; } }
+    return false;
+  }
   function cleanText(v, n) {
-    return typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n || 200) : '';
+    if (typeof v !== 'string') { return ''; }
+    var t = v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n || 200);
+    return looksPrivate(t) ? '' : t;
   }
 
   function ingestLive(msg) {
