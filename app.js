@@ -1165,6 +1165,8 @@
     var now = lv ? (lv.state === 'done' ? 'خلّص: ' : 'بيشتغل على: ') + lv.text : (sf && sf.step ? sf.step + ' (من الداتا القديمة)' : 'مفيش حالة حية');
     row('دلوقتي', now);
     row('الجاي', lv && lv.next ? lv.next : 'لسه ما بعتش');
+    var LD = window.__o3Load || {}, LDM = window.__o3LoadMs || {};
+    if (typeof LD[id] === 'number') { var ldAge = Date.now() - (LDM[id] || 0); row('معلّق', LD[id] + (ldAge > 3600000 ? ' (من ' + ageWords(Math.floor(ldAge / 60000)) + ')' : '')); }
     if (lv && lv.done >= 0 && lv.pending >= 0) {
       var tot = lv.done + lv.pending, pc = tot ? Math.round(lv.done * 100 / tot) : 0;
       row('اتعمل / فاضل', lv.done + ' / ' + lv.pending);
@@ -1413,14 +1415,15 @@
   function decAge(ms) { return 'من ' + ageWords(Math.max(0, Math.floor((Date.now() - ms) / 60000))); }
   /* Idea 22: pending count per staff member from the latest status line that carries real numbers. Missing = no data (never zero). */
   function publishLoad() {
-    var AL3 = { 'scout': 't5', 'jessica-dev': 'j2', 'security': 'q14', 'yt-replies': 'c4', 'tiktok': 'v1' }, L = {}, seen = {}, staff = (baseFeed && baseFeed.staff) || [], cut = Date.now() - 6 * 3600000;
+    var AL3 = { 'scout': 't5', 'jessica-dev': 'j2', 'security': 'q14', 'yt-replies': 'c4', 'tiktok': 'v1' }, L = {}, LM = {}, seen = {}, staff = (baseFeed && baseFeed.staff) || [], cut = Date.now() - 2 * 3600000;
     statusLines.forEach(function (e) {
-      if (!e || e.pending < 0 || e.ms < cut) { return; }
+      if (!e || e.ms < cut) { return; }
       var cid = AL3[e.id] || e.id, k = e.id || e.name;
       if (seen[k]) { return; } seen[k] = 1;
-      for (var i = 0; i < staff.length; i++) { var sj = staff[i]; if (isObj(sj) && ((cid && String(sj.id) === String(cid)) || (e.name && sj.name === e.name))) { L[String(sj.id)] = e.pending; break; } }
+      if (e.pending < 0) { return; }  /* the latest line decides: a newer line without numbers cancels the old number */
+      for (var i = 0; i < staff.length; i++) { var sj = staff[i]; if (isObj(sj) && ((cid && String(sj.id) === String(cid)) || (e.name && sj.name === e.name))) { L[String(sj.id)] = e.pending; LM[String(sj.id)] = e.ms; break; } }
     });
-    window.__o3Load = L; renderLegend(Object.keys(L).length > 0);
+    window.__o3Load = L; window.__o3LoadMs = LM; renderLegend(Object.keys(L).length > 0);
   }
   function renderLegend(show) {
     var sum = document.getElementById('o3-summary'), lg = document.getElementById('o3-heatlg');
@@ -1428,7 +1431,7 @@
     if (!lg) {
       lg = document.createElement('div'); lg.id = 'o3-heatlg'; lg.setAttribute('dir', 'rtl');
       lg.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:8px;margin:2px auto 4px;font-size:14px;color:#b9cce2';
-      var a = document.createElement('span'); a.textContent = 'حِمل المكاتب: قليل'; var b = document.createElement('span'); b.style.cssText = 'display:inline-block;width:90px;height:8px;border-radius:6px;background:linear-gradient(to left,#22d3ee,#8b5cf6,#f4511e)'; var c = document.createElement('span'); c.textContent = 'كتير';
+      var a = document.createElement('span'); a.textContent = 'معلّق: 0'; var b = document.createElement('span'); b.style.cssText = 'display:inline-block;width:90px;height:8px;border-radius:6px;background:linear-gradient(to left,#22d3ee,#8b5cf6,#f4511e)'; var c = document.createElement('span'); c.textContent = '8 فأكتر (حجم القرص ولونه)';
       lg.appendChild(a); lg.appendChild(b); lg.appendChild(c); sum.parentNode.insertBefore(lg, sum.nextSibling);
     }
   }
