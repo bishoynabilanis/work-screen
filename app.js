@@ -685,18 +685,24 @@
     return parts.join('|');
   }
 
-  var liveClockFmt = null;
+  var liveClockFmt = null, pageStart = Date.now();
+  function fmtDubai(d) {
+    try { if (!liveClockFmt) { liveClockFmt = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }); } return liveClockFmt.format(d); } catch (e) { return d.toLocaleTimeString('en-GB'); }
+  }
   function renderLastUpdated() {
-    try {
-      if (!liveClockFmt) { liveClockFmt = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }); }
-      els.lastUpdated.textContent = liveClockFmt.format(new Date());
-    } catch (e) {
-      els.lastUpdated.textContent = new Date().toLocaleTimeString('en-GB');
-    }
+    var now = Date.now(), st = window.__o3Stream, rx = window.__o3RxAt || 0, nw = window.__o3Newest || 0;
+    var feedOld = nw > 0 && (now - nw) >= 1800000;
+    var down = !!(st && st.down && now - st.since > 10000);
+    var noStream = !st && (typeof EventSource === 'undefined' || now - pageStart > 20000);
+    var mode = feedOld ? 'old' : (down ? 'down' : (noStream ? 'nostream' : 'live'));
     var lab = els.lastUpdated.parentNode && els.lastUpdated.parentNode.querySelector('.updated-label');
-    if (lab && lab.textContent !== 'مباشر') { lab.textContent = 'مباشر'; }
     var box = els.lastUpdated.parentNode;
-    if (box && !box.classList.contains('is-live')) { box.classList.add('is-live'); }
+    if (mode === 'live') { els.lastUpdated.textContent = fmtDubai(new Date()); }
+    else if (mode === 'old') { els.lastUpdated.textContent = fmtDubai(new Date(nw)); }
+    else { els.lastUpdated.textContent = rx ? fmtDubai(new Date(rx)) : '—'; }
+    var txt = mode === 'live' ? 'مباشر' : (mode === 'old' ? 'بيانات قديمة، آخرها' : (mode === 'down' ? 'متقطّع، آخر بيانات' : 'بدون تيار، آخر بيانات'));
+    if (lab && lab.textContent !== txt) { lab.textContent = txt; }
+    if (box) { box.classList.toggle('is-live', mode === 'live'); box.classList.toggle('is-stale', mode !== 'live'); }
   }
   function flashLive() {
     var box = els.lastUpdated && els.lastUpdated.parentNode;
@@ -1044,6 +1050,8 @@
     if (!isObj(data)) {
       return;
     }
+    window.__o3RxAt = Date.now();
+    (function () { var nw = isFinite(Date.parse(data.updated)) ? Date.parse(data.updated) : 0; (Array.isArray(data.staff) ? data.staff : []).forEach(function (s) { var t = s && s.time ? Date.parse(s.time) : NaN; if (isFinite(t) && t > nw) { nw = t; } }); window.__o3Newest = nw; })();
     if (window.Office3D && window.Office3D.ready) {
       try { window.Office3D.update(data); } catch (e) { /* keep 2D */ }
     }
