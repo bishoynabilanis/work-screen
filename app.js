@@ -1440,6 +1440,44 @@
       lg.appendChild(a); lg.appendChild(b); lg.appendChild(c); sum.parentNode.insertBefore(lg, sum.nextSibling);
     }
   }
+  /* Idea 23: search box + state filters. Display only; the 3D side does the dimming. */
+  var SF = [['all', 'الكل'], ['running', 'شغال'], ['waiting', 'مستني'], ['done', 'خلّص'], ['late', 'متأخر']], sFilter = 'all', sBtns = {}, sInput = null, sCount = null;
+  function runSearch(fly) {
+    if (!window.Office3D || !window.Office3D.search || !sInput) { return; }
+    var r = null; try { r = window.Office3D.search(sInput.value, sFilter, fly); } catch (e) { r = null; }
+    Object.keys(sBtns).forEach(function (k) { var on = k === sFilter; sBtns[k].setAttribute('aria-pressed', on ? 'true' : 'false'); sBtns[k].style.background = on ? '#f4511e' : '#070d18'; sBtns[k].style.color = '#fff'; });
+    if (!r || !r.on) { sCount.textContent = ''; return; }
+    sCount.textContent = r.n ? ('النتيجة: ' + r.n + ' من ' + r.total) : 'مفيش نتيجة';
+  }
+  function ensureSearch() {
+    var sum = document.getElementById('o3-summary'); if (!sum || document.getElementById('o3-search')) { return; }
+    var box = document.createElement('div'); box.id = 'o3-search'; box.setAttribute('dir', 'rtl'); box.setAttribute('role', 'search');
+    box.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;margin:4px auto;width:min(640px,calc(100vw - 16px));box-sizing:border-box';
+    sInput = document.createElement('input'); sInput.type = 'search'; sInput.placeholder = 'دوّر باسم أو مهمة'; sInput.setAttribute('aria-label', 'بحث في الموظفين'); sInput.autocomplete = 'off';
+    sInput.style.cssText = 'flex:1 1 160px;min-width:140px;min-height:44px;box-sizing:border-box;padding:6px 14px;border-radius:999px;background:#070d18;border:1px solid #22d3ee;color:#fff;font:600 16px "Noto Kufi Arabic",sans-serif';
+    sInput.addEventListener('input', function () { runSearch(false); });
+    sInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { runSearch(true); sInput.blur(); } });
+    box.appendChild(sInput);
+    SF.forEach(function (f, i) {
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = f[1]; b.title = f[1] + ' (' + (i + 1) + ')';
+      b.style.cssText = 'min-height:44px;min-width:44px;padding:6px 12px;border-radius:999px;border:1px solid #f4511e;cursor:pointer;font:700 14px "Noto Kufi Arabic",sans-serif';
+      b.addEventListener('click', function () { sFilter = f[0]; runSearch(true); });
+      sBtns[f[0]] = b; box.appendChild(b);
+    });
+    sCount = document.createElement('span'); sCount.setAttribute('aria-live', 'polite'); sCount.style.cssText = 'flex:1 0 100%;text-align:center;font-size:14px;color:#b9cce2;min-height:18px';
+    box.appendChild(sCount);
+    sum.parentNode.insertBefore(box, sum.nextSibling);
+    runSearch(false);
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) { return; }
+    var t = e.target, typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+    if (e.key === 'Escape' && sInput && (sInput.value || sFilter !== 'all')) { sInput.value = ''; sFilter = 'all'; runSearch(false); if (typing) { sInput.blur(); } return; }
+    if (typing || !sInput) { return; }
+    if (e.key === '/') { e.preventDefault(); sInput.focus(); }
+    else if (e.key >= '1' && e.key <= '5') { sFilter = SF[+e.key - 1][0]; runSearch(true); }
+  });
+  setInterval(function () { try { ensureSearch(); } catch (e) {} }, 2000);
   setInterval(function () { try { publishLoad(); } catch (e) {} }, 5000); setTimeout(function () { try { publishLoad(); } catch (e) {} }, 1800);
   function pendingDecisions() {
     var latest = {}, out = [], cut = Date.now() - 86400000;
