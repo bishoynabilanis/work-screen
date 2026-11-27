@@ -1751,3 +1751,6 @@ body, .o3-clock, .o3-line-head, #o3-summary { font-variant-numeric: tabular-nums
 .o3-label, .o3-portrait .o3-label { font-size: 14px !important; }
 
 .o3-label span, .o3-portrait .o3-label span { color: #d5e0ee !important; }
+.o3-label.is-away { background: linear-gradient(135deg, #6d3fd6, #5b34c2) !important; color: #fff !important; }
+.o3-label.is-away span, .o3-label.is-away b { color: #fff !important; }
+.o3-bubble { background: linear-gradient(135deg, #22d3ee, #a78bfa) !important; color: #03101c !important; text-shadow: none !important; }
