@@ -1,14 +1,15 @@
 /* Idea 39: theme toggle. Saved locally (localStorage), no network. Alt+T cycles. */
 (function () {
   var KEY = 'ws-theme', ORDER = ['blue', 'gold', 'light'];
+  var SHORT = { blue: 'أزرق', gold: 'ذهبي', light: 'فاتح' };
   var NAMES = { blue: 'أزرق مستقبلي', gold: 'ذهبي دافي', light: 'فاتح هادي' };
   function get() { try { var v = localStorage.getItem(KEY); return ORDER.indexOf(v) >= 0 ? v : 'blue'; } catch (e) { return 'blue'; } }
   function apply(t) {
     if (t === 'blue') { document.documentElement.removeAttribute('data-theme'); } else { document.documentElement.setAttribute('data-theme', t); }
     var b = document.getElementById('ws-theme-btn');
-    if (b) { b.textContent = 'الثيم: ' + NAMES[t]; b.setAttribute('aria-label', 'تغيير الثيم. الحالي: ' + NAMES[t]); }
+    if (b) { b.textContent = 'الثيم: ' + NAMES[t]; b.setAttribute('aria-label', 'الثيم: ' + NAMES[t] + '، اضغط للتغيير'); }
     var m = document.querySelector('meta[name="theme-color"]');
-    if (m) { m.setAttribute('content', { blue: '#070d18', gold: '#130d06', light: '#f8f2e7' }[t]); }
+    if (m) { m.setAttribute('content', { blue: '#070d18', gold: '#130d06', light: '#edf3fe' }[t]); }
   }
   function next() {
     var t = ORDER[(ORDER.indexOf(get()) + 1) % ORDER.length];
