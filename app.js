@@ -1442,15 +1442,17 @@
   }
   /* Idea 23: search box + state filters. Display only; the 3D side does the dimming. */
   var SF = [['all', 'الكل'], ['running', 'شغال'], ['waiting', 'مستني'], ['done', 'خلّص'], ['late', 'متأخر']], sFilter = 'all', sBtns = {}, sInput = null, sCount = null;
+  var sBox = null, sClear = null;
+  function clearSearch() { sInput.value = ''; sFilter = 'all'; runSearch(false); if (document.activeElement === sInput) { sInput.blur(); } }
   function runSearch(fly) {
     if (!window.Office3D || !window.Office3D.search || !sInput) { return; }
     var r = null; try { r = window.Office3D.search(sInput.value, sFilter, fly); } catch (e) { r = null; }
     Object.keys(sBtns).forEach(function (k) { var on = k === sFilter; sBtns[k].setAttribute('aria-pressed', on ? 'true' : 'false'); sBtns[k].style.background = on ? '#c2410c' : '#070d18'; sBtns[k].style.color = '#fff'; });
-    if (!r || !r.on) { sCount.textContent = ''; return; }
     showSearchRes(r);
   }
   function showSearchRes(r) {
     if (!sCount) { return; }
+    if (sClear) { sClear.style.display = (r && r.on) ? '' : 'none'; }
     if (!r || !r.on) { sCount.textContent = ''; return; }
     var t = r.n ? ('النتيجة: ' + r.n + ' من ' + r.total + ' مكتب') : (r.feedOld ? 'الفيد كله قديم، مفيش بيانات حديثة تتفلتر' : 'مفيش نتيجة');
     if (sFilter !== 'all') { t += ' (حسب المكاتب في المشهد، مش أرقام الملخص)'; }
@@ -1474,6 +1476,9 @@
       b.addEventListener('click', function () { sFilter = f[0]; runSearch(true); });
       sBtns[f[0]] = b; box.appendChild(b);
     });
+    sClear = document.createElement('button'); sClear.type = 'button'; sClear.textContent = 'مسح'; sClear.style.cssText = 'display:none;min-height:44px;min-width:44px;padding:6px 14px;border-radius:999px;border:1px solid #22d3ee;background:#070d18;color:#fff;cursor:pointer;font:700 14px "Noto Kufi Arabic",sans-serif';
+    sClear.title = 'مسح البحث والفلتر (Esc)'; sClear.addEventListener('click', function () { clearSearch(); sInput.focus(); });
+    box.insertBefore(sClear, sInput.nextSibling); sBox = box;
     sCount = document.createElement('span'); sCount.setAttribute('role', 'status'); sCount.setAttribute('aria-live', 'polite'); sCount.style.cssText = 'flex:1 0 100%;text-align:center;font-size:14px;color:#b9cce2;min-height:18px';
     box.appendChild(sCount);
     sum.parentNode.insertBefore(box, sum.nextSibling);
@@ -1482,7 +1487,7 @@
   /* WCAG 2.1.4: no single-key shortcuts. Alt+/ and Alt+1..5 work anywhere; Esc only clears while the search box has focus. */
   document.addEventListener('keydown', function (e) {
     if (!sInput || e.ctrlKey || e.metaKey) { return; }
-    if (e.key === 'Escape' && e.target === sInput) { sInput.value = ''; sFilter = 'all'; runSearch(false); sInput.blur(); return; }
+    if (e.key === 'Escape' && sBox && sBox.contains(e.target)) { clearSearch(); return; }
     if (!e.altKey) { return; }
     if (e.code === 'Slash') { e.preventDefault(); sInput.focus(); }
     else if (/^Digit[1-5]$/.test(e.code)) { e.preventDefault(); sFilter = SF[+e.code.slice(5) - 1][0]; runSearch(true); }
