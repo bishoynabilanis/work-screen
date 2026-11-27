@@ -1352,6 +1352,9 @@
     bar.textContent = '';
     parts.forEach(function (p) { var sp = document.createElement('span'); sp.textContent = p[0]; sp.style.color = p[1]; bar.appendChild(sp); });
   }
+
+  var BADGE_COLORS = ['#ff8a65', '#4dd0e1', '#b39ddb', '#81c784', '#ffd54f', '#f48fb1', '#64b5f6', '#a1887f', '#aed581', '#ba68c8', '#4db6ac', '#e57373'];
+  function badgeColor(key) { var h = 0, t = String(key || '?'), i; for (i = 0; i < t.length; i++) { h = (h * 31 + t.charCodeAt(i)) >>> 0; } return BADGE_COLORS[h % BADGE_COLORS.length]; }
   function renderLog() {
     var panel = ensureLogPanel(); if (!panel) { return; }
     var evs = liveEvents.filter(function (e) { return e.t === 'h' || e.t === 'r'; });
@@ -1363,7 +1366,11 @@
       statusLines.slice(0, 25).forEach(function (e) {
         var li = make('li', 'o3-line'); var d = new Date(e.ms), ss = '';
         try { ss = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }).format(d); } catch (x) { ss = ''; }
-        li.textContent = ss + ' · ' + (e.name ? e.name + ': ' : '') + (e.state === 'done' ? '✓ خلّص ' : '● بيشتغل ') + e.text;
+        var bc = badgeColor(e.id || e.name);
+        li.style.borderInlineStart = '4px solid ' + bc; li.style.paddingInlineStart = '8px';
+        li.appendChild(document.createTextNode(ss + ' · '));
+        if (e.name) { var nsp = document.createElement('strong'); nsp.textContent = e.name; nsp.style.color = bc; li.appendChild(nsp); li.appendChild(document.createTextNode(': ')); }
+        li.appendChild(document.createTextNode((e.state === 'done' ? '✓ خلّص ' : '● بيشتغل ') + e.text));
         lines.appendChild(li);
       });
     }
