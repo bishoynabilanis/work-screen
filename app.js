@@ -1445,37 +1445,47 @@
   function runSearch(fly) {
     if (!window.Office3D || !window.Office3D.search || !sInput) { return; }
     var r = null; try { r = window.Office3D.search(sInput.value, sFilter, fly); } catch (e) { r = null; }
-    Object.keys(sBtns).forEach(function (k) { var on = k === sFilter; sBtns[k].setAttribute('aria-pressed', on ? 'true' : 'false'); sBtns[k].style.background = on ? '#f4511e' : '#070d18'; sBtns[k].style.color = '#fff'; });
+    Object.keys(sBtns).forEach(function (k) { var on = k === sFilter; sBtns[k].setAttribute('aria-pressed', on ? 'true' : 'false'); sBtns[k].style.background = on ? '#c2410c' : '#070d18'; sBtns[k].style.color = '#fff'; });
     if (!r || !r.on) { sCount.textContent = ''; return; }
-    sCount.textContent = r.n ? ('النتيجة: ' + r.n + ' من ' + r.total) : 'مفيش نتيجة';
+    showSearchRes(r);
   }
+  function showSearchRes(r) {
+    if (!sCount) { return; }
+    if (!r || !r.on) { sCount.textContent = ''; return; }
+    var t = r.n ? ('النتيجة: ' + r.n + ' من ' + r.total + ' مكتب') : (r.feedOld ? 'الفيد كله قديم، مفيش بيانات حديثة تتفلتر' : 'مفيش نتيجة');
+    if (sFilter !== 'all') { t += ' (حسب المكاتب في المشهد، مش أرقام الملخص)'; }
+    if (r.outBlocked) { t += '، وفيه ' + r.outBlocked + ' محتاج تدخل برّه النتيجة'; }
+    if (sCount.textContent !== t) { sCount.textContent = t; }
+  }
+  window.__o3SearchCb = showSearchRes;
   function ensureSearch() {
     var sum = document.getElementById('o3-summary'); if (!sum || document.getElementById('o3-search')) { return; }
+    var stl = document.createElement('style'); stl.textContent = '#o3-search input::placeholder{color:#b9cce2;opacity:1}'; document.head.appendChild(stl);
     var box = document.createElement('div'); box.id = 'o3-search'; box.setAttribute('dir', 'rtl'); box.setAttribute('role', 'search');
     box.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;margin:4px auto;width:min(640px,calc(100vw - 16px));box-sizing:border-box';
-    sInput = document.createElement('input'); sInput.type = 'search'; sInput.placeholder = 'دوّر باسم أو مهمة'; sInput.setAttribute('aria-label', 'بحث في الموظفين'); sInput.autocomplete = 'off';
+    sInput = document.createElement('input'); sInput.type = 'search'; sInput.placeholder = 'دوّر باسم أو مهمة'; sInput.title = 'Alt + / للبحث'; sInput.setAttribute('aria-label', 'بحث في الموظفين'); sInput.autocomplete = 'off';
     sInput.style.cssText = 'flex:1 1 160px;min-width:140px;min-height:44px;box-sizing:border-box;padding:6px 14px;border-radius:999px;background:#070d18;border:1px solid #22d3ee;color:#fff;font:600 16px "Noto Kufi Arabic",sans-serif';
     sInput.addEventListener('input', function () { runSearch(false); });
     sInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { runSearch(true); sInput.blur(); } });
     box.appendChild(sInput);
     SF.forEach(function (f, i) {
-      var b = document.createElement('button'); b.type = 'button'; b.textContent = f[1]; b.title = f[1] + ' (' + (i + 1) + ')';
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = f[1]; b.title = f[1] + ' (Alt + ' + (i + 1) + ')';
       b.style.cssText = 'min-height:44px;min-width:44px;padding:6px 12px;border-radius:999px;border:1px solid #f4511e;cursor:pointer;font:700 14px "Noto Kufi Arabic",sans-serif';
       b.addEventListener('click', function () { sFilter = f[0]; runSearch(true); });
       sBtns[f[0]] = b; box.appendChild(b);
     });
-    sCount = document.createElement('span'); sCount.setAttribute('aria-live', 'polite'); sCount.style.cssText = 'flex:1 0 100%;text-align:center;font-size:14px;color:#b9cce2;min-height:18px';
+    sCount = document.createElement('span'); sCount.setAttribute('role', 'status'); sCount.setAttribute('aria-live', 'polite'); sCount.style.cssText = 'flex:1 0 100%;text-align:center;font-size:14px;color:#b9cce2;min-height:18px';
     box.appendChild(sCount);
     sum.parentNode.insertBefore(box, sum.nextSibling);
     runSearch(false);
   }
+  /* WCAG 2.1.4: no single-key shortcuts. Alt+/ and Alt+1..5 work anywhere; Esc only clears while the search box has focus. */
   document.addEventListener('keydown', function (e) {
-    if (e.ctrlKey || e.metaKey || e.altKey) { return; }
-    var t = e.target, typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
-    if (e.key === 'Escape' && sInput && (sInput.value || sFilter !== 'all')) { sInput.value = ''; sFilter = 'all'; runSearch(false); if (typing) { sInput.blur(); } return; }
-    if (typing || !sInput) { return; }
-    if (e.key === '/') { e.preventDefault(); sInput.focus(); }
-    else if (e.key >= '1' && e.key <= '5') { sFilter = SF[+e.key - 1][0]; runSearch(true); }
+    if (!sInput || e.ctrlKey || e.metaKey) { return; }
+    if (e.key === 'Escape' && e.target === sInput) { sInput.value = ''; sFilter = 'all'; runSearch(false); sInput.blur(); return; }
+    if (!e.altKey) { return; }
+    if (e.code === 'Slash') { e.preventDefault(); sInput.focus(); }
+    else if (/^Digit[1-5]$/.test(e.code)) { e.preventDefault(); sFilter = SF[+e.code.slice(5) - 1][0]; runSearch(true); }
   });
   setInterval(function () { try { ensureSearch(); } catch (e) {} }, 2000);
   setInterval(function () { try { publishLoad(); } catch (e) {} }, 5000); setTimeout(function () { try { publishLoad(); } catch (e) {} }, 1800);
