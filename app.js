@@ -1403,7 +1403,14 @@
 
   // ---- Idea 20: "محتاج قرارك" read-only decision card. Display only: the answer goes to Reem outside the screen. ----
   var decOpen = false, decPick = {}, decFocus = '', decCopied = {};
-  function decAge(ms) { var m = Math.max(0, Math.floor((Date.now() - ms) / 60000)); return m < 60 ? 'من ' + Math.max(1, m) + ' د' : 'من ' + Math.floor(m / 60) + ' س'; }
+  function ageWords(m) {
+    if (m < 60) { return Math.max(1, m) + ' د'; }
+    var d = Math.floor(m / 1440), hh = Math.floor((m % 1440) / 60), r = m % 60;
+    function hw(h) { return h === 1 ? 'ساعة' : (h === 2 ? 'ساعتين' : (h <= 10 ? h + ' ساعات' : h + ' ساعة')); }
+    if (d >= 1) { var dw = d === 1 ? 'يوم' : (d === 2 ? 'يومين' : (d <= 10 ? d + ' أيام' : d + ' يوم')); return hh ? dw + ' و' + hw(hh) : dw; }
+    return r ? hw(hh) + ' و' + r + ' د' : hw(hh);
+  }
+  function decAge(ms) { return 'من ' + ageWords(Math.max(0, Math.floor((Date.now() - ms) / 60000))); }
   function pendingDecisions() {
     var latest = {}, out = [], cut = Date.now() - 86400000;
     statusLines.forEach(function (e) { var k = e.id || e.name || '?'; if (!latest[k]) { latest[k] = e; } });
