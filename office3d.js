@@ -1011,8 +1011,10 @@
     if (key !== alertKey) {
       alertKey = key; alertIds = ids; alertIdx = 0;
       if (!ids.length) { alertBar.classList.remove('on'); return; }
-      var nm = ids.slice(0, 2).map(function (k) { return people[k].nameText || '؟'; }).join('، ');
-      alertBar.textContent = '⚠ ' + ids.length + (ids.length === 1 ? ' محتاج تدخل: ' : ' محتاجين تدخل: ') + nm + (ids.length > 2 ? '…' : '') + (nst ? ' · +' + nst + ' بدون تحديث' : '');
+      var port = host.classList.contains('o3-portrait');
+      var nm = ids.slice(0, port ? 1 : 2).map(function (k) { return people[k].nameText || '؟'; }).join('، ');
+      alertBar.textContent = '⚠ ' + ids.length + (ids.length === 1 ? ' محتاج تدخل: ' : ' محتاجين تدخل: ') + nm + (ids.length > (port ? 1 : 2) ? '…' : '');
+      if (nst && !port) { var sp = document.createElement('span'); sp.textContent = ' وفيه ' + nst + ' بدون تحديث'; alertBar.appendChild(sp); }
       alertBar.classList.add('on');
     }
   }
