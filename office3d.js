@@ -54,20 +54,6 @@
   scene.add(hemi);
 
   /* Step 1 lighting: Poly Haven studio_small_09 (CC0) as image-based light */
-  function parseRGBE(buf) {
-    var u = new Uint8Array(buf), pos = 0, w = 0, h = 0, line;
-    function readLine() { var st = pos; while (pos < u.length && u[pos] !== 10) { pos++; } var t = ''; for (var i = st; i < pos; i++) { t += String.fromCharCode(u[i]); } pos++; return t; }
-    while ((line = readLine()) !== undefined) { var m = /^-Y (\d+) \+X (\d+)/.exec(line); if (m) { h = +m[1]; w = +m[2]; break; } if (pos >= u.length) { return null; } }
-    var rgbe = new Uint8Array(w * h * 4), y, x, c, i;
-    for (y = 0; y < h; y++) {
-      if (u[pos] !== 2 || u[pos + 1] !== 2 || (u[pos + 2] & 128)) { return null; }
-      pos += 4; var sc = y * w * 4;
-      for (c = 0; c < 4; c++) { x = 0; while (x < w) { var n = u[pos++]; if (n > 128) { n -= 128; var v = u[pos++]; while (n--) { rgbe[sc + (x++) * 4 + c] = v; } } else { while (n--) { rgbe[sc + (x++) * 4 + c] = u[pos++]; } } } }
-    }
-    var out = new Uint16Array(w * h * 4), D = THREE.DataUtils;
-    for (i = 0; i < w * h; i++) { var e = rgbe[i * 4 + 3], f = e ? Math.pow(2, e - 136) : 0; out[i * 4] = D.toHalfFloat(rgbe[i * 4] * f); out[i * 4 + 1] = D.toHalfFloat(rgbe[i * 4 + 1] * f); out[i * 4 + 2] = D.toHalfFloat(rgbe[i * 4 + 2] * f); out[i * 4 + 3] = D.toHalfFloat(1); }
-    return { w: w, h: h, data: out };
-  }
   try {
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
     if (window.__ENV) {
@@ -297,7 +283,7 @@
   var WOODM = null, FLOORT = null;
   (function () {
     if (!window.__TEX) { return; }
-    function lt(src, rx, ry, srgb) { var t = new THREE.TextureLoader().load(src); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 4; if (srgb && THREE.sRGBEncoding) { t.encoding = THREE.sRGBEncoding; } return t; }
+    function lt(src, rx, ry, srgb) { var t = new THREE.TextureLoader().load(src); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 4; if (srgb && THREE.SRGBColorSpace) { t.colorSpace = THREE.SRGBColorSpace; } return t; }
     WOODM = new THREE.MeshStandardMaterial({ color: 0xffffff, map: lt(window.__TEX.wood, 1, 1, true), roughnessMap: lt(window.__TEX.woodR, 1, 1, false), roughness: 1, metalness: 0.02, envMapIntensity: 0.35 });
     FLOORT = { map: lt(window.__TEX.floor, 9, 8.5, true), rmap: lt(window.__TEX.floorR, 9, 8.5, false) };
     carpet.material.map = FLOORT.map; carpet.material.roughnessMap = FLOORT.rmap; carpet.material.roughness = 1; carpet.material.metalness = 0.04; carpet.material.envMapIntensity = 0.4; carpet.material.color.setRGB(2.3, 2.3, 2.4); carpet.material.needsUpdate = true; WOODM.color.setRGB(1.7, 1.55, 1.4);
@@ -897,8 +883,72 @@
   var pt = { x: 0, y: 0, vis: true };
   var clock = new THREE.Clock();
 
+
+  /* Step 3: post-processing (bloom + vignette) with automatic quality levels (high / med / low) */
+  var Q = { level: /[?&]q=(low|med|high)/.test(location.search) ? RegExp.$1 : (lowGpu ? 'med' : 'high'), locked: /[?&]q=(low|med|high)/.test(location.search), fps: 60, okSince: 0, frames: 0, t0: performance.now() };
+  var POST = { rt: null, a: null, b: null, quad: null, cam: null, mats: null, w: 0, h: 0 };
+  function postSupported() { try { return !!(renderer.capabilities.isWebGL2 && renderer.extensions.get('EXT_color_buffer_float') || renderer.extensions.get('EXT_color_buffer_half_float')); } catch (e) { return false; } }
+  function postBuild() {
+    var sz = new THREE.Vector2(); renderer.getDrawingBufferSize(sz);
+    var w = Math.max(2, sz.x | 0), h = Math.max(2, sz.y | 0);
+    if (POST.rt && POST.w === w && POST.h === h) { return; }
+    ['rt', 'a', 'b'].forEach(function (k) { if (POST[k]) { POST[k].dispose(); } });
+    var o = { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false };
+    POST.rt = new THREE.WebGLRenderTarget(w, h, Object.assign({}, o, { depthBuffer: true, samples: Q.level === 'high' ? 4 : 0 }));
+    POST.a = new THREE.WebGLRenderTarget(Math.max(2, w >> 2), Math.max(2, h >> 2), o);
+    POST.b = new THREE.WebGLRenderTarget(Math.max(2, w >> 2), Math.max(2, h >> 2), o);
+    POST.w = w; POST.h = h;
+    if (!POST.quad) {
+      var vs = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+      var mk = function (fs, u, tm) { return new THREE.ShaderMaterial({ uniforms: u, vertexShader: vs, fragmentShader: fs, depthTest: false, depthWrite: false, toneMapped: !!tm }); };
+      POST.mats = {
+        bright: mk('uniform sampler2D t; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb; float l = max(c.r, max(c.g, c.b)); gl_FragColor = vec4(c * smoothstep(0.75, 1.5, l), 1.0); }', { t: { value: null } }),
+        blur: mk('uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * 0.227; c += (texture2D(t, vUv + d * 1.38).rgb + texture2D(t, vUv - d * 1.38).rgb) * 0.316; c += (texture2D(t, vUv + d * 3.23).rgb + texture2D(t, vUv - d * 3.23).rgb) * 0.070; gl_FragColor = vec4(c, 1.0); }', { t: { value: null }, d: { value: new THREE.Vector2() } }),
+        comp: mk('uniform sampler2D t; uniform sampler2D bl; uniform float bs; varying vec2 vUv;\nvoid main(){ vec3 c = texture2D(t, vUv).rgb + texture2D(bl, vUv).rgb * bs; vec2 q = vUv - 0.5; float v = smoothstep(0.95, 0.30, length(q * vec2(1.0, 1.0))); c *= mix(0.72, 1.0, v); gl_FragColor = vec4(c, 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}', { t: { value: null }, bl: { value: null }, bs: { value: 0.55 } }, true)
+      };
+      POST.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), POST.mats.bright); POST.quad.frustumCulled = false;
+      POST.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      POST.scene = new THREE.Scene(); POST.scene.add(POST.quad);
+    }
+  }
+  function postPass(mat, target) { POST.quad.material = mat; renderer.setRenderTarget(target); renderer.render(POST.scene, POST.cam); }
+  function renderFinal() {
+    if (Q.level === 'low' || !postSupported()) { renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
+    postBuild();
+    renderer.setRenderTarget(POST.rt); renderer.render(scene, camera);
+    var M = POST.mats, bloomOn = Q.level === 'high';
+    if (bloomOn) {
+      M.bright.uniforms.t.value = POST.rt.texture; postPass(M.bright, POST.a);
+      M.blur.uniforms.t.value = POST.a.texture; M.blur.uniforms.d.value.set(1 / POST.a.width, 0); postPass(M.blur, POST.b);
+      M.blur.uniforms.t.value = POST.b.texture; M.blur.uniforms.d.value.set(0, 1 / POST.a.height); postPass(M.blur, POST.a);
+      M.blur.uniforms.t.value = POST.a.texture; M.blur.uniforms.d.value.set(1 / POST.a.width, 0); postPass(M.blur, POST.b);
+      M.blur.uniforms.t.value = POST.b.texture; M.blur.uniforms.d.value.set(0, 1 / POST.a.height); postPass(M.blur, POST.a);
+    }
+    M.comp.uniforms.t.value = POST.rt.texture; M.comp.uniforms.bl.value = POST.a.texture; M.comp.uniforms.bs.value = bloomOn ? 0.55 : 0.0;
+    postPass(M.comp, null);
+  }
+  function applyQuality() {
+    var pr = Q.level === 'high' ? Math.min(window.devicePixelRatio || 1, 2) : Q.level === 'med' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
+    renderer.setPixelRatio(pr); renderer.shadowMap.enabled = Q.level !== 'low'; sun.castShadow = Q.level !== 'low';
+    scene.traverse(function (o) { if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { m.needsUpdate = true; }); } });
+    POST.w = 0; resize();
+  }
+  function qualityTick() {
+    if (Q.locked) { return; }
+    Q.frames++; var now = performance.now();
+    if (now - Q.t0 < 3000) { return; }
+    Q.fps = Q.frames * 1000 / (now - Q.t0); Q.frames = 0; Q.t0 = now;
+    var order = ['low', 'med', 'high'], i = order.indexOf(Q.level);
+    if (Q.fps < 40 && i > 0) { Q.level = order[i - 1]; Q.okSince = 0; applyQuality(); }
+    else if (Q.fps > 58 && i < 2) { Q.okSince = Q.okSince || now; if (now - Q.okSince >= 10000) { Q.level = order[i + 1]; Q.okSince = 0; applyQuality(); } }
+    else { Q.okSince = 0; }
+  }
+  window.__q = Q;
+
   function frame() {
     requestAnimationFrame(frame);
+    if (document.hidden) { return; }
+    qualityTick();
     var dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
     // camera easing
     if (cine) {
@@ -1000,7 +1050,7 @@
       bubbleEl.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-100%)';
     }
     stepEnvelopes();
-    renderer.render(scene, camera);
+    renderFinal();
   }
 
   window.addEventListener('resize', resize);
@@ -1027,7 +1077,7 @@
   // ---------- achievements board on the back wall ----------
   var boardCanvas = document.createElement('canvas'); boardCanvas.width = 1480; boardCanvas.height = 720;
   var boardTex = new THREE.CanvasTexture(boardCanvas);
-  if (THREE.sRGBEncoding) { boardTex.encoding = THREE.sRGBEncoding; }
+  if (THREE.SRGBColorSpace) { boardTex.colorSpace = THREE.SRGBColorSpace; }
   var boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(9.3, 4.52), new THREE.MeshBasicMaterial({ map: boardTex }));
   boardMesh.position.set(5.3, 2.6, -7.04); scene.add(boardMesh);
   var boardFrame = box(9.6, 4.8, 0.1, 0x2b2f38); boardFrame.position.set(5.3, 2.6, -7.1); scene.add(boardFrame);
