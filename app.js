@@ -1114,8 +1114,9 @@
   var statusLines = [], statusSeen = {}, statusSince = '12h';
   var TL_KEY = 'ws-timeline-v1';
   function saveTL() { try { localStorage.setItem(TL_KEY, JSON.stringify(statusLines.slice(0, 500).map(function (e) { return { mid: e.mid, id: e.id, name: e.name, text: e.text, state: e.state, job: e.job, ms: e.ms, ask: e.ask || '', options: e.options || [] }; }))); } catch (e) { /* storage full or blocked */ } }
-  function restoreTL() { try { var a = JSON.parse(localStorage.getItem(TL_KEY) || '[]'); if (Array.isArray(a)) { a.forEach(function (e) { if (e && e.mid && e.ms && e.text) { statusSeen[e.mid] = true; statusSince = e.mid; statusLines.push({ mid: String(e.mid), id: cleanText(e.id, 40), name: cleanText(e.name, 40), text: cleanText(e.text, 160), state: e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'start'), next: '', done: -1, pending: -1, job: cleanText(e.job, 60), result: '', ms: +e.ms, ask: cleanText(e.ask, 140), options: cleanOpts(e.options) }); } }); statusLines.sort(function (x, y) { return y.ms - x.ms; }); } } catch (e) { console.warn('restoreTL', String(e)); statusLines = []; } }
-  function cleanOpts(a) { var o = []; if (Array.isArray(a)) { a.slice(0, 3).forEach(function (x) { var t = cleanText(typeof x === 'string' ? x : '', 50); if (t) { o.push(t); } }); } return o; }
+  function restoreTL() { try { var a = JSON.parse(localStorage.getItem(TL_KEY) || '[]'); if (Array.isArray(a)) { a.forEach(function (e) { if (e && e.mid && e.ms && e.text) { statusSeen[e.mid] = true; statusSince = e.mid; statusLines.push({ mid: String(e.mid), id: cleanText(e.id, 40), name: cleanText(e.name, 40), text: cleanText(e.text, 160), state: e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'start'), next: '', done: -1, pending: -1, job: cleanText(e.job, 60), result: '', ms: +e.ms, ask: (cleanText(e.ask, 140) === PRIV_PH ? '' : cleanText(e.ask, 140)), options: cleanOpts(e.options) }); } }); statusLines.sort(function (x, y) { return y.ms - x.ms; }); } } catch (e) { console.warn('restoreTL', String(e)); statusLines = []; } }
+  var PRIV_PH = 'نشاط على حساب، التفاصيل مخفية';
+  function cleanOpts(a) { var o = []; if (Array.isArray(a)) { a.slice(0, 3).forEach(function (x) { var t = cleanText(typeof x === 'string' ? x : '', 50); if (t && t !== PRIV_PH) { o.push(t); } }); } return o; }
   function pollStatus() {
     fetch(STATUS_BASE + '/json?poll=1&since=' + encodeURIComponent(statusSince), { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.text() : ''; })
@@ -1128,7 +1129,7 @@
           statusSeen[m.id] = true; statusSince = m.id;
           var b = null; try { b = JSON.parse(m.message); } catch (e) { b = null; }
           var nm = '', tx = '', stt = '', aid = '', nx = '', dn = -1, pd = -1, jb = '', rs = '', ak = '', op = [];
-          if (b && typeof b === 'object') { nm = cleanText(b.name, 40); tx = cleanText(b.text, 160); stt = b.state === 'done' ? 'done' : (b.state === 'blocked' || b.state === 'error' ? 'blocked' : 'start'); aid = cleanText(b.id, 40); jb = cleanText(b.job, 60); rs = (b.result === 'got' || b.result === 'none' || b.result === 'pending') ? b.result : ''; nx = cleanText(b.next, 120); ak = cleanText(b.ask, 140); op = ak ? cleanOpts(b.options) : []; dn = isFinite(+b.done) && b.done !== null && b.done !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.done))) : -1; pd = isFinite(+b.pending) && b.pending !== null && b.pending !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.pending))) : -1; }
+          if (b && typeof b === 'object') { nm = cleanText(b.name, 40); tx = cleanText(b.text, 160); stt = b.state === 'done' ? 'done' : (b.state === 'blocked' || b.state === 'error' ? 'blocked' : 'start'); aid = cleanText(b.id, 40); jb = cleanText(b.job, 60); rs = (b.result === 'got' || b.result === 'none' || b.result === 'pending') ? b.result : ''; nx = cleanText(b.next, 120); ak = cleanText(b.ask, 140); if (ak === PRIV_PH) { ak = ''; } op = ak ? cleanOpts(b.options) : []; dn = isFinite(+b.done) && b.done !== null && b.done !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.done))) : -1; pd = isFinite(+b.pending) && b.pending !== null && b.pending !== '' ? Math.max(0, Math.min(9999, Math.floor(+b.pending))) : -1; }
           else { tx = cleanText(m.message, 160); nm = cleanText(m.title, 40); stt = 'start'; }
           if (!tx) { return; }
           statusLines.push({ mid: m.id, id: aid, name: nm, text: tx, state: stt, next: nx, done: dn, pending: pd, job: jb, result: rs, ms: (m.time || 0) * 1000, ask: ak, options: op });
@@ -1401,15 +1402,16 @@
 
 
   // ---- Idea 20: "محتاج قرارك" read-only decision card. Display only: the answer goes to Reem outside the screen. ----
-  var decOpen = false, decPick = {};
+  var decOpen = false, decPick = {}, decFocus = '';
+  function decAge(ms) { var m = Math.max(0, Math.floor((Date.now() - ms) / 60000)); return m < 60 ? 'من ' + Math.max(1, m) + ' د' : 'من ' + Math.floor(m / 60) + ' س'; }
   function pendingDecisions() {
     var latest = {}, out = [], cut = Date.now() - 86400000;
     statusLines.forEach(function (e) { var k = e.id || e.name || '?'; if (!latest[k]) { latest[k] = e; } });
-    Object.keys(latest).forEach(function (k) { var e = latest[k]; if (e.ask && e.options && e.options.length && e.ms >= cut) { out.push(e); } });
+    Object.keys(latest).forEach(function (k) { var e = latest[k]; if (e.ask && e.ms >= cut) { out.push(e); } });
     return out.sort(function (a, b) { return b.ms - a.ms; });
   }
   function copyText(t, done) {
-    function fb() { try { var ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0;top:0'; document.body.appendChild(ta); ta.select(); var ok = document.execCommand('copy'); ta.remove(); done(ok); } catch (e) { done(false); } }
+    function fb() { try { var ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0;top:0;font-size:16px'; document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, 9999); var ok = document.execCommand('copy'); ta.remove(); done(ok); } catch (e) { done(false); } }
     try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).then(function () { done(true); }, fb); } else { fb(); } } catch (e) { fb(); }
   }
   function renderDecisions() {
@@ -1419,7 +1421,7 @@
     if (!list.length) { if (btn) { btn.remove(); } if (pan) { pan.remove(); } decOpen = false; return; }
     if (!btn) {
       btn = document.createElement('button'); btn.id = 'o3-dec'; btn.type = 'button'; btn.setAttribute('dir', 'rtl');
-      btn.style.cssText = 'display:block;margin:4px auto;padding:6px 14px;min-height:36px;border-radius:999px;background:#070d18;border:1px solid #f4511e;color:#fff;font:700 15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+      btn.style.cssText = 'display:block;margin:4px auto;padding:6px 14px;min-height:44px;border-radius:999px;background:#070d18;border:1px solid #f4511e;color:#fff;font:700 15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
       btn.addEventListener('click', function () { decOpen = !decOpen; renderDecisions(); });
       sum.parentNode.insertBefore(btn, sum.nextSibling);
     }
@@ -1430,19 +1432,20 @@
     pan.textContent = '';
     list.forEach(function (e, li) {
       var key = e.id + '|' + e.mid, box = document.createElement('div'); box.style.cssText = 'padding:6px 0;' + (li ? 'border-top:1px solid rgba(255,255,255,.12)' : '');
-      var q = document.createElement('div'); q.style.fontWeight = '700'; q.textContent = (e.name ? e.name + ': ' : '') + e.ask; box.appendChild(q);
+      var q = document.createElement('div'); q.style.fontWeight = '700'; q.textContent = (e.name || e.id || 'موظف') + ': ' + e.ask + ' (' + decAge(e.ms) + ')'; box.appendChild(q);
+      if (!e.options.length) { var no = document.createElement('div'); no.style.cssText = 'font-size:14px;color:#b9cce2'; no.textContent = 'مفيش خيارات'; box.appendChild(no); }
       e.options.forEach(function (o, i) {
         var b = document.createElement('button'); b.type = 'button'; b.setAttribute('dir', 'rtl');
-        b.style.cssText = 'display:block;width:100%;text-align:start;margin:4px 0;padding:8px 10px;min-height:40px;border-radius:10px;background:' + (decPick[key] === i ? '#1f2a44' : '#0d1626') + ';border:1px solid ' + (decPick[key] === i ? '#22d3ee' : 'rgba(255,255,255,.25)') + ';color:#fff;font:15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
-        b.textContent = (i + 1) + '. ' + o;
-        b.addEventListener('click', function () { decPick[key] = i; renderDecisions(); });
+        b.style.cssText = 'display:block;width:100%;text-align:start;margin:4px 0;padding:8px 10px;min-height:44px;border-radius:10px;background:' + (decPick[key] === i ? '#1f2a44' : '#0d1626') + ';border:1px solid ' + (decPick[key] === i ? '#22d3ee' : 'rgba(255,255,255,.25)') + ';color:#fff;font:15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+        b.textContent = (i + 1) + '. ' + o; b.setAttribute('data-dk', key + '#' + i);
+        b.addEventListener('click', function () { decPick[key] = i; decFocus = key + '#' + i; renderDecisions(); });
         box.appendChild(b);
       });
       if (decPick[key] !== undefined && e.options[decPick[key]] !== undefined) {
-        var txt = 'قول لريم: خيار ' + (decPick[key] + 1);
+        var txt = 'قول لريم: قرار ' + (e.name || e.id || 'موظف') + '، خيار ' + (decPick[key] + 1) + ': ' + e.options[decPick[key]].slice(0, 50);
         var r = document.createElement('div'); r.style.cssText = 'margin-top:6px;padding:8px 10px;border-radius:10px;background:#111b30;border:1px dashed #22d3ee'; r.setAttribute('dir', 'rtl');
         var tt = document.createElement('div'); tt.textContent = txt; tt.style.cssText = 'user-select:all;-webkit-user-select:all;font-weight:700'; r.appendChild(tt);
-        var cb = document.createElement('button'); cb.type = 'button'; cb.textContent = 'انسخ'; cb.style.cssText = 'margin-top:6px;padding:6px 14px;min-height:36px;border-radius:999px;background:#f4511e;border:0;color:#fff;font:700 15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+        var cb = document.createElement('button'); cb.type = 'button'; cb.textContent = 'انسخ'; cb.style.cssText = 'margin-top:6px;padding:6px 14px;min-height:44px;min-width:44px;border-radius:999px;background:#f4511e;border:0;color:#fff;font:700 15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
         cb.addEventListener('click', function () { copyText(txt, function (ok) { cb.textContent = ok ? 'اتنسخ ✓' : 'انسخ الجملة بإيدك'; }); });
         r.appendChild(cb);
         var nt = document.createElement('div'); nt.style.cssText = 'font-size:14px;color:#b9cce2;margin-top:4px'; nt.textContent = 'الشاشة للعرض بس. ابعت الجملة لريم على واتساب.'; r.appendChild(nt);
@@ -1450,7 +1453,9 @@
       }
       pan.appendChild(box);
     });
+    if (decFocus) { var fb2 = pan.querySelector('[data-dk="' + decFocus.replace(/"/g, '') + '"]'); decFocus = ''; if (fb2) { try { fb2.focus(); } catch (e) {} } }
   }
+  setInterval(function () { try { renderDecisions(); } catch (e) {} }, 60000);
 
   var BADGE_COLORS = ['#ff8a65', '#4dd0e1', '#b39ddb', '#81c784', '#ffd54f', '#f48fb1', '#64b5f6', '#a1887f', '#aed581', '#ba68c8', '#4db6ac', '#e57373'];
   function badgeColor(key) { var h = 0, t = String(key || '?'), i; for (i = 0; i < t.length; i++) { h = (h * 31 + t.charCodeAt(i)) >>> 0; } return BADGE_COLORS[h % BADGE_COLORS.length]; }
