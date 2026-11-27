@@ -927,7 +927,7 @@
     if (POST.rt && POST.w === w && POST.h === h) { return; }
     ['rt', 'a', 'b'].forEach(function (k) { if (POST[k]) { POST[k].dispose(); } });
     var o = { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false };
-    POST.rt = new THREE.WebGLRenderTarget(w, h, Object.assign({}, o, { depthBuffer: true, samples: Q.level === 'high' ? 4 : 0 }));
+    POST.rt = new THREE.WebGLRenderTarget(w, h, Object.assign({}, o, { depthBuffer: true, samples: 4 }));
     POST.a = new THREE.WebGLRenderTarget(Math.max(2, w >> 2), Math.max(2, h >> 2), o);
     POST.b = new THREE.WebGLRenderTarget(Math.max(2, w >> 2), Math.max(2, h >> 2), o);
     POST.w = w; POST.h = h;
@@ -961,20 +961,33 @@
     postPass(M.comp, null);
   }
   function applyQuality() {
-    var pr = Q.level === 'high' ? Math.min(window.devicePixelRatio || 1, 2) : Q.level === 'med' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
+    var pr = Q.level === 'high' ? Math.min(window.devicePixelRatio || 1, 2) : Q.level === 'med' ? Math.min(window.devicePixelRatio || 1, 2) : Math.min(window.devicePixelRatio || 1, 1.5);
     renderer.setPixelRatio(pr); renderer.shadowMap.enabled = Q.level !== 'low'; sun.castShadow = Q.level !== 'low';
     scene.traverse(function (o) { if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { m.needsUpdate = true; }); } });
     POST.w = 0; resize();
   }
+  function qualityReset() { Q.frames = 0; Q.t0 = performance.now(); Q.okSince = 0; Q.lowWin = 0; }
+  document.addEventListener('visibilitychange', qualityReset);
+  window.addEventListener('focus', qualityReset);
+  var Q_BORN = performance.now();
   function qualityTick() {
     if (Q.locked) { return; }
-    Q.frames++; var now = performance.now();
+    var now = performance.now();
+    if (document.hidden) { qualityReset(); return; }
+    if (now - Q_BORN < 5000) { qualityReset(); return; }
+    if (Q.cap != null && now - Q.capAt > 600000) { Q.cap = null; }
+    Q.frames++;
     if (now - Q.t0 < 3000) { return; }
     Q.fps = Q.frames * 1000 / (now - Q.t0); Q.frames = 0; Q.t0 = now;
     var order = ['low', 'med', 'high'], i = order.indexOf(Q.level);
-    if (Q.fps < 40 && i > 0) { Q.level = order[i - 1]; Q.okSince = 0; applyQuality(); }
-    else if (Q.fps > 58 && i < 2) { Q.okSince = Q.okSince || now; if (now - Q.okSince >= 10000) { Q.level = order[i + 1]; Q.okSince = 0; applyQuality(); } }
-    else { Q.okSince = 0; }
+    if (Q.fps < 28 && i > 0) {
+      Q.okSince = 0; Q.lowWin = (Q.lowWin || 0) + 1;
+      if (Q.lowWin >= 2) { Q.level = order[i - 1]; Q.cap = i - 1; Q.capAt = now; Q.lowWin = 0; applyQuality(); }
+    } else {
+      Q.lowWin = 0;
+      if (Q.fps > 50 && i < Math.min(2, Q.cap == null ? 2 : Q.cap)) { Q.okSince = Q.okSince || now; if (now - Q.okSince >= 60000) { Q.level = order[i + 1]; Q.okSince = 0; applyQuality(); } }
+      else { Q.okSince = 0; }
+    }
   }
   window.__q = Q;
 

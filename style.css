@@ -1558,7 +1558,6 @@ button, input, select, textarea { font-family: var(--font-ui); }
 .o3-stage::before {
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background:
-    repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 2px, rgba(0,20,40,.10) 2px 3px),
     radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(2,6,18,.55) 100%),
     linear-gradient(180deg, rgba(34,211,238,.07), transparent 22%, transparent 78%, rgba(139,92,246,.09));
   mix-blend-mode: normal;
