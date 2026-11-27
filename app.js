@@ -1101,6 +1101,33 @@
   var liveSource = null;
   var liveLastId = '';
 
+  // ---- Live status lines (ntfy topic, JSON: id, name, text, state start|done). Untrusted: text only, never HTML. ----
+  var STATUS_BASE = 'https://ntfy.sh/wsfeed-bishoy-0284a9cccdca36e35f4d30fb';
+  var statusLines = [], statusSeen = {}, statusSince = '12h';
+  function pollStatus() {
+    fetch(STATUS_BASE + '/json?poll=1&since=' + encodeURIComponent(statusSince), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (txt) {
+        var changed = false;
+        String(txt || '').split('\n').forEach(function (ln) {
+          if (!ln) { return; }
+          var m; try { m = JSON.parse(ln); } catch (e) { return; }
+          if (!m || m.event !== 'message' || !m.id || statusSeen[m.id]) { return; }
+          statusSeen[m.id] = true; statusSince = m.id;
+          var b = null; try { b = JSON.parse(m.message); } catch (e) { b = null; }
+          var nm = '', tx = '', stt = '';
+          if (b && typeof b === 'object') { nm = cleanText(b.name, 40); tx = cleanText(b.text, 160); stt = b.state === 'done' ? 'done' : 'start'; }
+          else { tx = cleanText(m.message, 160); nm = cleanText(m.title, 40); stt = 'start'; }
+          if (!tx) { return; }
+          statusLines.push({ name: nm, text: tx, state: stt, ms: (m.time || 0) * 1000 });
+          changed = true;
+        });
+        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 60); try { renderLog(); } catch (e) {} }
+      })
+      .catch(function () {});
+  }
+  pollStatus(); setInterval(pollStatus, 5000);
+
   function cleanText(v, n) {
     return typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').slice(0, n || 200) : '';
   }
@@ -1236,7 +1263,29 @@
     var evs = liveEvents.filter(function (e) { return e.t === 'h' || e.t === 'r'; });
     var lines = panel.querySelector('.o3-lines'), pipes = panel.querySelector('.o3-pipes');
     lines.textContent = ''; pipes.textContent = '';
-    if (!evs.length) { var em = make('li', 'o3-empty'); em.textContent = 'لسه مفيش تسليمات النهاردة'; lines.appendChild(em); return; }
+    if (statusLines.length) {
+      var sh = make('li', 'o3-empty'); sh.textContent = 'شغل حي دلوقتي (الأحدث فوق):'; lines.appendChild(sh);
+      statusLines.slice(0, 25).forEach(function (e) {
+        var li = make('li', 'o3-line'); var d = new Date(e.ms), ss = '';
+        try { ss = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }).format(d); } catch (x) { ss = ''; }
+        li.textContent = ss + ' · ' + (e.name ? e.name + ': ' : '') + (e.state === 'done' ? '✓ خلّص ' : '● بيشتغل ') + e.text;
+        lines.appendChild(li);
+      });
+    }
+    if (!evs.length && statusLines.length) { return; }
+    if (!evs.length) {
+      var stf = (baseFeed && baseFeed.staff) || [];
+      var ago = function (iso) { var m = Math.round((Date.now() - new Date(iso).getTime()) / 60000); if (!(m >= 0)) { return ''; } if (m < 2) { return 'دلوقتي'; } if (m < 60) { return 'من ' + m + ' دقيقة'; } if (m < 1440) { return 'من ' + Math.round(m / 60) + ' ساعة'; } return 'من ' + Math.round(m / 1440) + ' يوم'; };
+      var stl = { running: 'شغّال', waiting: 'مستني', done: 'خلّص', idle: 'فاضي' };
+      var upd = baseFeed && baseFeed.updated ? ago(baseFeed.updated) : '';
+      var em = make('li', 'o3-empty'); em.textContent = 'مفيش تسليمات النهاردة. دي آخر حالات الموظفين من الداتا' + (upd ? ' (آخر تحديث ' + upd + ')' : '') + ':'; lines.appendChild(em);
+      stf.slice().sort(function (a, b) { return String(b.time || '').localeCompare(String(a.time || '')); }).slice(0, 14).forEach(function (p) {
+        if (!p.step) { return; }
+        var li = make('li', 'o3-line'); li.textContent = (p.time ? hhmm(p.time) + ' · ' : '') + p.name + (p.title ? ' (' + p.title + ')' : '') + ' ' + (stl[p.state] || '') + ': ' + p.step + (p.time ? ' · ' + ago(p.time) : '');
+        lines.appendChild(li);
+      });
+      return;
+    }
     // pipelines
     var jobs = {}, order = [];
     evs.forEach(function (e) {
