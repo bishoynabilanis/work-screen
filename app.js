@@ -694,13 +694,18 @@
     var feedOld = nw > 0 && (now - nw) >= 1800000;
     var down = !!(st && st.down && now - st.since > 10000);
     var noStream = !st && (typeof EventSource === 'undefined' || now - pageStart > 20000);
-    var mode = feedOld ? 'old' : (down ? 'down' : (noStream ? 'nostream' : 'live'));
+    var offline = navigator.onLine === false || networkFailed;
+    var mode = offline ? 'offline' : feedOld ? 'old' : (down ? 'down' : (noStream ? 'nostream' : 'live'));
     var lab = els.lastUpdated.parentNode && els.lastUpdated.parentNode.querySelector('.updated-label');
     var box = els.lastUpdated.parentNode;
     if (mode === 'live') { els.lastUpdated.textContent = fmtDubai(new Date()); }
     else if (mode === 'old') { els.lastUpdated.textContent = fmtDubai(new Date(nw)); }
-    else { els.lastUpdated.textContent = rx ? fmtDubai(new Date(rx)) : '—'; }
-    var txt = mode === 'live' ? 'مباشر' : (mode === 'old' ? 'بيانات قديمة، آخرها' : (mode === 'down' ? 'متقطّع، آخر بيانات' : 'بدون تيار، آخر بيانات'));
+    else {
+      var dt = nw > 0 ? nw : rx;  /* data time first (cache load time is not data age) */
+      var dage = dt ? Math.floor((now - dt) / 60000) : 0;
+      els.lastUpdated.textContent = dt ? fmtDubai(new Date(dt)) + (dage > 60 ? ' (من ' + ageWords(dage) + ')' : '') : '—';
+    }
+    var txt = mode === 'live' ? 'مباشر' : (mode === 'old' ? 'بيانات قديمة، آخرها' : (mode === 'offline' ? 'بدون اتصال، آخر بيانات' : mode === 'down' ? 'متقطّع، آخر بيانات' : 'بدون تيار، آخر بيانات'));
     if (lab && lab.textContent !== txt) { lab.textContent = txt; }
     if (box) { box.classList.toggle('is-live', mode === 'live'); box.classList.toggle('is-stale', mode !== 'live'); }
   }
