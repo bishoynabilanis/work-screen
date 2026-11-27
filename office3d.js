@@ -1013,16 +1013,15 @@
   function heatColor(t, out) { t = Math.max(0, Math.min(1, t)); if (t < 0.5) { out.copy(HEAT_C[0]).lerp(HEAT_C[1], t * 2); } else { out.copy(HEAT_C[1]).lerp(HEAT_C[2], (t - 0.5) * 2); } return out; }
   var heatTmp = new THREE.Color(), heatKey = '';
   function updateHeat() {
-    var L = window.__o3Load || {}, ids = Object.keys(people), mx = 0, any = false;
-    ids.forEach(function (id) { var v = L[id]; if (typeof v === 'number' && v >= 0) { any = true; if (v > mx) { mx = v; } } });
-    var key = JSON.stringify(L) + '|' + (Q.level === 'low' ? 'l' : 'n');
+    var L = window.__o3Load || {}, ids = Object.keys(people);
+    var LM = window.__o3LoadMs || {}, key = JSON.stringify(L) + '|' + ids.length + '|' + Math.floor(Date.now() / 60000) + '|' + (Q.level === 'low' ? 'l' : 'n');
     if (key === heatKey) { return; } heatKey = key;
     ids.forEach(function (id) {
       var r = people[id], h = r && r.heat; if (!h) { return; }
       var v = L[id];
       if (Q.level === 'low' || typeof v !== 'number' || v < 0) { h.visible = false; return; }
-      var t = mx > 0 ? v / mx : 0;
-      heatColor(t, heatTmp); h.material.color.copy(heatTmp); h.material.opacity = 0.5 + 0.38 * t; h.visible = true;
+      var t = Math.min(1, v / 8), old = LM[id] && (Date.now() - LM[id]) > 3600000;  /* absolute scale: 8 pending or more = full. Two cues: colour and disc size. Older than 1 h = dimmer. */
+      heatColor(t, heatTmp); h.material.color.copy(heatTmp); h.material.opacity = (0.5 + 0.38 * t) * (old ? 0.55 : 1); var sc = 0.55 + 0.45 * t; h.scale.set(sc, sc, 1); h.visible = true;
     });
   }
   setInterval(function () { try { updateHeat(); } catch (e) { noteErr(e, 'heat'); } }, 1500);
