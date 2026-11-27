@@ -331,10 +331,10 @@
     d.group.position.set(pos.x, 0, pos.z);
     scene.add(d.group);
     var chair = buildChair();
-    chair.position.set(pos.x, 0, pos.z - 0.85);
+    chair.position.set(pos.x, 0, pos.z - 0.72);
     scene.add(chair);
     var p = buildPerson(id);
-    var seat = new THREE.Vector3(pos.x, 0.12, pos.z - 0.85);
+    var seat = new THREE.Vector3(pos.x, 0.12, pos.z - 0.72);
     p.group.position.copy(seat);
     p.group.position.y = 0.0;
     scene.add(p.group);
@@ -342,7 +342,7 @@
     if (!window.__o3NoChars) { p.group.visible = false; setTimeout(function () { p.group.visible = true; }, 90000); }
     // stand/sit: lift body to seat, tuck legs
     var ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.78, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
-    ring.rotation.x = -Math.PI / 2; ring.position.set(pos.x, 0.09, pos.z - 0.85); scene.add(ring);
+    ring.rotation.x = -Math.PI / 2; ring.position.set(pos.x, 0.09, pos.z - 0.72); scene.add(ring);
     var rec = {
       id: id, dept: deptId, desk: d, chair: chair, person: p, ring: ring, seat: seat, front: new THREE.Vector3(pos.x, 0, pos.z + 0.95),
       state: 'unknown', label: makeLabel(), away: false, time: Math.random() * 6, nameText: '', roleText: ''
@@ -754,12 +754,13 @@
 
   var avoidRects = [], avoidN = 0;
   function refreshAvoid() {
-    avoidN++; if (avoidN % 15 !== 1 && avoidRects.length) { return; }
+    
     var lr = labelLayer.getBoundingClientRect(); avoidRects = [];
-    ['.o3-floors', '.o3-sound', '.o3-view', '.o3-clock', '.o3-cams', '.o3-fs-btn', '.o3-modes', '.o3-fsbtn'].forEach(function (sel) {
+    ['.o3-floors', '.o3-floors-toggle', '.o3-sound', '.o3-view', '.o3-clock', '.o3-cams', '.o3-fs-btn', '.o3-modes', '.o3-fsbtn'].forEach(function (sel) {
       var n = host.querySelectorAll(sel);
       for (var i = 0; i < n.length; i++) { var r = n[i].getBoundingClientRect(); if (r.width > 4 && r.height > 4) { avoidRects.push({ l: r.left - lr.left - 4, t: r.top - lr.top - 4, r: r.right - lr.left + 4, b: r.bottom - lr.top + 4 }); } }
     });
+    avoidRects.push({ l: lr.width - 64, t: 0, r: lr.width + 10, b: 120 });
   }
   var placed = [];
   function placeEl(el, x, y, anchor, nocol) {
@@ -1022,7 +1023,7 @@
     var zRects = [];
     (function () { /* keep labels clear of the floor menu, camera buttons and clock */
       var cw = canvasWrap.getBoundingClientRect();
-      ['.o3-floors', '.o3-cams', '.o3-clock', '.o3-fs-btn'].forEach(function (sel) {
+      ['.o3-floors', '.o3-floors-toggle', '.o3-cams', '.o3-clock', '.o3-fs-btn'].forEach(function (sel) {
         var e = host.querySelector(sel); if (!e || e.hidden) { return; }
         var cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden') { return; }
         var r = e.getBoundingClientRect(); if (!r.width) { return; }
@@ -1322,7 +1323,7 @@
     ['Left', 'Right'].forEach(function (sd, i) {
       var sg = i === 0 ? 1 : -1;
       wrot(r, b[sd + 'UpLeg'], WX, -1.5); wrot(r, b[sd + 'Leg'], WX, 1.5); wrot(r, b[sd + 'Foot'], WX, -0.1);
-      wrot(r, b[sd + 'Arm'], WZ, sg * 0.45); wrot(r, b[sd + "Arm"], WX, -1.25); wrot(r, b[sd + "ForeArm"], WX, -0.8);
+      wrot(r, b[sd + 'Arm'], WZ, sg * -0.3); wrot(r, b[sd + "Arm"], WX, -0.5); wrot(r, b[sd + "ForeArm"], WX, -1.15);
     });
     wrot(r, b.Spine, WX, -0.08);
   }
@@ -1331,7 +1332,7 @@
     var walking = mode === 'walk' || mode === 'walkc';
     r.mixer.stopAllAction();
     if (walking && r.acts.walk) { resetBones(r); r.acts.walk.reset().fadeIn(instant ? 0 : 0.2).play(); r.char.position.set(0, -r.minY, 0); }
-    else if (mode === 'sit') { seatPose(r); r.char.position.set(0, 0, 0); r.person.group.updateMatrixWorld(true); if (r.bones.Hips) { var hw = new THREE.Vector3(), gw = new THREE.Vector3(); r.bones.Hips.getWorldPosition(hw); r.person.group.getWorldPosition(gw); r.char.position.set(-(hw.x - gw.x), 0.67 - (hw.y - gw.y), -(hw.z - gw.z) + CHAR_SIT.z); } r.sitBase = true; }
+    else if (mode === 'sit') { seatPose(r); r.sitQ = {}; ['RightArm', 'RightForeArm'].forEach(function (n) { if (r.bones[n]) { r.sitQ[n] = r.bones[n].quaternion.clone(); } }); r.char.position.set(0, 0, 0); r.person.group.updateMatrixWorld(true); if (r.bones.Hips) { var hw = new THREE.Vector3(), gw = new THREE.Vector3(); r.bones.Hips.getWorldPosition(hw); r.person.group.getWorldPosition(gw); r.char.position.set(-(hw.x - gw.x), 0.67 - (hw.y - gw.y), -(hw.z - gw.z) + CHAR_SIT.z); } r.sitBase = true; }
     else { resetBones(r); r.char.position.set(0, -r.minY, 0); }
     r.cMode = mode;
   }
@@ -1347,6 +1348,8 @@
       ['Left', 'Right'].forEach(function (sd, i) {
         var fa = b[sd + 'ForeArm']; if (!fa) { return; }
       });
+      if (r.sitQ) { for (var qn in r.sitQ) { b[qn].quaternion.copy(r.sitQ[qn]); } }
+      if (b.Head) { b.Head.rotation.x = b.Head.userData.br.x; }
       if (b.Head) { b.Head.rotation.y = r.state === 'waiting' ? Math.sin(tt * 0.8) * 0.3 : (run ? Math.sin(tt * 1.1) * 0.06 : 0); }
       if (b.Spine) { b.Spine.rotation.x = 0.08 + Math.sin(tt * 1.6 + (r.fidPh || 0)) * 0.012; }
       // idle fidget every 8-20s: look around, nod, sip, lean back
@@ -1360,7 +1363,7 @@
           var e = Math.sin(pr * Math.PI), k = r.fid.k;
           if (k === 'look' && b.Head) { b.Head.rotation.y += r.fid.s * 0.55 * e; }
           else if (k === 'nod' && b.Head) { b.Head.rotation.x += Math.sin(pr * Math.PI * 4) * 0.12 * e; }
-          else if (k === 'sip' && b.RightForeArm) { b.RightForeArm.rotation.x += 0.9 * e; if (b.RightArm) { b.RightArm.rotation.x += 0.35 * e; } if (b.Head) { b.Head.rotation.x -= 0.1 * e; } }
+          else if (k === 'sip' && b.RightForeArm) { wrot(r, b.RightForeArm, WX, -0.9 * e); if (b.RightArm) { wrot(r, b.RightArm, WX, -0.3 * e); } if (b.Head) { b.Head.rotation.x -= 0.1 * e; } }
           else if (k === 'lean' && b.Spine) { b.Spine.rotation.x -= 0.14 * e; if (b.Head) { b.Head.rotation.x -= 0.05 * e; } }
         }
       }
