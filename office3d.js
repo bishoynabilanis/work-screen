@@ -52,6 +52,19 @@
   scene.fog = new THREE.Fog(0xdfeaf5, 60, 120);
   var hemi = new THREE.HemisphereLight(0xffffff, 0xb8c4d0, 0.95);
   scene.add(hemi);
+
+  /* Step 1 lighting: Poly Haven studio_small_09 (CC0) as image-based light */
+  try {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+    if (window.__ENV) {
+      var E = window.__ENV, bin = atob(E.b64), u8 = new Uint8Array(bin.length), k;
+      for (k = 0; k < bin.length; k++) { u8[k] = bin.charCodeAt(k); }
+      var tex = new THREE.DataTexture(new Uint16Array(u8.buffer), E.w, E.h, THREE.RGBAFormat, THREE.HalfFloatType);
+      tex.mapping = THREE.EquirectangularReflectionMapping; tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
+      var pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(tex).texture; tex.dispose(); pm.dispose();
+      hemi.intensity = 0.8;
+    }
+  } catch (e) { /* lighting stays as before */ }
   var winMats = [], cityLights = [], lampGlows = [];
   var sun = new THREE.DirectionalLight(0xfff3dc, 1.9);
   sun.position.set(1.5, 24, 22.5);
@@ -104,7 +117,7 @@
   }
 
   // ---------- environment ----------
-  function mat(color, extra) { var m = new THREE.MeshLambertMaterial({ color: color }); if (extra) { Object.assign(m, extra); } return m; }
+  function mat(color, extra) { var m = new THREE.MeshStandardMaterial({ color: color, roughness: 0.88, metalness: 0.02, envMapIntensity: 0.35 }); if (extra) { Object.assign(m, extra); } return m; }
   function box(w, h, d, color) { var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); return m; }
 
   var floor = new THREE.Mesh(new THREE.BoxGeometry(34, 0.4, 32), mat(0xf4f1ea));
@@ -267,9 +280,17 @@
     return { group: g, parts: parts };
   }
 
+  var WOODM = null, FLOORT = null;
+  (function () {
+    if (!window.__TEX) { return; }
+    function lt(src, rx, ry, srgb) { var t = new THREE.TextureLoader().load(src); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 4; if (srgb && THREE.SRGBColorSpace) { t.colorSpace = THREE.SRGBColorSpace; } return t; }
+    WOODM = new THREE.MeshStandardMaterial({ color: 0xffffff, map: lt(window.__TEX.wood, 1, 1, true), roughnessMap: lt(window.__TEX.woodR, 1, 1, false), roughness: 1, metalness: 0.02, envMapIntensity: 0.35 });
+    FLOORT = { map: lt(window.__TEX.floor, 9, 8.5, true), rmap: lt(window.__TEX.floorR, 9, 8.5, false) };
+    carpet.material.map = FLOORT.map; carpet.material.roughnessMap = FLOORT.rmap; carpet.material.roughness = 1; carpet.material.metalness = 0.04; carpet.material.envMapIntensity = 0.4; carpet.material.color.setRGB(2.3, 2.3, 2.4); carpet.material.needsUpdate = true; WOODM.color.setRGB(1.7, 1.55, 1.4);
+  })();
   function buildDesk(color) {
     var d = new THREE.Group();
-    var top = box(1.7, 0.1, 0.95, 0xc08f62); top.position.y = 0.78; d.add(top);
+    var top = box(1.7, 0.1, 0.95, 0xc08f62); if (WOODM) { top.material = WOODM; } top.position.y = 0.78; d.add(top);
     var side1 = box(0.08, 0.76, 0.9, 0x39414d); side1.position.set(-0.8, 0.38, 0); d.add(side1);
     var side2 = box(0.08, 0.76, 0.9, 0x39414d); side2.position.set(0.8, 0.38, 0); d.add(side2);
     var mon = box(0.78, 0.5, 0.05, 0x1b1e24); mon.position.set(0, 1.12, 0.05); d.add(mon);
@@ -862,8 +883,72 @@
   var pt = { x: 0, y: 0, vis: true };
   var clock = new THREE.Clock();
 
+
+  /* Step 3: post-processing (bloom + vignette) with automatic quality levels (high / med / low) */
+  var Q = { level: /[?&]q=(low|med|high)/.test(location.search) ? RegExp.$1 : (lowGpu ? 'med' : 'high'), locked: /[?&]q=(low|med|high)/.test(location.search), fps: 60, okSince: 0, frames: 0, t0: performance.now() };
+  var POST = { rt: null, a: null, b: null, quad: null, cam: null, mats: null, w: 0, h: 0 };
+  function postSupported() { if (/[?&]nopost=1/.test(location.search)) { return false; } try { return !!(renderer.capabilities.isWebGL2 && renderer.extensions.get('EXT_color_buffer_float') || renderer.extensions.get('EXT_color_buffer_half_float')); } catch (e) { return false; } }
+  function postBuild() {
+    var sz = new THREE.Vector2(); renderer.getDrawingBufferSize(sz);
+    var w = Math.max(2, sz.x | 0), h = Math.max(2, sz.y | 0);
+    if (POST.rt && POST.w === w && POST.h === h) { return; }
+    ['rt', 'a', 'b'].forEach(function (k) { if (POST[k]) { POST[k].dispose(); } });
+    var o = { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false };
+    POST.rt = new THREE.WebGLRenderTarget(w, h, Object.assign({}, o, { depthBuffer: true, samples: Q.level === 'high' ? 4 : 0 }));
+    POST.a = new THREE.WebGLRenderTarget(Math.max(2, w >> 2), Math.max(2, h >> 2), o);
+    POST.b = new THREE.WebGLRenderTarget(Math.max(2, w >> 2), Math.max(2, h >> 2), o);
+    POST.w = w; POST.h = h;
+    if (!POST.quad) {
+      var vs = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+      var mk = function (fs, u, tm) { return new THREE.ShaderMaterial({ uniforms: u, vertexShader: vs, fragmentShader: fs, depthTest: false, depthWrite: false, toneMapped: !!tm }); };
+      POST.mats = {
+        bright: mk('uniform sampler2D t; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb; float l = max(c.r, max(c.g, c.b)); gl_FragColor = vec4(c * smoothstep(0.75, 1.5, l), 1.0); }', { t: { value: null } }),
+        blur: mk('uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * 0.227; c += (texture2D(t, vUv + d * 1.38).rgb + texture2D(t, vUv - d * 1.38).rgb) * 0.316; c += (texture2D(t, vUv + d * 3.23).rgb + texture2D(t, vUv - d * 3.23).rgb) * 0.070; gl_FragColor = vec4(c, 1.0); }', { t: { value: null }, d: { value: new THREE.Vector2() } }),
+        comp: mk('uniform sampler2D t; uniform sampler2D bl; uniform float bs; varying vec2 vUv;\nvoid main(){ vec3 c = texture2D(t, vUv).rgb + texture2D(bl, vUv).rgb * bs; vec2 q = vUv - 0.5; float v = smoothstep(0.95, 0.30, length(q * vec2(1.0, 1.0))); c *= mix(0.88, 1.0, v); gl_FragColor = vec4(c, 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}', { t: { value: null }, bl: { value: null }, bs: { value: 0.55 } }, true)
+      };
+      POST.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), POST.mats.bright); POST.quad.frustumCulled = false;
+      POST.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      POST.scene = new THREE.Scene(); POST.scene.add(POST.quad);
+    }
+  }
+  function postPass(mat, target) { POST.quad.material = mat; renderer.setRenderTarget(target); renderer.render(POST.scene, POST.cam); }
+  function renderFinal() {
+    if (Q.level === 'low' || !postSupported()) { renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
+    postBuild();
+    renderer.setRenderTarget(POST.rt); renderer.render(scene, camera);
+    var M = POST.mats, bloomOn = Q.level === 'high';
+    if (bloomOn) {
+      M.bright.uniforms.t.value = POST.rt.texture; postPass(M.bright, POST.a);
+      M.blur.uniforms.t.value = POST.a.texture; M.blur.uniforms.d.value.set(1 / POST.a.width, 0); postPass(M.blur, POST.b);
+      M.blur.uniforms.t.value = POST.b.texture; M.blur.uniforms.d.value.set(0, 1 / POST.a.height); postPass(M.blur, POST.a);
+      M.blur.uniforms.t.value = POST.a.texture; M.blur.uniforms.d.value.set(1 / POST.a.width, 0); postPass(M.blur, POST.b);
+      M.blur.uniforms.t.value = POST.b.texture; M.blur.uniforms.d.value.set(0, 1 / POST.a.height); postPass(M.blur, POST.a);
+    }
+    M.comp.uniforms.t.value = POST.rt.texture; M.comp.uniforms.bl.value = POST.a.texture; M.comp.uniforms.bs.value = bloomOn ? 0.55 : 0.0;
+    postPass(M.comp, null);
+  }
+  function applyQuality() {
+    var pr = Q.level === 'high' ? Math.min(window.devicePixelRatio || 1, 2) : Q.level === 'med' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1;
+    renderer.setPixelRatio(pr); renderer.shadowMap.enabled = Q.level !== 'low'; sun.castShadow = Q.level !== 'low';
+    scene.traverse(function (o) { if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { m.needsUpdate = true; }); } });
+    POST.w = 0; resize();
+  }
+  function qualityTick() {
+    if (Q.locked) { return; }
+    Q.frames++; var now = performance.now();
+    if (now - Q.t0 < 3000) { return; }
+    Q.fps = Q.frames * 1000 / (now - Q.t0); Q.frames = 0; Q.t0 = now;
+    var order = ['low', 'med', 'high'], i = order.indexOf(Q.level);
+    if (Q.fps < 40 && i > 0) { Q.level = order[i - 1]; Q.okSince = 0; applyQuality(); }
+    else if (Q.fps > 58 && i < 2) { Q.okSince = Q.okSince || now; if (now - Q.okSince >= 10000) { Q.level = order[i + 1]; Q.okSince = 0; applyQuality(); } }
+    else { Q.okSince = 0; }
+  }
+  window.__q = Q;
+
   function frame() {
     requestAnimationFrame(frame);
+    if (document.hidden) { return; }
+    qualityTick();
     var dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
     // camera easing
     if (cine) {
@@ -903,16 +988,41 @@
     var showNames = zoom > (portrait ? 2.6 : 1.7);
     if (host.classList.contains('o3-portrait') !== portrait) { host.classList.toggle('o3-portrait', portrait); }
     var zRects = [];
+    (function () { /* keep labels clear of the floor menu, camera buttons and clock */
+      var cw = canvasWrap.getBoundingClientRect();
+      ['.o3-floors', '.o3-cams', '.o3-clock', '.o3-fs-btn'].forEach(function (sel) {
+        var e = host.querySelector(sel); if (!e || e.hidden) { return; }
+        var cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden') { return; }
+        var r = e.getBoundingClientRect(); if (!r.width) { return; }
+        zRects.push({ x: r.left - cw.left + r.width / 2, y: r.top - cw.top + r.height / 2, w: r.width / 2 + 4, h: r.height / 2 + 4 });
+      });
+    })();
+    var SHORT = { 'غرفة الاجتماعات': 'الاجتماعات', 'مكتب المالك': 'المالك', 'مكتب المديرة': 'المديرة' };
+    var zItems = [];
     Object.keys(zoneInfo).forEach(function (zid) {
       var zi = zoneInfo[zid]; if (!zi.el) { return; }
+      if (zi.full === undefined) { zi.full = zi.el.textContent; }
+      var want = (portrait && SHORT[zi.full]) ? SHORT[zi.full] : zi.full;
+      if (zi.el.textContent !== want) { zi.el.textContent = want; }
       project({ x: zi.cx, z: zi.cz - zi.d / 2 + 0.6 }, 0.6 + floorOff(zid), pt);
-      var zhw = (zi.el.offsetWidth || 0) / 2 + 6, zW = canvasWrap.clientWidth || 0, zx = zW > zhw * 2 ? Math.min(zW - zhw - (pt.y < 130 ? 58 : 0), Math.max(zhw, pt.x)) : pt.x;
-      var zhh = (zi.el.offsetHeight || 24) / 2 + 3, zy = pt.y;
-      for (var zr = 0; zr < zRects.length; zr++) { var q = zRects[zr]; if (Math.abs(zx - q.x) < zhw + q.w && Math.abs(zy - q.y) < zhh + q.h) { zy = q.y + q.h + zhh + 1; } }
-      if (pt.vis && !zi.hidden) { zRects.push({ x: zx, y: zy, w: zhw, h: zhh }); }
+      zItems.push({ zi: zi, zid: zid, px: pt.x, py: pt.y, vis: pt.vis });
+    });
+    zItems.sort(function (a, b) { return a.py - b.py; });
+    var zWc = canvasWrap.clientWidth || 0;
+    zItems.forEach(function (it) {
+      var zi = it.zi;
+      var zhw = (zi.el.offsetWidth || 0) / 2 + 6, zx = zWc > zhw * 2 ? Math.min(zWc - zhw - (it.py < 130 ? 58 : 0), Math.max(zhw, it.px)) : it.px;
+      var zhh = (zi.el.offsetHeight || 24) / 2 + 3, zy = it.py;
+      for (var pass = 0; pass < 10; pass++) {
+        var hit = false;
+        for (var zr = 0; zr < zRects.length; zr++) { var q = zRects[zr]; if (Math.abs(zx - q.x) < zhw + q.w && Math.abs(zy - q.y) < zhh + q.h) { zy = q.y + q.h + zhh + 1; hit = true; } }
+        if (!hit) { break; }
+      }
+      var show = !showNames && it.vis && !zi.hidden && !buildOn;
+      if (show) { zRects.push({ x: zx, y: zy, w: zhw, h: zhh }); }
       zi.el.style.transform = 'translate(' + zx.toFixed(1) + 'px,' + zy.toFixed(1) + 'px) translate(-50%,-50%)';
-      zi.el.style.display = (!showNames && pt.vis && !zi.hidden && !buildOn) ? '' : 'none';
-      zi.rx = pt.x; zi.ry = pt.y; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = !showNames && pt.vis && !zi.hidden && !buildOn;
+      zi.el.style.display = show ? '' : 'none';
+      zi.rx = it.px; zi.ry = it.py; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = show;
     });
     Object.keys(people).forEach(function (id) {
       var r = people[id], pa = r.person.parts;
@@ -965,7 +1075,7 @@
       bubbleEl.style.transform = 'translate(' + pt.x.toFixed(1) + 'px,' + pt.y.toFixed(1) + 'px) translate(-50%,-100%)';
     }
     stepEnvelopes();
-    renderer.render(scene, camera);
+    renderFinal();
   }
 
   window.addEventListener('resize', resize);
@@ -992,7 +1102,7 @@
   // ---------- achievements board on the back wall ----------
   var boardCanvas = document.createElement('canvas'); boardCanvas.width = 1480; boardCanvas.height = 720;
   var boardTex = new THREE.CanvasTexture(boardCanvas);
-  if (THREE.sRGBEncoding) { boardTex.encoding = THREE.sRGBEncoding; }
+  if (THREE.SRGBColorSpace) { boardTex.colorSpace = THREE.SRGBColorSpace; }
   var boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(9.3, 4.52), new THREE.MeshBasicMaterial({ map: boardTex }));
   boardMesh.position.set(5.3, 2.6, -7.04); scene.add(boardMesh);
   var boardFrame = box(9.6, 4.8, 0.1, 0x2b2f38); boardFrame.position.set(5.3, 2.6, -7.1); scene.add(boardFrame);

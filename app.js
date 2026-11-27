@@ -1122,7 +1122,7 @@
           statusLines.push({ id: aid, name: nm, text: tx, state: stt, next: nx, done: dn, pending: pd, job: jb, result: rs, ms: (m.time || 0) * 1000 });
           changed = true;
         });
-        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 60); try { renderLog(); renderCard(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
+        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 60); try { renderLog(); renderCard(); } catch (e) {} try { renderSummary(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
       })
       .catch(function () {});
   }
@@ -1334,6 +1334,23 @@
       ag.forEach(function (e) { var d = make('div', ''); d.style.cssText = 'font-size:12px;margin-top:3px'; d.textContent = (e.name || e.id || '؟') + ': ' + (e.state === 'done' ? '✓ ' : '● ') + e.text + (e.next ? ' ← الجاي: ' + e.next : ''); li.appendChild(d); });
       lines.appendChild(li);
     });
+  }
+
+  function renderSummary() {
+    var bar = document.getElementById('o3-summary');
+    if (!bar) {
+      bar = document.createElement('div'); bar.id = 'o3-summary';
+      bar.style.cssText = 'position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:30;display:flex;gap:8px;padding:6px 12px;border-radius:999px;background:rgba(7,13,24,.82);border:1px solid rgba(244,81,30,.55);color:#fff;font-size:15px;font-weight:700;pointer-events:none;backdrop-filter:blur(6px);white-space:nowrap;direction:rtl';
+      document.body.appendChild(bar);
+    }
+    var cutoff = Date.now() - 30 * 60000, latest = {}, k;
+    statusLines.forEach(function (e) { k = e.id || e.name || '?'; if (!latest[k]) { latest[k] = e; } });
+    var working = 0, done = 0, jobs = {}, pend = 0;
+    Object.keys(latest).forEach(function (id) { var e = latest[id]; if (e.ms < cutoff) { return; } if (e.state === 'done') { done++; } else { working++; } if (e.job) { jobs[e.job] = 1; } if (e.pending > 0) { pend += e.pending; } });
+    var parts = [['\u25CF ' + working + ' شغالين', '#f4511e'], ['\u2713 ' + done + ' خلصوا', '#22d3ee'], [Object.keys(jobs).length + ' شغلانات', '#8b5cf6']];
+    if (pend) { parts.push([pend + ' معلّق', '#9aa8bd']); }
+    bar.textContent = '';
+    parts.forEach(function (p) { var sp = document.createElement('span'); sp.textContent = p[0]; sp.style.color = p[1]; bar.appendChild(sp); });
   }
   function renderLog() {
     var panel = ensureLogPanel(); if (!panel) { return; }
