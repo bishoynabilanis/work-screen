@@ -52,6 +52,32 @@
   scene.fog = new THREE.Fog(0xdfeaf5, 60, 120);
   var hemi = new THREE.HemisphereLight(0xffffff, 0xb8c4d0, 0.95);
   scene.add(hemi);
+
+  /* Step 1 lighting: Poly Haven studio_small_09 (CC0) as image-based light */
+  function parseRGBE(buf) {
+    var u = new Uint8Array(buf), pos = 0, w = 0, h = 0, line;
+    function readLine() { var st = pos; while (pos < u.length && u[pos] !== 10) { pos++; } var t = ''; for (var i = st; i < pos; i++) { t += String.fromCharCode(u[i]); } pos++; return t; }
+    while ((line = readLine()) !== undefined) { var m = /^-Y (\d+) \+X (\d+)/.exec(line); if (m) { h = +m[1]; w = +m[2]; break; } if (pos >= u.length) { return null; } }
+    var rgbe = new Uint8Array(w * h * 4), y, x, c, i;
+    for (y = 0; y < h; y++) {
+      if (u[pos] !== 2 || u[pos + 1] !== 2 || (u[pos + 2] & 128)) { return null; }
+      pos += 4; var sc = y * w * 4;
+      for (c = 0; c < 4; c++) { x = 0; while (x < w) { var n = u[pos++]; if (n > 128) { n -= 128; var v = u[pos++]; while (n--) { rgbe[sc + (x++) * 4 + c] = v; } } else { while (n--) { rgbe[sc + (x++) * 4 + c] = u[pos++]; } } } }
+    }
+    var out = new Uint16Array(w * h * 4), D = THREE.DataUtils;
+    for (i = 0; i < w * h; i++) { var e = rgbe[i * 4 + 3], f = e ? Math.pow(2, e - 136) : 0; out[i * 4] = D.toHalfFloat(rgbe[i * 4] * f); out[i * 4 + 1] = D.toHalfFloat(rgbe[i * 4 + 1] * f); out[i * 4 + 2] = D.toHalfFloat(rgbe[i * 4 + 2] * f); out[i * 4 + 3] = D.toHalfFloat(1); }
+    return { w: w, h: h, data: out };
+  }
+  try {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+    fetch('hdr/studio_small_09_1k.hdr').then(function (r) { return r.arrayBuffer(); }).then(function (b) {
+      var r = parseRGBE(b); if (!r) { return; }
+      var tex = new THREE.DataTexture(r.data, r.w, r.h, THREE.RGBAFormat, THREE.HalfFloatType);
+      tex.mapping = THREE.EquirectangularReflectionMapping; tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
+      var pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(tex).texture; tex.dispose(); pm.dispose();
+      hemi.intensity = 0.8;
+    }).catch(function () {});
+  } catch (e) { /* lighting stays as before */ }
   var winMats = [], cityLights = [], lampGlows = [];
   var sun = new THREE.DirectionalLight(0xfff3dc, 1.9);
   sun.position.set(1.5, 24, 22.5);
@@ -104,7 +130,7 @@
   }
 
   // ---------- environment ----------
-  function mat(color, extra) { var m = new THREE.MeshLambertMaterial({ color: color }); if (extra) { Object.assign(m, extra); } return m; }
+  function mat(color, extra) { var m = new THREE.MeshStandardMaterial({ color: color, roughness: 0.88, metalness: 0.02, envMapIntensity: 0.35 }); if (extra) { Object.assign(m, extra); } return m; }
   function box(w, h, d, color) { var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); return m; }
 
   var floor = new THREE.Mesh(new THREE.BoxGeometry(34, 0.4, 32), mat(0xf4f1ea));
