@@ -1771,7 +1771,7 @@
         li.style.borderInlineStart = '4px solid ' + bc; li.style.paddingInlineStart = '8px';
         li.appendChild(document.createTextNode(ss + ' · '));
         if (e.name) { var nsp = document.createElement('strong'); nsp.textContent = e.name; nsp.style.color = bc; li.appendChild(nsp); li.appendChild(document.createTextNode(': ')); }
-        li.appendChild(document.createTextNode((e.state === 'done' ? '✓ خلّص ' : e.state === 'blocked' ? '■ واقف ' : '● بيشتغل ') + (publicText(e.text) || 'شغلانة')));
+        li.appendChild(document.createTextNode(e.text === NOJOB ? '● لسه ما بعتش' : (e.state === 'done' ? '✓ خلّص ' : e.state === 'blocked' ? '■ واقف ' : '● بيشتغل ') + (publicText(e.text) || 'شغلانة')));
         lines.appendChild(li);
       });
     }
