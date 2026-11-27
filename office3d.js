@@ -1060,12 +1060,14 @@
     });
   }
   setInterval(function () { try { if (srch.on) { applySearch(false); } updateHeat(); } catch (e) { noteErr(e, 'heat'); } }, 1500);
+  function arN(n, a) { return n === 1 ? a[0] : (n === 2 ? a[1] : n + ' ' + (n <= 10 ? a[2] : a[3])); }  /* Arabic counted nouns: 1 singular, 2 dual, 3-10 plural, 11+ singular (Rule 110) */
+  var A_MIN = ['دقيقة', 'دقيقتين', 'دقايق', 'دقيقة'], A_EMP = ['موظف واحد', 'موظفين', 'موظفين', 'موظف'];
   function fmtAge(m) {
-    if (m < 60) { return m + ' د'; }
+    if (m < 60) { return arN(m, A_MIN); }
     var d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), r = m % 60;
     function hw(n) { return n === 1 ? 'ساعة' : (n === 2 ? 'ساعتين' : (n <= 10 ? n + ' ساعات' : n + ' ساعة')); }
     if (d >= 1) { var dw = d === 1 ? 'يوم' : (d === 2 ? 'يومين' : (d <= 10 ? d + ' أيام' : d + ' يوم')); return h ? dw + ' و' + hw(h) : dw; }
-    return r ? hw(h) + ' و' + r + ' د' : hw(h);
+    return r ? hw(h) + ' و' + arN(r, A_MIN) : hw(h);
   }
   function applyQuality() {
     var pr = targetPR();
@@ -1120,9 +1122,9 @@
       alertKey = key; alertIds = ids; alertIdx = 0;
       if (!ids.length && nst <= 3 && !feedOld && !down) { alertBar.classList.remove('on'); alertBar.classList.remove('calm'); return; }
       alertBar.classList.toggle('calm', !ids.length);
-      if (!ids.length) { alertBar.textContent = down ? 'الاتصال بالتيار واقف' + (feedOld ? ' وبيانات قديمة من ' + fmtAge(ageMin) : '') : (feedOld ? 'بيانات قديمة: آخر بيانات من ' + fmtAge(ageMin) : nst + ' بدون تحديث من 30 د'); }
+      if (!ids.length) { alertBar.textContent = down ? 'الاتصال بالتيار واقف' + (feedOld ? ' وبيانات قديمة من ' + fmtAge(ageMin) : '') : (feedOld ? 'بيانات قديمة: آخر بيانات من ' + fmtAge(ageMin) : arN(nst, A_EMP) + ' في المشهد بدون تحديث من 30 دقيقة'); }
       else {
-        var tail = nst ? ' وفيه ' + nst + ' بدون تحديث' : '';
+        var tail = nst ? ' وفيه ' + arN(nst, A_EMP) + ' بدون تحديث' : '';
         if (feedOld) { tail += ' وبيانات قديمة'; }
         if (down) { tail += ' والاتصال واقف'; }
         var nm = ids.slice(0, port ? 1 : 2).map(function (k) { return people[k].nameText || '؟'; }).join('، ');
@@ -1612,7 +1614,7 @@
     var rows = ids.map(function (i) { var r = people[i], st = STAT[r.state] ? r.state : 'unknown'; cnt[st]++; return { st: st, n: r.nameText, role: r.roleText || '' }; });
     var ord = { running: 0, waiting: 1, blocked: 2, done: 3, unknown: 4 };
     rows.sort(function (a, b) { return ord[a.st] - ord[b.st]; });
-    var h = '<div style="font-weight:700;margin-bottom:6px">شغال ' + cnt.running + ' · مستني ' + cnt.waiting + ' · مش شغال ' + (cnt.unknown + cnt.done) + '</div>';
+    var h = '<div style="font-weight:700;margin-bottom:6px">الموظفين: شغال ' + cnt.running + '، مستني ' + cnt.waiting + '، مش شغال ' + (cnt.unknown + cnt.done) + '</div>';
     rows.forEach(function (x) { h += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-top:1px solid rgba(255,255,255,.08)"><span style="width:8px;height:8px;border-radius:50%;background:' + STAT[x.st][1] + ';flex:none"></span><b>' + x.n.replace(/</g, '') + '</b><span style="opacity:.65;flex:1">' + x.role.replace(/</g, '') + '</span><span style="color:' + STAT[x.st][1] + '">' + STAT[x.st][0] + '</span></div>'; });
     rosterPanel.innerHTML = h;
   }
@@ -1635,6 +1637,72 @@
   syncViewBtn();
   (host.querySelector('.o3-stage') || host).appendChild(viewBtn);
 
+  /* Idea 25: minimap. Plan view of the office (x right, z down). Dots = people by real state, polygon = what the camera sees, click = fly there. */
+  (function () {
+    var stage = host.querySelector('.o3-stage') || host, MX0 = -5.5, MX1 = 28.5, MZ0 = -7.5, MZ1 = 24.5, W = 136, H = Math.round(W * (MZ1 - MZ0) / (MX1 - MX0));
+    var wrap = document.createElement('div'); wrap.className = 'o3-minimap'; wrap.setAttribute('dir', 'rtl');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;align-items:center;margin:6px auto;width:min(560px,calc(100vw - 20px));box-sizing:border-box;padding:0 6px';
+    var tg = document.createElement('button'); tg.type = 'button'; tg.style.cssText = 'min-height:44px;min-width:44px;padding:4px 12px;border-radius:999px;background:rgba(7,13,24,.9);border:1px solid #22d3ee;color:#fff;font:700 14px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+    var cv = document.createElement('canvas'); cv.tabIndex = 0; cv.setAttribute('role', 'img');
+    cv.setAttribute('aria-label', 'خريطة المكتب. اضغط على مكان أو استخدم الأسهم عشان الكاميرا تروح هناك');
+    cv.style.cssText = 'width:' + W + 'px;height:' + H + 'px;border-radius:10px;background:#070d18;border:1px solid rgba(34,211,238,.6);touch-action:none;cursor:pointer';
+    var dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr;
+    var tb = document.createElement('button'); tb.type = 'button'; tb.id = 'o3-tourbtn'; tb.textContent = 'الجولة'; tb.style.cssText = tg.style.cssText; tb.addEventListener('click', function () { if (window.__o3StartTour) { window.__o3StartTour(); } });
+    var brow = document.createElement('div'); brow.style.cssText = 'display:flex;gap:6px'; brow.appendChild(tg); brow.appendChild(tb); wrap.appendChild(brow);
+    var capEl = document.createElement('div'); capEl.style.cssText = 'font-size:14px;line-height:1.7;color:#b9cce2;text-align:center;display:none'; wrap.appendChild(capEl);
+    var mrow = document.createElement('div'); mrow.style.cssText = 'display:none;gap:12px;align-items:flex-start;justify-content:center;flex-wrap:wrap'; mrow.appendChild(cv);
+    var lg = document.createElement('div'); lg.setAttribute('dir', 'rtl'); lg.style.cssText = 'font-size:14px;line-height:1.7;color:#e6eef8;flex:1 1 170px;min-width:0;max-width:300px;text-align:right';
+    [['#3aa0ff', 'شغال', 0], ['#f6c453', 'مستني', 0], ['#4ade80', 'خلّص', 0], ['#9aa0aa', 'مش شغال', 0], ['#f87171', 'واقف: نقطة أكبر بحلقة بيضا', 2], ['#9aa0aa', 'من غير تحديث: رمادي بحلقة', 1]].forEach(function (it) {
+      var d = document.createElement('div'); var dot = document.createElement('span'); dot.setAttribute('aria-hidden', 'true');
+      dot.style.cssText = 'display:inline-block;border-radius:50%;margin-inline-end:8px;vertical-align:middle;background:' + it[0] + ';width:' + (it[2] === 2 ? 14 : 10) + 'px;height:' + (it[2] === 2 ? 14 : 10) + 'px;' + (it[2] ? 'box-shadow:0 0 0 2px #fff;' : '');
+      d.appendChild(dot); d.appendChild(document.createTextNode(it[1])); lg.appendChild(d);
+    });
+    var lq = document.createElement('div'); lq.textContent = 'المضلع السيان: اللي الكاميرا شايفاه'; lg.appendChild(lq);
+    mrow.appendChild(lg); wrap.appendChild(mrow); host.parentNode.insertBefore(wrap, host);
+    var open = false; try { open = localStorage.getItem('o3-mm-open') === '1'; } catch (e) { open = false; }
+    function sync() { tg.textContent = open ? 'الخريطة ▴' : 'الخريطة ▾'; tg.setAttribute('aria-expanded', open ? 'true' : 'false'); mrow.style.display = open ? 'flex' : 'none'; capEl.style.display = open ? 'block' : 'none'; if (open) { draw(); } }
+    tg.addEventListener('click', function () { open = !open; try { localStorage.setItem('o3-mm-open', open ? '1' : '0'); } catch (e) { /* ignore */ } sync(); });
+    function px(x) { return (x - MX0) / (MX1 - MX0) * W; }
+    function pz(z) { return (z - MZ0) / (MZ1 - MZ0) * H; }
+    var rr = new THREE.Raycaster(), nn = new THREE.Vector2(), hit = new THREE.Vector3(), gp = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    function viewPoly() {
+      var out = [];
+      [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function (c) { nn.set(c[0], c[1]); rr.setFromCamera(nn, camera); if (rr.ray.intersectPlane(gp, hit)) { out.push([hit.x, hit.z]); } });
+      return out.length === 4 ? out : null;
+    }
+    function hex(n) { return '#' + ('000000' + n.toString(16)).slice(-6); }
+    function draw() {
+      var c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+      c.strokeStyle = 'rgba(185,204,226,.35)'; c.lineWidth = 1; c.strokeRect(0.5, 0.5, W - 1, H - 1);
+      var fAge = feedNewest > 0 ? Date.now() - feedNewest : 0, fOld = feedNewest > 0 && fAge >= 1800000, fT = feedNewest > 0 ? new Date(feedNewest + 4 * 3600000) : null;
+      var fHM = fT ? ('0' + fT.getUTCHours()).slice(-2) + ':' + ('0' + fT.getUTCMinutes()).slice(-2) : '';
+      capEl.textContent = fT ? ('آخر حالة معروفة الساعة ' + fHM + ' بتوقيت دبي، من ' + fmtAge(Math.max(1, Math.round(fAge / 60000))) + (fOld ? '. كل الحالات أقدم من 30 دقيقة، فالنقط رمادي بحلقة، زي الأعداد اللي فوق (آخر 30 دقيقة).' : '. الألوان بتوري حالة كل موظف في المشهد حسب آخر حالة معروفة (بيشمل موظفين حالتهم من بيانات الفريق مش من خط الحالة الحي)، والأعداد اللي فوق بتعدّ اللي بعتوا تحديث في آخر 30 دقيقة بس.')) : 'لسه مفيش حالة وصلت.';
+      var mc = { running: 0, waiting: 0, done: 0, blocked: 0, unknown: 0, stale: 0 };
+      Object.keys(people).forEach(function (id) {
+        var r = people[id]; if (!r || r.hidden || !r.seat) { return; }
+        var st0 = r.stale || (fOld && r.state !== 'blocked'); if (st0) { mc.stale++; } else { mc[STATE_COLOR[r.state] ? r.state : 'unknown']++; }
+        var x = px(r.seat.x), y = pz(r.seat.z), col = (r.stale || (fOld && r.state !== 'blocked')) ? '#9aa0aa' : hex(STATE_COLOR[r.state] || STATE_COLOR.unknown), dim = srch.on && !r.match && r.state !== 'blocked';
+        c.globalAlpha = dim ? 0.3 : 1; c.fillStyle = col; c.beginPath(); c.arc(x, y, r.state === 'blocked' ? 4 : 3, 0, 6.2832); c.fill();
+        if (r.state === 'blocked') { c.strokeStyle = '#ffffff'; c.lineWidth = 1.5; c.stroke(); }
+        if (r.stale || (fOld && r.state !== 'blocked')) { c.strokeStyle = '#ffffff'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, 4.5, 0, 6.2832); c.stroke(); }
+      });
+      c.globalAlpha = 1;
+      var totP = mc.running + mc.waiting + mc.done + mc.blocked + mc.unknown + mc.stale;
+      cv.setAttribute('aria-label', 'خريطة المكتب. ' + (fT ? 'آخر حالة معروفة الساعة ' + fHM + ' بتوقيت دبي. ' + (fOld ? 'كل الحالات أقدم من 30 دقيقة. ' : '') : '') + 'الأعداد اللي في أعلى الصفحة بتعدّ اللي بعتوا تحديث في آخر 30 دقيقة بس. الموظفين في المشهد حسب آخر حالة معروفة (بيشمل موظفين حالتهم من بيانات الفريق مش من خط الحالة الحي)، ' + totP + ' موظف، وكل موظف بيتعدّ مرة واحدة: شغال (حالته حديثة) ' + mc.running + '، مستني ' + mc.waiting + '، خلّص ' + mc.done + '، واقف ' + mc.blocked + '، مش شغال ' + mc.unknown + '، من غير تحديث من 30 دقيقة ' + mc.stale + '. اضغط على مكان أو استخدم الأسهم عشان الكاميرا تروح هناك');
+      var vp = viewPoly();
+      if (vp) { c.strokeStyle = '#22d3ee'; c.lineWidth = 2; c.beginPath(); vp.forEach(function (q, i) { var X = Math.max(-2, Math.min(W + 2, px(q[0]))), Y = Math.max(-2, Math.min(H + 2, pz(q[1]))); if (i) { c.lineTo(X, Y); } else { c.moveTo(X, Y); } }); c.closePath(); c.stroke(); }
+    }
+    function go(x, z) { userTouch(); flyTo(new THREE.Vector3(Math.max(MX0, Math.min(MX1, x)), 0, Math.max(MZ0, Math.min(MZ1, z))), zoom); }
+    function fromEvent(e) { var b = cv.getBoundingClientRect(); go(MX0 + (e.clientX - b.left) / b.width * (MX1 - MX0), MZ0 + (e.clientY - b.top) / b.height * (MZ1 - MZ0)); }
+    cv.addEventListener('pointerdown', function (e) { e.preventDefault(); e.stopPropagation(); fromEvent(e); });
+    cv.addEventListener('keydown', function (e) {
+      var d = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, -2], ArrowDown: [0, 2] }[e.key]; if (!d) { return; }
+      e.preventDefault(); go(target.x + d[0], target.z + d[1]);
+    });
+    setInterval(function () { if (open && !document.hidden) { try { draw(); } catch (e) { noteErr(e, 'minimap'); } } }, 500);
+    window.__o3Minimap = { draw: draw, poly: viewPoly };
+    sync();
+  })();
   window.__o3dbg = { people: people, charTpl: charTpl };
   initCharacters();
   window.Office3D = { ready: true, snapshot: function () { try { renderFinal(); return renderer.domElement.toDataURL('image/png'); } catch (e) { return ''; } }, search: function (q, f, fly) { srch.q = String(q || ''); srch.f = f || 'all'; srch.on = !!srch.q.trim() || srch.f !== 'all'; return applySearch(!!fly); }, setFloor: setFloor, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
