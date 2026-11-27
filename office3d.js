@@ -386,7 +386,7 @@
         var rug = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.03, 3.2), mat(0x2f3e5c)); rug.position.set(cxm, 0.14, -3.9); rug.receiveShadow = true; scene.add(rug);
         var rug2 = new THREE.Mesh(new THREE.BoxGeometry(3.7, 0.035, 2.5), mat(0xd9b77a)); rug2.position.set(cxm, 0.15, -3.9); scene.add(rug2);
         if (kind === 'mgr') { mgrWalls = []; }
-        function wallM(nx, nz) { var m = new THREE.MeshLambertMaterial({ color: 0xf1ece2, transparent: true, opacity: 1 }); mgrWalls.push({ m: m, nx: nx, nz: nz }); return m; }
+        function wallM(nx, nz) { var m = new THREE.MeshLambertMaterial({ color: 0xcfeeff, transparent: true, opacity: 0.17, side: THREE.DoubleSide, depthWrite: false }); mgrWalls.push({ m: m, nx: nx, nz: nz }); return m; }
         function wall(cx, cz, w, d, nx, nz, h, y0) {
           var wm = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallM(nx, nz)); wm.position.set(cx, (y0 || 0) + h / 2, cz); wm.castShadow = false; scene.add(wm);
           return wm;
@@ -879,7 +879,7 @@
         if (fp) { var pp = fp.away ? fp.person.group.position : fp.seat; desiredTarget.set(pp.x, 0, pp.z); desiredZoom = 2.6; elUT = 0.4; azUT += (0.9 - azUT) * dt * 0.3; }
       }
     }
-    mgrWalls.forEach(function (w) { var v = (camDir.x * w.nx + camDir.z * w.nz) > 0.12 ? 0.06 : 1; w.m.opacity += (v - w.m.opacity) * Math.min(1, dt * 6); w.m.depthWrite = w.m.opacity > 0.95; });
+    mgrWalls.forEach(function (w) { var v = (camDir.x * w.nx + camDir.z * w.nz) > 0.12 ? 0.04 : 0.17; w.m.opacity += (v - w.m.opacity) * Math.min(1, dt * 6); w.m.depthWrite = false; });
     azU += (azUT - azU) * Math.min(1, dt * 9); elU += (elUT - elU) * Math.min(1, dt * 9);
     // slow orbit when idle in the wide view
     var idle = !cine && !cineHome && ptCount() === 0 && performance.now() - lastTouch > 20000 && zoom < 2.2;
