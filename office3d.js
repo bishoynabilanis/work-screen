@@ -1029,12 +1029,13 @@
     return toks.every(function (t) { return hay.indexOf(t) > -1; });
   }
   function applySearch(fly) {
-    var ids = Object.keys(people), n = 0, total = 0, pts = [];
+    var ids = Object.keys(people), n = 0, total = 0, pts = [], outB = 0;
     ids.forEach(function (id) {
       var r = people[id]; if (!r.hidden) { total++; }
       r.match = srch.on ? recMatch(r) : true;
+      if (srch.on && !r.match && !r.hidden && r.state === 'blocked') { outB++; }
       if (r.match && srch.on && !r.hidden) { n++; pts.push(r.seat); if (!r.hl) { r.hl = new THREE.Mesh(new THREE.RingGeometry(1.08, 1.26, 40), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide })); r.hl.rotation.x = -Math.PI / 2; r.hl.position.set(r.seat.x, 0.13, r.seat.z + 0.42); scene.add(r.hl); } }
-      var dm = (srch.on && !r.match) ? '0.25' : ''; r.label.style.opacity = dm; if (r.label.__s) { r.label.__s.style.opacity = dm; }
+      var dm = (srch.on && !r.match && r.state !== 'blocked') ? '0.25' : ''; r.label.style.opacity = dm; if (r.label.__s) { r.label.__s.style.opacity = dm; }
     });
     heatKey = '';
     if (fly && srch.on && pts.length) {
@@ -1042,7 +1043,9 @@
       var sp = 0; pts.forEach(function (q) { sp = Math.max(sp, Math.hypot(q.x - cx, q.z - cz)); });
       userTouch(); flyTo(new THREE.Vector3(cx, 0, cz), pts.length === 1 ? 2.4 : Math.max(1, Math.min(2.2, 20 / (sp + 7))));
     }
-    return { n: srch.on ? n : total, total: total, on: srch.on };
+    var res = { n: srch.on ? n : total, total: total, on: srch.on, outBlocked: outB, feedOld: feedNewest > 0 && (Date.now() - feedNewest) >= 1800000 };
+    if (window.__o3SearchCb) { try { window.__o3SearchCb(res); } catch (e) {} }
+    return res;
   }
   function updateHeat() {
     var L = window.__o3Load || {}, ids = Object.keys(people);
@@ -1053,7 +1056,7 @@
       var v = L[id];
       if (Q.level === 'low' || typeof v !== 'number' || v < 0) { h.visible = false; return; }
       var t = Math.min(1, v / 8), old = LM[id] && (Date.now() - LM[id]) > 3600000;  /* absolute scale: 8 pending or more = full. Two cues: colour and disc size. Older than 1 h = dimmer. */
-      heatColor(t, heatTmp); h.material.color.copy(heatTmp); h.material.opacity = (0.5 + 0.38 * t) * (old ? 0.55 : 1) * (srch.on && !r.match ? 0.25 : 1); var sc = 0.55 + 0.45 * t; h.scale.set(sc, sc, 1); h.visible = true;
+      heatColor(t, heatTmp); h.material.color.copy(heatTmp); h.material.opacity = (0.5 + 0.38 * t) * (old ? 0.55 : 1) * (srch.on && !r.match && r.state !== 'blocked' ? 0.25 : 1); var sc = 0.55 + 0.45 * t; h.scale.set(sc, sc, 1); h.visible = true;
     });
   }
   setInterval(function () { try { if (srch.on) { applySearch(false); } updateHeat(); } catch (e) { noteErr(e, 'heat'); } }, 1500);
@@ -1249,7 +1252,7 @@
         r.ring.material.color.setHex(0xef4444); r.ring.material.opacity = 0.5 + 0.5 * pu; r.ring.scale.setScalar(1 + 0.18 * pu);
       } else { r.ring.scale.setScalar(1); }
       if (srch.on) {
-        if (!r.match) { r.ring.material.opacity *= 0.25; }
+        if (!r.match && r.state !== 'blocked') { r.ring.material.opacity *= 0.25; }  /* Rule 92: alerts are never dimmed */
         if (r.hl) { r.hl.visible = !!r.match && !r.hidden; if (r.hl.visible) { var hp = 0.5 + 0.5 * Math.sin(time * 4); r.hl.material.opacity = 0.6 + 0.4 * hp; r.hl.scale.setScalar(1 + 0.1 * hp); } }
       } else if (r.hl && r.hl.visible) { r.hl.visible = false; }
       var mins = Math.max(30, Math.floor((Date.now() - r.last) / 60000)); var wantTxt = al ? 'محتاج تدخل' : 'آخر تحديث من ' + fmtAge(mins); if (r.label.__a.__txt !== wantTxt) { r.label.__a.__txt = wantTxt; r.label.__a.textContent = wantTxt; }  r.label.__a.classList.toggle('is-stale', !al);
