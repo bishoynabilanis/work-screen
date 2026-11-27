@@ -1740,3 +1740,12 @@ body, .o3-clock, .o3-line-head, #o3-summary { font-variant-numeric: tabular-nums
 
 .o3-status { z-index: 1 !important; }
 .o3-zone { z-index: 4 !important; }
+
+/* Ibrahim fix: status bubble readable, never cut, min 14px */
+.o3-status, .o3-portrait .o3-status { font-size: 14px !important; line-height: 1.3 !important; padding: 4px 8px !important; }
+.o3-status:not(.full), .o3-portrait .o3-status:not(.full) { padding: 3px 6px !important; }
+.o3-status::before, .o3-status.full::before, .o3-status[data-state="waiting"].full::before { font-size: 14px !important; }
+.o3-st-text, .o3-portrait .o3-st-text { white-space: normal !important; max-width: min(220px, 60vw) !important; overflow: visible !important; text-overflow: clip !important; }
+.o3-status { white-space: normal !important; max-width: min(240px, 66vw); }
+.o3-label span, .o3-portrait .o3-label span { font-size: 14px !important; }
+.o3-label, .o3-portrait .o3-label { font-size: 14px !important; }
