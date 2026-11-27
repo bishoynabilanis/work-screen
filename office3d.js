@@ -700,7 +700,7 @@
     var dy = Math.max(-120, Math.min(120, e.deltaY)); if (e.deltaMode === 1) { dy *= 16; } desiredZoom = clampZ(desiredZoom * Math.exp(-dy * 0.0009));
   }, { passive: false });
 
-  function resetView() { userTouch(); setCamMode('free'); azUT = 0; elUT = 0.8; desiredTarget.set(12.5, 0, 9); desiredZoom = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85 ? 0.66 : 1; }
+  function resetView() { userTouch(); setCamMode('free'); azUT = 0; elUT = 0.8; desiredTarget.set(12.5, 0, 9); desiredZoom = (canvasWrap.clientWidth || 1) / (canvasWrap.clientHeight || 1) < 0.85 ? 0.66 : 1; var rm = false; try { rm = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e2) { rm = false; } if (rm) { target.copy(desiredTarget); zoom = desiredZoom; az = azUT; azU = azUT; elU = elUT; } }
   el.addEventListener('dblclick', resetView);
   window.__o3Reset = resetView;
   var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -1654,7 +1654,7 @@
     cv.style.cssText = 'width:' + W + 'px;height:' + H + 'px;border-radius:10px;background:#070d18;border:1px solid rgba(34,211,238,.6);touch-action:none;cursor:pointer';
     var dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr;
     var tb = document.createElement('button'); tb.type = 'button'; tb.id = 'o3-tourbtn'; tb.textContent = 'الجولة'; tb.style.cssText = tg.style.cssText; tb.addEventListener('click', function () { if (window.__o3StartTour) { window.__o3StartTour(); } });
-    var brow = document.createElement('div'); brow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center'; var rb = document.createElement('button'); rb.type = 'button'; rb.id = 'o3-resetbtn'; rb.textContent = 'المنظر العام'; rb.setAttribute('aria-label', 'رجوع للمنظر العام للمكتب'); rb.style.cssText = tg.style.cssText; rb.addEventListener('click', function () { resetView(); }); brow.appendChild(tg); brow.appendChild(tb); brow.appendChild(rb); wrap.appendChild(brow);
+    var brow = document.createElement('div'); brow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center'; var rb = document.createElement('button'); rb.type = 'button'; rb.id = 'o3-resetbtn'; rb.textContent = 'المنظر العام'; rb.setAttribute('aria-label', 'رجوع للمنظر العام للمكتب'); rb.style.cssText = tg.style.cssText; rb.addEventListener('click', function () { resetView(); }); brow.appendChild(tg); brow.appendChild(tb); brow.appendChild(rb); wrap.appendChild(brow); var gh = document.createElement('div'); gh.id = 'o3-gesturehint'; gh.textContent = 'اضغط مرتين بسرعة على المشهد أو اضغط زر المنظر العام عشان ترجع للمنظر الكامل'; gh.style.cssText = 'font-size:14px;line-height:1.5;color:#c9d3e6;text-align:center;padding:2px 8px'; wrap.appendChild(gh); cv.title = 'اضغط مرتين بسرعة للرجوع للمنظر الكامل';
     var capEl = document.createElement('div'); capEl.style.cssText = 'font-size:14px;line-height:1.7;color:#b9cce2;text-align:center;display:none'; wrap.appendChild(capEl);
     var mrow = document.createElement('div'); mrow.style.cssText = 'display:none;gap:12px;align-items:flex-start;justify-content:center;flex-wrap:wrap'; mrow.appendChild(cv);
     var lg = document.createElement('div'); lg.setAttribute('dir', 'rtl'); lg.style.cssText = 'font-size:14px;line-height:1.7;color:#e6eef8;flex:1 1 170px;min-width:0;max-width:300px;text-align:right';
@@ -1709,7 +1709,7 @@
     window.__o3Minimap = { draw: draw, poly: viewPoly };
     sync();
   })();
-  window.__o3dbg = { people: people, charTpl: charTpl, cam: function () { return { az: azUT, el: elUT, zoom: desiredZoom, tx: desiredTarget.x, tz: desiredTarget.z }; } };
+  window.__o3dbg = { live: function () { return { az: az, azU: azU, el: elU, zoom: zoom, tx: target.x, tz: target.z }; }, people: people, charTpl: charTpl, cam: function () { return { az: azUT, el: elUT, zoom: desiredZoom, tx: desiredTarget.x, tz: desiredTarget.z }; } };
   initCharacters();
   window.Office3D = { ready: true, snapshot: function () { try { renderFinal(); return renderer.domElement.toDataURL('image/png'); } catch (e) { return ''; } }, search: function (q, f, fly) { srch.q = String(q || ''); srch.f = f || 'all'; srch.on = !!srch.q.trim() || srch.f !== 'all'; return applySearch(!!fly); }, setFloor: setFloor, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
   if (hint) { hint.hidden = false; }
