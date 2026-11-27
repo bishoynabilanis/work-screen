@@ -761,7 +761,8 @@
       for (var i = 0; i < n.length; i++) { var r = n[i].getBoundingClientRect(); if (r.width > 4 && r.height > 4) { avoidRects.push({ l: r.left - lr.left - 4, t: r.top - lr.top - 4, r: r.right - lr.left + 4, b: r.bottom - lr.top + 4 }); } }
     });
   }
-  function placeEl(el, x, y, anchor) {
+  var placed = [];
+  function placeEl(el, x, y, anchor, nocol) {
     var w = el.offsetWidth || 60, h = el.offsetHeight || 24, W = labelLayer.clientWidth || 300, H = labelLayer.clientHeight || 300;
     if (W < w + 16 || H < h + 16) { el.style.display = 'none'; return false; }
     var cx = Math.min(W - w / 2 - 8, Math.max(w / 2 + 8, x));
@@ -769,6 +770,17 @@
     top = Math.min(H - h - 8, Math.max(8, top));
     var l = cx - w / 2, r = cx + w / 2;
     for (var i = 0; i < avoidRects.length; i++) { var a = avoidRects[i]; if (l < a.r && r > a.l && top < a.b && top + h > a.t) { el.style.display = 'none'; return false; } }
+    if (!nocol) {
+      for (var pass = 0; pass < 8; pass++) {
+        var moved = false;
+        for (var k = 0; k < placed.length; k++) { var q = placed[k]; if (l < q.r - 1 && r > q.l + 1 && top < q.b - 1 && top + h > q.t + 1) { top = q.t - h - 2; moved = true; } }
+        if (!moved) { break; }
+        if (top < 8) { el.style.display = 'none'; return false; }
+        for (var j = 0; j < avoidRects.length; j++) { var a2 = avoidRects[j]; if (l < a2.r && r > a2.l && top < a2.b && top + h > a2.t) { el.style.display = 'none'; return false; } }
+      }
+      for (var k2 = 0; k2 < placed.length; k2++) { var q2 = placed[k2]; if (l < q2.r - 1 && r > q2.l + 1 && top < q2.b - 1 && top + h > q2.t + 1) { el.style.display = 'none'; return false; } }
+    }
+    placed.push({ l: l, r: r, t: top, b: top + h });
     el.style.transform = 'translate(' + cx.toFixed(1) + 'px,' + (top + (anchor === 'b' ? h : h / 2)).toFixed(1) + 'px) translate(-50%,' + (anchor === 'b' ? '-100%' : '-50%') + ')';
     return true;
   }
@@ -1018,7 +1030,7 @@
       });
     })();
     var SHORT = { 'غرفة الاجتماعات': 'الاجتماعات', 'مكتب المالك': 'المالك', 'مكتب المديرة': 'المديرة' };
-    refreshAvoid();
+    refreshAvoid(); placed.length = 0;
     var zItems = [];
     Object.keys(zoneInfo).forEach(function (zid) {
       var zi = zoneInfo[zid]; if (!zi.el) { return; }
@@ -1043,7 +1055,7 @@
       var show = !showNames && it.vis && !zi.hidden && !buildOn;
       if (show) { zRects.push({ x: zx, y: zy, w: zhw, h: zhh }); }
       zi.el.style.display = show ? '' : 'none';
-      if (show && !placeEl(zi.el, zx, zy, 'c')) { show = false; }
+      if (show && !placeEl(zi.el, zx, zy, 'c', true)) { show = false; }
       zi.rx = it.px; zi.ry = it.py; zi.rw = zi.el.offsetWidth || 90; zi.rh = zi.el.offsetHeight || 22; zi.rv = show;
     });
     Object.keys(people).forEach(function (id) {
