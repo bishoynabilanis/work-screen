@@ -1461,8 +1461,8 @@ html.o3-fs .o3-active .o3-stage, html.o3-fs .o3-stage { height: 100vh !important
 @font-face { font-family: "WS Mono"; src: url("6-mono.woff") format("woff"); font-weight: 400 700; font-display: swap; }
 
 :root {
-  --bg: #04060d;
-  --bg-soft: #070b17;
+  --bg: #070d18;
+  --bg-soft: #0b1424;
   --surface: rgba(10, 18, 36, 0.72);
   --surface-2: rgba(16, 30, 58, 0.72);
   --line: rgba(80, 200, 255, 0.16);
@@ -1669,8 +1669,8 @@ button, input, select, textarea { font-family: var(--font-ui); }
 :root {
   --brand-primary: #f4511e;
   --brand-primary-soft: #ff8a65;
-  --brand-navy: #04060d;
-  --brand-navy-2: #070b17;
+  --brand-navy: #070d18;
+  --brand-navy-2: #0b1424;
   --brand-neon-cyan: #22d3ee;
   --brand-neon-violet: #8b5cf6;
   --accent: var(--brand-primary);
