@@ -4,7 +4,7 @@ var fs = require('fs'), path = require('path'), vm = require('vm');
 var app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
 var m = app.match(/\/\* IDEA57-BEGIN[\s\S]*?IDEA57-END \*\//); if (!m) { console.error('FAIL: IDEA57 block missing'); process.exit(1); }
 var code = m[0], wait = app.match(/\/\* IDEA56-BEGIN[\s\S]*?IDEA56-END \*\//)[0];
-if (process.env.DAY_BAD) { code = code.replace("e.state !== 'done' || ", '').replace('var known = oldest <= y0', 'var known = true').replace("(a > b ? 'up' : (a < b ? 'down' : 'same'))", "(a > b ? 'down' : (a < b ? 'up' : 'same'))").replace("if (!a && !b) { return; }", ''); wait = wait.replace('btn.focus();', '').replace('pan.children[Math.min(fIdx, pan.children.length - 1)].focus();', ''); }
+if (process.env.DAY_BAD) { code = code.replace("e.state !== 'done' || ", '').replace('var known = oldest <= y0 && anyY', 'var known = true').replace("(a > b ? 'up' : (a < b ? 'down' : 'same'))", "(a > b ? 'down' : (a < b ? 'up' : 'same'))").replace("if (!a && !b) { return; }", ''); wait = wait.replace('btn.focus();', '').replace('pan.children[Math.min(fIdx, pan.children.length - 1)].focus();', ''); }
 var bad = [], n = 0; function chk(ok, t) { n++; if (!ok) { bad.push(t); } }
 var ctx = { Date: Date, Infinity: Infinity, Object: Object, Math: Math, document: {}, statusLines: [], MIX_CAT_OF: {}, MIX_CATS: [], deptOf: function () { return ''; } }; vm.createContext(ctx);
 vm.runInContext(code + '\nthis.dc = dayCompare;', ctx);
@@ -20,6 +20,10 @@ var same = ctx.dc([L('a', 'done', t0 + 5), L('a', 'done', t0 - 5), L('b', 'done'
 chk(same[0] && same[0].trend === 'same', 'same number = same');
 var unk = ctx.dc([L('a', 'done', t0 + 5), L('a', 'done', t0 - 5 * 3600000 + 1)], now, f, CATS);
 chk(unk[0] && unk[0].yest === null && unk[0].trend === null, 'lines do not reach back to yesterday start: yesterday is unknown, no arrow');
+var gap = ctx.dc([L('a', 'done', t0 + 5), L('b', 'start', t0 - 2 * D + 1000)], now, f, CATS);
+chk(gap.length === 1 && gap[0].yest === null && gap[0].trend === null, 'gap: oldest line is from 2 days back but nothing from yesterday = yesterday unknown, no arrow (not 0 and not up)');
+var okY = ctx.dc([L('a', 'done', t0 + 5), L('b', 'start', t0 - 3600000), L('c', 'start', t0 - 2 * D)], now, f, CATS);
+chk(okY[0] && okY[0].yest === 0 && okY[0].trend === 'up', 'any line inside yesterday plus older lines = yesterday known (0 is a real 0)');
 chk(ctx.dc([], now, f, CATS).length === 0 && ctx.dc(null, now, f, CATS).length === 0, 'empty is empty');
 chk(/' ▲ أكتر'/.test(code) && /' ▼ أقل'/.test(code) && /' = زي أمس'/.test(code) && /لسه مفيش/.test(code), 'the trend is a word and a sign');
 chk(/if \(!list\.length\) \{ if \(box\) \{ box\.remove\(\); \} return; \}/.test(code), 'hidden when nothing to show');
