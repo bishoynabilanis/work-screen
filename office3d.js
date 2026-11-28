@@ -942,7 +942,7 @@
 
   /* Step 3: post-processing (bloom + vignette) with automatic quality levels (high / med / low) */
   var COARSE = false; try { COARSE = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches); } catch (e) { COARSE = false; }
-  var Q = { level: /[?&]q=(low|med|high|ultra)/.test(location.search) ? RegExp.$1 : ((lowGpu || COARSE) ? 'med' : 'high'), locked: /[?&]q=(low|med|high|ultra)/.test(location.search), fps: 60, okSince: 0, frames: 0, t0: performance.now() };
+  var Q = { level: /[?&]q=(low|med|high|ultra)/.test(location.search) ? RegExp.$1 : (((lowGpu || COARSE) && (window.devicePixelRatio || 1) < 2) ? 'med' : 'high'), locked: /[?&]q=(low|med|high|ultra)/.test(location.search), fps: 60, okSince: 0, frames: 0, t0: performance.now() };
   var POST = { rt: null, a: null, b: null, quad: null, cam: null, mats: null, w: 0, h: 0 };
   function postSupported() { if (/[?&]nopost=1/.test(location.search)) { return false; } try { return !!(renderer.capabilities.isWebGL2 && renderer.extensions.get('EXT_color_buffer_float') || renderer.extensions.get('EXT_color_buffer_half_float')); } catch (e) { return false; } }
   function postBuild() {
@@ -1103,7 +1103,7 @@
       if (Q.lowWin >= 2) { Q.level = order[i - 1]; Q.cap = i - 1; Q.capAt = now; Q.lowWin = 0; applyQuality(); }
     } else {
       Q.lowWin = 0;
-      if (Q.fps > 55 && i < Math.min(ultraOk() ? 3 : 2, Q.cap == null ? 3 : Q.cap)) { Q.okSince = Q.okSince || now; if (now - Q.okSince >= 60000) { Q.level = order[i + 1]; Q.okSince = 0; applyQuality(); } }
+      if (Q.fps > 55 && i < Math.min(ultraOk() ? 3 : 2, Q.cap == null ? 3 : Q.cap)) { Q.okSince = Q.okSince || now; if (now - Q.okSince >= 20000) { Q.level = order[i + 1]; Q.okSince = 0; applyQuality(); } }
       else { Q.okSince = 0; }
     }
   }
@@ -1666,7 +1666,7 @@
     var cv = document.createElement('canvas'); cv.tabIndex = 0; cv.setAttribute('role', 'img');
     cv.setAttribute('aria-label', 'خريطة المكتب. اضغط على مكان أو استخدم الأسهم عشان الكاميرا تروح هناك');
     cv.style.cssText = 'width:' + W + 'px;height:' + H + 'px;border-radius:10px;background:#070d18;border:1px solid rgba(34,211,238,.6);touch-action:none;cursor:pointer';
-    var dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr;
+    var dpr = Math.min(3, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr;
     var tb = document.createElement('button'); tb.type = 'button'; tb.id = 'o3-tourbtn'; tb.textContent = 'الجولة'; tb.style.cssText = tg.style.cssText; tb.addEventListener('click', function () { if (window.__o3StartTour) { window.__o3StartTour(); } });
     var brow = document.createElement('div'); brow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center'; var rb = document.createElement('button'); rb.type = 'button'; rb.id = 'o3-resetbtn'; rb.textContent = 'المنظر العام'; rb.setAttribute('aria-label', 'رجوع للمنظر العام للمكتب'); rb.style.cssText = tg.style.cssText; rb.addEventListener('click', function () { resetView(); }); brow.appendChild(tg); brow.appendChild(tb); brow.appendChild(rb); wrap.appendChild(brow); var gh = document.createElement('div'); gh.id = 'o3-gesturehint'; gh.textContent = 'اضغط مرتين بسرعة على المشهد أو اضغط زر المنظر العام عشان ترجع للمنظر الكامل'; gh.style.cssText = 'font-size:14px;line-height:1.5;color:#c9d3e6;text-align:center;padding:2px 8px'; wrap.appendChild(gh); cv.title = 'اضغط مرتين بسرعة للرجوع للمنظر الكامل';
     var capEl = document.createElement('div'); capEl.style.cssText = 'font-size:14px;line-height:1.7;color:#b9cce2;text-align:center;display:none'; wrap.appendChild(capEl);
