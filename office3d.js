@@ -942,7 +942,7 @@
 
   /* Step 3: post-processing (bloom + vignette) with automatic quality levels (high / med / low) */
   var COARSE = false; try { COARSE = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches); } catch (e) { COARSE = false; }
-  var Q = { level: /[?&]q=(low|med|high|ultra)/.test(location.search) ? RegExp.$1 : (((lowGpu || COARSE) && (window.devicePixelRatio || 1) < 2) ? 'med' : 'high'), locked: /[?&]q=(low|med|high|ultra)/.test(location.search), fps: 60, okSince: 0, frames: 0, t0: performance.now() };
+  var Q = { level: /[?&]q=(low|med|high|ultra)/.test(location.search) ? RegExp.$1 : ((lowGpu || (COARSE && (window.devicePixelRatio || 1) < 2)) ? 'med' : 'high'), locked: /[?&]q=(low|med|high|ultra)/.test(location.search), fps: 60, okSince: 0, frames: 0, t0: performance.now() };
   var POST = { rt: null, a: null, b: null, quad: null, cam: null, mats: null, w: 0, h: 0 };
   function postSupported() { if (/[?&]nopost=1/.test(location.search)) { return false; } try { return !!(renderer.capabilities.isWebGL2 && renderer.extensions.get('EXT_color_buffer_float') || renderer.extensions.get('EXT_color_buffer_half_float')); } catch (e) { return false; } }
   function postBuild() {
@@ -1098,7 +1098,7 @@
     if (now - Q.t0 < 3000) { return; }
     Q.fps = Q.frames * 1000 / (now - Q.t0); Q.frames = 0; Q.t0 = now;
     var order = ['low', 'med', 'high', 'ultra'], i = order.indexOf(Q.level);
-    if (Q.fps < 28 && i > 0) {
+    if (Q.fps < ((COARSE && i >= 2) ? 40 : 28) && i > 0) {
       Q.okSince = 0; Q.lowWin = (Q.lowWin || 0) + 1;
       if (Q.lowWin >= 2) { Q.level = order[i - 1]; Q.cap = i - 1; Q.capAt = now; Q.lowWin = 0; applyQuality(); }
     } else {
