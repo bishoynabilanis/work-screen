@@ -1142,7 +1142,7 @@
           statusLines.push({ mid: m.id, id: aid, name: nm, text: tx, state: stt, next: nx, done: dn, pending: pd, job: jb, result: rs, ms: (m.time || 0) * 1000, ask: ak, options: op });
           changed = true;
         });
-        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 500); saveTL(); try { renderLog(); renderCard(); } catch (e) {} try { if (baseFeed) { applyMerged(); } } catch (e) {} try { renderSummary(); } catch (e) {} try { renderDecisions(); } catch (e) {} try { publishLoad(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
+        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 500); saveTL(); try { learnAvg(); } catch (e) {} try { renderLog(); renderCard(); } catch (e) {} try { if (baseFeed) { applyMerged(); } } catch (e) {} try { renderSummary(); } catch (e) {} try { renderDecisions(); } catch (e) {} try { publishLoad(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
       })
       .catch(function () {});
   }
@@ -1156,6 +1156,50 @@
   }
   var cardEl = null, cardFor = null;
   function closeCard() { if (cardEl) { cardEl.remove(); cardEl = null; cardFor = null; } } window.__closeCard = closeCard; document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { closeCard(); } });
+  /* IDEA45-BEGIN. Early warning "may be late". Local numbers only, keyed by department id. Never stores job names or text. */
+  var LATE_KEY = 'ws_avg_v1', LATE_T_KEY = 'ws_avg_t', LATE_PEND_MIN = 45, LATE_X = 1.5, LATE_MINN = 3, lateAvg = {}, lateT = 0;
+  function deptOf(id) { var s = (baseFeed && baseFeed.staff || []).filter(function (p) { return String(p.id) === String(id); })[0], d = s && s.dept; return (typeof d === 'string' && /^[a-z0-9_-]{1,20}$/i.test(d)) ? d : 'all'; }
+  function loadAvg() {
+    lateAvg = {}; lateT = 0;
+    try {
+      var o = JSON.parse(localStorage.getItem(LATE_KEY) || '{}'); if (!o || typeof o !== 'object') { o = {}; }
+      Object.keys(o).forEach(function (k) { var v = o[k]; if (/^[a-z0-9_-]{1,20}$/i.test(k) && Array.isArray(v) && isFinite(+v[0]) && isFinite(+v[1]) && +v[0] >= 0 && +v[1] > 0 && +v[1] <= 720) { lateAvg[k] = [Math.min(20, Math.floor(+v[0])), Math.round(+v[1] * 10) / 10]; } });
+      var t = +localStorage.getItem(LATE_T_KEY); lateT = isFinite(t) && t > 0 ? t : 0;
+    } catch (e) { lateAvg = {}; lateT = 0; }
+  }
+  function saveAvg() { try { localStorage.setItem(LATE_KEY, JSON.stringify(lateAvg)); localStorage.setItem(LATE_T_KEY, String(lateT)); } catch (e) { /* storage full or blocked */ } }
+  function lateKeyOf(e) { return e.id || e.name || '?'; }
+  /* Learn: each finished task (a start line, then a done line of the same worker) adds its minutes to that department's average. */
+  function learnAvg() {
+    if (!(baseFeed && baseFeed.staff && baseFeed.staff.length)) { return; }  /* departments are unknown until the feed has loaded */
+    var by = {}, ch = false, i;
+    for (i = statusLines.length - 1; i >= 0; i--) { var e = statusLines[i], k = lateKeyOf(e); (by[k] = by[k] || []).push(e); }
+    Object.keys(by).forEach(function (k) {
+      var st = 0;
+      by[k].forEach(function (e) {
+        if (e.state === 'start') { if (!st) { st = e.ms; } return; }
+        if (e.state === 'done' && st && e.ms > st && e.ms > lateT) {
+          var dur = (e.ms - st) / 60000;
+          if (dur >= 1 && dur <= 720) { var d = deptOf(k), a = lateAvg[d] || [0, dur], n = Math.min(20, a[0] + 1); lateAvg[d] = [n, Math.round((a[1] + (dur - a[1]) / n) * 10) / 10]; ch = true; }
+        }
+        if (e.state === 'done' && e.ms > lateT) { lateT = e.ms; ch = true; }
+        st = 0;
+      });
+    });
+    if (ch) { saveAvg(); }
+  }
+  /* Late: the worker's latest line is a running one, it has run longer than 1.5x the department average (3+ finished tasks known), or longer than 45 minutes. */
+  function isLate(k, deptId, now) {
+    var run = 0, i, e;
+    for (i = 0; i < statusLines.length; i++) { e = statusLines[i]; if (lateKeyOf(e) !== k) { continue; } if (e.state !== 'start') { break; } run = e.ms; }
+    if (!run) { return false; }
+    var el = ((now || Date.now()) - run) / 60000, a = lateAvg[deptId];
+    if (el > 720 || el < 1) { return false; }
+    return !!((a && a[0] >= LATE_MINN && el >= 5 && el > LATE_X * a[1]) || el > LATE_PEND_MIN);
+  }
+  function lateCount(now) { try { learnAvg(); } catch (e) { /* optional */ } var seen = {}, n = 0; statusLines.forEach(function (e) { var k = lateKeyOf(e); if (seen[k]) { return; } seen[k] = 1; if (isLate(k, deptOf(k), now)) { n++; } }); return n; }
+  loadAvg();
+  /* IDEA45-END */
   function renderCard() {
     if (!cardEl || !cardFor) { return; }
     var id = cardFor, sf = (baseFeed && baseFeed.staff || []).filter(function (p) { return String(p.id) === id; })[0];
@@ -1171,6 +1215,7 @@
     function row(label, val) { var r = make('div', ''); r.style.cssText = 'font-size:14px;line-height:1.6'; var l = make('span', ''); l.textContent = label + ': '; l.style.color = '#8aa3bf'; var v = make('span', ''); v.textContent = val; r.appendChild(l); r.appendChild(v); cardEl.appendChild(r); }
     var now = lv ? (!lv.text || lv.text === NOJOB ? NOJOB : (lv.state === 'done' ? 'خلّص: ' : 'بيشتغل على: ') + lv.text) : (sf && sf.step ? sf.step + ' (من الداتا القديمة)' : 'مفيش حالة حية');
     row('دلوقتي', now);
+    if (lv && isLate(lateKeyOf(lv), deptOf(id))) { var lb = make('div', ''); lb.className = 'o3-latebadge'; lb.style.cssText = 'display:inline-block;margin:4px 0;padding:4px 10px;border-radius:999px;background:#fbbf24;color:#1f1300;font-size:14px;font-weight:800;border:2px solid #fff'; lb.textContent = '\u26A0 ممكن يتأخر'; cardEl.appendChild(lb); }
     if (FREE_TEXT_OK) { row('الجاي', lv && lv.next && publicText(lv.next) ? publicText(lv.next) : 'لسه ما بعتش'); }
     var LD = window.__o3Load || {}, LDM = window.__o3LoadMs || {};
     if (typeof LD[id] === 'number') { var ldAge = Date.now() - (LDM[id] || 0); row('معلّق', LD[id] + (ldAge > 3600000 ? ' (من ' + ageWords(Math.floor(ldAge / 60000)) + ')' : '')); }
@@ -1389,11 +1434,13 @@
     }
     var cutoff = Date.now() - 30 * 60000, latest = {}, k;
     statusLines.forEach(function (e) { k = e.id || e.name || '?'; if (!latest[k]) { latest[k] = e; } });
-    var working = 0, done = 0, stuck = 0, jobs = {}, pend = 0;
+    var working = 0, done = 0, stuck = 0, jobs = {}, pend = 0, lateN = 0;
     Object.keys(latest).forEach(function (id) { var e = latest[id]; if (e.ms < cutoff) { return; } if (e.state === 'done') { done++; } else if (e.state === 'blocked') { stuck++; } else { working++; } if (e.job) { jobs[e.job] = 1; } if (e.pending > 0) { pend += e.pending; } });
+    try { lateN = lateCount(); } catch (e) { lateN = 0; }
     var nj = Object.keys(jobs).length;
     function build(short) {
       var parts = [['\u25CF ' + working + (short || working === 1 ? ' شغال' : ' شغالين'), '#f4511e'], ['\u2713 ' + done + (short || done === 1 ? ' خلص' : ' خلصوا'), '#22d3ee']];
+      if (lateN) { parts.push(['\u26A0 ' + lateN + (short || lateN === 1 ? ' ممكن يتأخر' : ' ممكن يتأخروا'), '#fbbf24']); }
       if (stuck) { parts.push(['\u25A0 ' + stuck + (stuck === 1 ? ' واقف' : ' واقفين'), '#f87171']); }
       parts.push([(nj === 1 ? '1 شغلانة' : arN(nj, A_JOB)), '#8b5cf6']);
       if (pend && !short) { parts.push([pend + ' معلّق', '#9aa8bd']); }
@@ -1904,7 +1951,7 @@
         });
       })
       .then(function (result) {
-        scrubFeed(result.data); baseFeed = result.data;
+        scrubFeed(result.data); baseFeed = result.data; try { learnAvg(); renderSummary(); renderCard(); } catch (e) { /* optional */ }
         applyMerged();
         lastSuccessAt = Date.now();
         networkFailed = result.servedFromCache;
@@ -2035,4 +2082,5 @@
   restoreTL();
   init();
   setTimeout(function () { try { renderLog(); renderSummary(); renderDecisions(); } catch (e) { /* optional */ } }, 1500);
+  setInterval(function () { try { renderSummary(); renderCard(); } catch (e) { /* optional */ } }, 60000);
 })();
