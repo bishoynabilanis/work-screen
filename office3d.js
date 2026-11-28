@@ -1147,9 +1147,19 @@
     }, 2000);
   }
 
+  /* IDEA49. Stop the animation loop while the tab is hidden, restart it when visible. Low-power mode: low quality, about 30 frames a second. */
+  var frameStopped = false, lowPow = false, lowSkip = 0;
+  function setLowPower(on) {
+    on = !!on; if (on === lowPow) { return; } lowPow = on;
+    if (on) { Q.prevLevel = Q.level; Q.prevLocked = Q.locked; Q.level = 'low'; Q.locked = true; }
+    else { Q.locked = !!Q.prevLocked; if (Q.prevLevel) { Q.level = Q.prevLevel; } }
+    try { applyQuality(); } catch (e) { noteErr(e, 'lowpower'); }
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && frameStopped) { frameStopped = false; requestAnimationFrame(frame); } });
   function frame() {
+    if (document.hidden) { frameStopped = true; return; }
     requestAnimationFrame(frame);
-    if (document.hidden) { return; }
+    if (lowPow && (lowSkip ^= 1)) { return; }
     qualityTick();
     var dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
     // camera easing
@@ -1306,6 +1316,7 @@
   window.addEventListener('resize', resize);
   if (typeof ResizeObserver !== 'undefined') { new ResizeObserver(resize).observe(canvasWrap); }
   resize();
+  if (window.WSPower && window.WSPower.low) { setLowPower(true); }
   frame();
 
   function safeUpdate(feed) {
@@ -1711,6 +1722,6 @@
   })();
   window.__o3dbg = { live: function () { return { az: az, azU: azU, el: elU, zoom: zoom, tx: target.x, tz: target.z }; }, people: people, charTpl: charTpl, cam: function () { return { az: azUT, el: elUT, zoom: desiredZoom, tx: desiredTarget.x, tz: desiredTarget.z }; } };
   initCharacters();
-  window.Office3D = { ready: true, snapshot: function () { try { renderFinal(); return renderer.domElement.toDataURL('image/png'); } catch (e) { return ''; } }, search: function (q, f, fly) { srch.q = String(q || ''); srch.f = f || 'all'; srch.on = !!srch.q.trim() || srch.f !== 'all'; return applySearch(!!fly); }, setFloor: setFloor, update: safeUpdate, walk: walk, flyTo: flyTo, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
+  window.Office3D = { ready: true, snapshot: function () { try { renderFinal(); return renderer.domElement.toDataURL('image/png'); } catch (e) { return ''; } }, search: function (q, f, fly) { srch.q = String(q || ''); srch.f = f || 'all'; srch.on = !!srch.q.trim() || srch.f !== 'all'; return applySearch(!!fly); }, setFloor: setFloor, update: safeUpdate, walk: walk, flyTo: flyTo, setLowPower: setLowPower, focus: function (id) { var z = zoneInfo[id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), id === 'qa' ? 1.7 : 2.4); } } };
   if (hint) { hint.hidden = false; }
 })();
