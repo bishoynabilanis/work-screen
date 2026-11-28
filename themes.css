@@ -1,0 +1,155 @@
+/* Idea 39: three themes. Default (no data-theme) = futuristic blue, defined in style.css. */
+html[data-theme="gold"] {
+  color-scheme: dark;
+  --bg: #130d06; --bg-soft: #1c1309; --surface: rgba(34, 22, 10, 0.78); --surface-2: rgba(52, 34, 14, 0.78);
+  --line: rgba(255, 190, 90, 0.18); --line-strong: rgba(255, 190, 90, 0.42);
+  --text: #fff4e2; --text-soft: #ecd5b0; --muted: #c2a477;
+  --accent: #f5b942; --accent-soft: #ffd584; --neon-a: #f5b942; --neon-b: #f4511e; --neon-c: #f4511e;
+  --green: #7fd6a0; --amber: #ffcc4d; --red: #ff7a7a; --teal: #f5b942;
+  --glow-a: 0 0 6px rgba(245,185,66,.5), 0 0 18px rgba(245,185,66,.25);
+  --glow-b: 0 0 6px rgba(244,81,30,.5), 0 0 18px rgba(244,81,30,.25);
+  --shadow: 0 18px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(255,190,90,.14);
+}
+html[data-theme="gold"] body {
+  background:
+    radial-gradient(900px 520px at 100% -10%, rgba(244,81,30,.2), transparent 60%),
+    radial-gradient(900px 560px at -10% 110%, rgba(245,185,66,.16), transparent 58%),
+    linear-gradient(rgba(255,190,90,.045) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, rgba(255,190,90,.045) 1px, transparent 1px) 0 0 / 44px 44px,
+    var(--bg);
+  background-attachment: fixed;
+}
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg: #edf3fe; --bg-soft: #e2ebf8; --surface: rgba(255,255,255,0.95); --surface-2: #f6f9ff;
+  --line: rgba(20,50,90,0.2); --line-strong: rgba(20,50,90,0.5);
+  --text: #0b1a2e; --text-soft: #1f3b58; --muted: #3f5870;
+  --accent: #0a6f86; --accent-soft: #0a6f86; --neon-a: #0a6f86; --neon-b: #5b2fc0; --neon-c: #5b2fc0;
+  --green: #17734a; --amber: #7a5000; --red: #b3223d; --teal: #0a6f86; --brand-primary: #a8330a;
+  --glow-a: none; --glow-b: none;
+  --shadow: 0 10px 28px rgba(20,50,90,.16), 0 0 0 1px rgba(20,50,90,.1);
+}
+html[data-theme="light"] body { background: linear-gradient(180deg, #f6f9ff, #e2ebf8) fixed; color: var(--text); }
+html[data-theme="gold"] .o3-stage canvas { filter: sepia(.32) saturate(1.12) hue-rotate(-6deg) brightness(.94); }
+/* toggle */
+#ws-theme-btn {
+  min-width: 44px; min-height: 44px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+  font-size: 14px; font-weight: 700; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--line-strong); margin-inline-start: 12px;
+}
+#ws-theme-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* fixes after PASS 1 review */
+.tagline { font-size: 14px !important; line-height: 1.35; }
+.topbar-inner { flex-wrap: wrap; row-gap: 6px; }
+#ws-theme-btn { white-space: nowrap; }
+@media (max-width: 600px) { .brand-text { min-width: 0; } .tagline { white-space: nowrap; } }
+html[data-theme="light"] aside.o3-log { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] button#o3-daybtn { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] button#o3-resetbtn { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] button#o3-tourbtn { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] button.o3-fs-btn { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] button.o3-sound { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] button.o3-zone { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] div#o3-daypan { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] div#o3-summary { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] div.o3-cams { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] div.o3-chips { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] div.o3-clock.is-night { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] div.op { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] div.op-chip { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] div.op.op-head { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] h2.room-name { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] header.topbar { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] section#office3d.office3d.o3-active.o3-portrait { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] section.org-level { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] section.org-level.single { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] span.state-badge { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+
+
+
+html[data-theme="light"] div#o3-summary > span { color: rgb(64,105,154) !important; }
+html[data-theme="light"] div#o3-heatlg > span { color: rgb(64,105,154) !important; }
+html[data-theme="light"] button#o3-daybtn { color: #0b1a2e !important; }
+html[data-theme="light"] div#o3-daypan > div { color: rgb(64,105,154) !important; }
+html[data-theme="light"] button#o3-tourbtn { color: #0b1a2e !important; }
+html[data-theme="light"] button#o3-resetbtn { color: #0b1a2e !important; }
+html[data-theme="light"] div#o3-gesturehint { color: rgb(75,105,162) !important; }
+html[data-theme="light"] div.o3-clock.is-night { color: rgb(139,37,255) !important; }
+html[data-theme="light"] button.o3-floors-toggle { color: #0b1a2e !important; }
+html[data-theme="light"] button.on { color: #0b1a2e !important; }
+html[data-theme="light"] div.o3-log-head > span { color: rgb(77,107,140) !important; }
+html[data-theme="light"] div.o3-jobtog > button { color: #0b1a2e !important; }
+html[data-theme="light"] li.o3-empty { color: rgb(77,107,140) !important; }
+html[data-theme="light"] li.o3-line > strong { color: rgb(204,20,82) !important; }
+html[data-theme="light"] span.room-tag { color: rgb(18,105,94) !important; }
+html[data-theme="light"] span.op-state { color: rgb(5,110,156) !important; }
+html[data-theme="light"] p.org-group-name { color: rgb(173,69,105) !important; }
+
+html[data-theme="light"] button:not(.on):not(.is-on):not([aria-pressed="true"]):not(.o3-alertbar) > span { color: inherit !important; }
+html[data-theme="light"][data-theme] button:not(.on):not(.is-on):not([aria-pressed="true"]):not(.o3-alertbar) > span:not(#x):not(#y) { color: #0b1a2e !important; }
+html[data-theme="light"] button.o3-alertbar { background: #991b1b !important; color: #fff !important; }
+html[data-theme="light"] .o3-alertbar * { color: #fff !important; }
+
+/* PASS 3: light chips/buttons/search light, forced states */
+html[data-theme="light"] button:not(.on):not(.is-on):not(.active):not(.is-active):not([aria-pressed="true"]):not(.o3-alertbar):not(.o3-floors-toggle):not(.sheet-close):not(.o3-zone-on) { background: #f6f9ff !important; background-image: none !important; color: #0b1a2e !important; border-color: rgba(20,50,90,.45) !important; }
+html[data-theme="light"] #o3-search input, html[data-theme="light"] input[type="search"], html[data-theme="light"] input[type="text"] { background: #fff !important; color: #0b1a2e !important; border-color: rgba(20,50,90,.45) !important; }
+html[data-theme="light"] input::placeholder { color: #3f5870 !important; }
+html[data-theme="light"] .updated.is-stale .updated-label, html[data-theme="light"] .updated.is-stale .updated-value, html[data-theme="light"] .updated.is-stale .updated-label::before { color: #7a5000 !important; }
+html[data-theme="light"] .offline-banner { background: rgba(179,34,61,.1) !important; border-color: rgba(179,34,61,.6) !important; color: #8f1d36 !important; }
+html[data-theme="light"] .offline-banner * { color: #8f1d36 !important; }
+html[data-theme="gold"] .desk-step { background-color: rgba(255,190,90, 0.12) !important }
+html[data-theme="gold"] ::selection { background-color: rgba(245,185,66, 0.35) !important }
+html[data-theme="gold"] * { scrollbar-color: rgba(245,185,66, 0.45) rgba(255, 255, 255, 0.04) !important }
+html[data-theme="gold"] ::-webkit-scrollbar-thumb { background-color: rgba(245,185,66, 0.4) !important }
+html[data-theme="gold"] .topbar { box-shadow: rgba(245,185,66, 0.25) 0px 1px 0px, rgba(245,185,66, 0.08) 0px 8px 30px !important }
+html[data-theme="gold"] .brand h1 { filter: drop-shadow(rgba(245,185,66, 0.35) 0px 0px 8px) !important }
+html[data-theme="gold"] .updated { box-shadow: rgba(245,185,66, 0.08) 0px 0px 14px inset !important; background-color: rgba(245,185,66, 0.06) !important }
+html[data-theme="gold"] .updated-value { text-shadow: rgba(245,185,66, 0.6) 0px 0px 8px !important }
+html[data-theme="gold"] .office3d { box-shadow: var(--shadow), 0 0 40px rgba(245,185,66,.12), inset 0 0 0 1px rgba(255,255,255,.03) !important }
+html[data-theme="gold"] .o3-chip { background-color: rgba(245,185,66, 0.06) !important; border-top-color: rgba(245,185,66, 0.28) !important; border-right-color: rgba(245,185,66, 0.28) !important; border-bottom-color: rgba(245,185,66, 0.28) !important; border-left-color: rgba(245,185,66, 0.28) !important }
+html[data-theme="gold"] .o3-chip:active { background-color: rgba(245,185,66, 0.25) !important }
+html[data-theme="gold"] .o3-stage::before { background-image: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(2, 6, 18, 0.55) 100%), linear-gradient(rgba(245,185,66, 0.07), transparent 22%, transparent 78%, rgba(244,81,30, 0.09)) !important }
+html[data-theme="gold"] .o3-stage::after { filter: drop-shadow(rgba(245,185,66, 0.8) 0px 0px 4px) !important }
+html[data-theme="gold"] .o3-clock.is-night { border-top-color: rgba(244,81,30, 0.6) !important; border-right-color: rgba(244,81,30, 0.6) !important; border-bottom-color: rgba(244,81,30, 0.6) !important; border-left-color: rgba(244,81,30, 0.6) !important }
+html[data-theme="gold"] .o3-label, html[data-theme="gold"] .o3-zone, html[data-theme="gold"] .o3-status { text-shadow: rgba(245,185,66, 0.5) 0px 0px 6px !important; border-top-color: rgba(245,185,66, 0.55) !important; border-right-color: rgba(245,185,66, 0.55) !important; border-bottom-color: rgba(245,185,66, 0.55) !important; border-left-color: rgba(245,185,66, 0.55) !important; box-shadow: rgba(245,185,66, 0.35) 0px 0px 10px, rgba(245,185,66, 0.12) 0px 0px 8px inset !important }
+html[data-theme="gold"] .o3-log-head b { text-shadow: rgba(245,185,66, 0.55) 0px 0px 10px !important }
+html[data-theme="gold"] .o3-pipe, html[data-theme="gold"] .o3-line { border-top-color: rgba(245,185,66, 0.14) !important; border-right-color: rgba(245,185,66, 0.14) !important; border-bottom-color: rgba(245,185,66, 0.14) !important; border-left-color: rgba(245,185,66, 0.14) !important; box-shadow: rgba(245,185,66, 0.04) 0px 0px 12px inset !important; background-color: rgba(245,185,66, 0.05) !important }
+html[data-theme="gold"] .o3-line.is-recv { border-top-color: rgba(244,81,30, 0.3) !important; border-right-color: rgba(244,81,30, 0.3) !important; border-bottom-color: rgba(244,81,30, 0.3) !important; border-left-color: rgba(244,81,30, 0.3) !important; background-color: rgba(244,81,30, 0.09) !important }
+html[data-theme="gold"] .o3-stage-chip.is-now { box-shadow: rgba(245,185,66, 0.8) 0px 0px 12px !important }
+html[data-theme="gold"] .sheet { box-shadow: 0 -10px 50px rgba(245,185,66,.18), var(--shadow) !important }
+html[data-theme="gold"] .sheet-cell { background-color: rgba(245,185,66, 0.05) !important }
+html[data-theme="gold"] .sheet-close { background-image: linear-gradient(135deg, rgba(245,185,66, 0.9), rgba(244,81,30, 0.9)) !important }
+html[data-theme="gold"] .section-head h2, html[data-theme="gold"] .zone-title { text-shadow: rgba(245,185,66, 0.4) 0px 0px 10px !important }
+html[data-theme="gold"] .o3-bubble { background-image: linear-gradient(135deg, rgb(245,185,66), rgb(167, 139, 250)) !important }/* gold: literals written inline by app.js */
+html[data-theme="gold"] [style*="34,211,238"], html[data-theme="gold"] [style*="34, 211, 238"], html[data-theme="gold"] [style*="22d3ee"], html[data-theme="gold"] [style*="80,200,255"], html[data-theme="gold"] [style*="80, 200, 255"] { border-color: rgba(245,185,66,.55) !important; }
+html[data-theme="gold"] [style*="color:#22d3ee"], html[data-theme="gold"] [style*="color: #22d3ee"] { color: #f5b942 !important; }
+html[data-theme="gold"] [style*="color:#8b5cf6"], html[data-theme="gold"] [style*="color: #8b5cf6"] { color: #ffb08a !important; }
+html[data-theme="gold"] [style*="background:#22d3ee"], html[data-theme="gold"] [style*="background: #22d3ee"] { background: #f5b942 !important; }
+html[data-theme="gold"] [style*="color: rgb(34, 211, 238)"], html[data-theme="gold"] [style*="color:rgb(34,211,238)"] { color: #f5b942 !important; }
+html[data-theme="gold"] [style*="color: rgb(139, 92, 246)"], html[data-theme="gold"] [style*="color:rgb(139,92,246)"] { color: #ffb08a !important; }
+html[data-theme="gold"] [style*="background: rgb(34, 211, 238)"], html[data-theme="gold"] [style*="background-color: rgb(34, 211, 238)"], html[data-theme="gold"] [style*="background:rgb(34,211,238)"] { background: #f5b942 !important; }
+/* gold: low-contrast secondary text on gradient panels */
+html[data-theme="gold"] .room-count, html[data-theme="gold"] .room-roles, html[data-theme="gold"] .desk-title { color: #f0d9b0 !important; }
+html[data-theme="gold"] button.o3-floors-toggle, html[data-theme="gold"] button.on, html[data-theme="light"] button.o3-floors-toggle, html[data-theme="light"] button.on { background: #b83a0e !important; background-image: none !important; color: #fff !important; }
+/* sheet states, light and gold */
+html[data-theme="light"] .sheet-state[data-state="running"] { color: #a8330a !important; }
+html[data-theme="light"] .sheet-state[data-state="done"] { color: #17734a !important; }
+html[data-theme="light"] .sheet-state[data-state="blocked"] { color: #b3223d !important; }
+html[data-theme="light"] .sheet-state[data-state="waiting"] { color: #3f5870 !important; }
+html[data-theme="light"] .sheet-close, html[data-theme="gold"] .sheet-close { background: #b83a0e !important; background-image: none !important; color: #fff !important; }
+html[data-theme="light"] [style*="color:#b9cce2"], html[data-theme="light"] [style*="color: #b9cce2"], html[data-theme="light"] [style*="color:#8aa3bf"], html[data-theme="light"] [style*="color:#c9d3e6"] { color: #3f5870 !important; }
+html[data-theme="light"] [style*="color: rgb(185, 204, 226)"], html[data-theme="light"] [style*="color: rgb(138, 163, 191)"], html[data-theme="light"] [style*="color: rgb(201, 211, 230)"] { color: #3f5870 !important; }
+/* bottom sheet in light: light surface, dark text */
+html[data-theme="light"] .sheet { background: #f6f9ff !important; background-image: none !important; color: #0b1a2e !important; border-color: rgba(20,50,90,.45) !important; }
+html[data-theme="light"] .sheet-cell { background: #e6eefb !important; border: 1px solid rgba(20,50,90,.35) !important; }
+html[data-theme="light"] .sheet h2, html[data-theme="light"] .sheet-title, html[data-theme="light"] .sheet dd, html[data-theme="light"] .sheet-id { color: #0b1a2e !important; }
+html[data-theme="light"] .sheet dt, html[data-theme="light"] .sheet .eyebrow { color: #3f5870 !important; }
+html[data-theme="light"] .sheet-state { background: #fff !important; border: 1px solid currentColor !important; }
+/* timeline svg text: fill, not color */
+html[data-theme="light"] .o3-timeline svg text { fill: #0b1a2e !important; }
+html[data-theme="light"] .o3-timeline svg text[fill="#b9cce2"] { fill: #3f5870 !important; }
+html[data-theme="light"] .o3-timeline svg line { stroke: rgba(20,50,90,.6) !important; }
+html[data-theme="gold"] .o3-timeline svg line { stroke: rgba(255,255,255,.4) !important; }
+/* timeline done dots: 3:1 needed on light */
+html[data-theme="light"] .o3-timeline svg circle[fill="#22d3ee"] { fill: #0e7490 !important; }

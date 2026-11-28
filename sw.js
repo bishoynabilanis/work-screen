@@ -1,7 +1,7 @@
 'use strict';
 
-var CACHE_NAME = 'office-scene-v8';
-var SHELL = ['./', './index.html', './style.css', './app.js', './office3d.js', './7-three.min.js', './4-kufi-regular.woff', './5-kufi-bold.woff', './6-mono.woff', './manifest.json'];
+var CACHE_NAME = 'office-scene-v9';
+var SHELL = ['./', './index.html', './style.css', './themes.css', './theme.js', './app.js', './office3d.js', './7-three.min.js', './4-kufi-regular.woff', './5-kufi-bold.woff', './6-mono.woff', './manifest.json'];
 
 self.addEventListener('install', function (event) {
   self.skipWaiting();
