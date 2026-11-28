@@ -148,7 +148,7 @@
     running: 'شغّال',
     waiting: 'مستني',
     done: 'خلص',
-    blocked: 'متعطل',
+    blocked: 'واقف',
     unknown: 'غير معروف'
   };
 
