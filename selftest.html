@@ -36,10 +36,18 @@
     <p class="op-text">شغلانة تجريبية: خلّص ✓</p>
     <span class="op-state">خلص</span>
     <p class="section-note">ملاحظة تجريبية قصيرة</p>
+    <div class="o3-timeline" style="padding:8px;border-radius:12px;background:rgba(255,255,255,.05)"><svg width="260" height="60" viewBox="0 0 260 60" style="direction:ltr;display:block"><text x="250" y="18" text-anchor="end" fill="#b9cce2" font-size="14">اسم تجريبي</text><circle cx="40" cy="38" r="5" fill="#22d3ee"></circle><circle cx="70" cy="38" r="5" fill="#f4511e"></circle><text x="250" y="54" text-anchor="end" fill="#b9cce2" font-size="14">دلوقتي</text></svg></div>
+  </section>
+  <section class="st-real44" aria-label="أزرار بنفس الأصناف الحقيقية" style="position:relative;height:150px;overflow:hidden;margin:0 0 14px">
+    <div class="o3-chips"><button type="button" class="o3-chip">شريحة تجريبية</button></div>
+    <div class="o3-floors" style="position:relative;inset:auto;transform:none;left:auto;top:auto;right:auto"><button type="button">دور ١</button></div>
+    <div class="o3-cams" style="position:relative;inset:auto;transform:none;left:auto;top:auto;right:auto"><button type="button">كاميرا</button></div>
+    <button type="button" class="o3-sound" style="position:relative;inset:auto;transform:none;left:auto;top:auto;right:auto" aria-label="صوت"></button>
   </section>
   <button type="button" id="stRun" class="st-run">شغّل الفحص</button>
   <ul id="stRes" class="st-res" aria-live="polite"></ul>
   <p id="stSum" class="st-sum"></p>
+  <p class="st-note">الفحص ده بيغطي: نصوص عادية، نصوص SVG (القراءة من fill)، دواير الرسم 3:1، وأحجام أزرار الأصناف الحقيقية على صفحة التجربة. مش بيغطي: حالات قديم/أوفلاين/تنبيه/ليل، ولا ستايل app.js الداخلي. فحص الشاشة الحقيقية لسه مطلوب.</p>
   <p class="st-note">سرعة العرض (FPS) هنا من متصفح الفحص، ومش بتمثل جهاز حقيقي ولا الآيفون. لو الفحص اشتغل على رسم برمجي (بدون كارت شاشة) الرقم بيطلع أقل من الحقيقي.</p>
 </div>
 <script>
@@ -59,20 +67,22 @@
   function checkTheme(th) {
     if (th === 'blue') { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', th); }
     var small = 0, low = 0, minCr = 99, n = 0, tiny = 0, worst = '';
-    var nodes = document.querySelectorAll('.st-wrap *');
+    var nodes = document.querySelectorAll('.st-wrap *'), gfx = 0, gmin = 99, gworst = '';
     for (var i = 0; i < nodes.length; i++) {
       var e = nodes[i], own = false;
+      if (e.closest('.st-real44')) { continue; }
+      if (e.namespaceURI === 'http://www.w3.org/2000/svg' && (e.tagName === 'circle')) { var gc = parse(getComputedStyle(e).fill), gb = bgOf(e.closest('.o3-timeline') || e, th), a1 = lum(gc), a2 = lum(gb), gr = (Math.max(a1, a2) + 0.05) / (Math.min(a1, a2) + 0.05); if (gr < gmin) { gmin = gr; gworst = e.getAttribute('fill'); } if (gr < 3) { gfx++; } continue; }
       for (var k = 0; k < e.childNodes.length; k++) { if (e.childNodes[k].nodeType === 3 && e.childNodes[k].textContent.trim()) { own = true; } }
       if (!own) { continue; }
       var cs = getComputedStyle(e); n++;
       if (parseFloat(cs.fontSize) < 14) { small++; }
-      var fg = parse(cs.color), bg = bgOf(e, th), L1 = lum(fg), L2 = lum(bg), cr = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+      var isSvg = e.namespaceURI === 'http://www.w3.org/2000/svg', fg = parse(isSvg ? cs.fill : cs.color), bg = bgOf(e, th), L1 = lum(fg), L2 = lum(bg), cr = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
       if (cr < minCr) { minCr = cr; worst = (e.className || e.tagName.toLowerCase()) + ' / ' + cs.color + ' / ' + Math.round(bg.r) + ',' + Math.round(bg.g) + ',' + Math.round(bg.b); }
       if (cr < 4.5) { low++; }
     }
-    var btns = document.querySelectorAll('.st-wrap button');
+    var btns = document.querySelectorAll('.st-real44 button');
     for (var j = 0; j < btns.length; j++) { var r = btns[j].getBoundingClientRect(); if (r.width < 44 || r.height < 44) { tiny++; } }
-    return { worst: worst, n: n, small: small, low: low, min: minCr, tiny: tiny, btns: btns.length };
+    return { gfx: gfx, gmin: gmin, gworst: gworst, worst: worst, n: n, small: small, low: low, min: minCr, tiny: tiny, btns: btns.length };
   }
   function fps(ms) {
     return new Promise(function (res) {
@@ -87,14 +97,22 @@
     var keep = root.getAttribute('data-theme'), pass = 0, total = 0;
     for (var i = 0; i < THEMES.length; i++) {
       var th = THEMES[i][0], r = checkTheme(th);
-      total++; if (add(r.low === 0 && r.n > 0, 'ثيم ' + THEMES[i][1] + ': ' + r.n + ' نص، أقل تباين ' + r.min.toFixed(2) + ' من 4.5، تحت الحد: ' + r.low + (r.low ? ' (الأضعف: ' + r.worst + ')' : ''))) { pass++; }
+      total++; if (add(r.low === 0 && r.n > 0, 'ثيم ' + THEMES[i][1] + ': تباين النص (شامل نص SVG)، ' + r.n + ' نص، أقل تباين ' + r.min.toFixed(2) + ' (الحد الأدنى 4.5)، تحت الحد: ' + r.low + (r.low ? ' (الأضعف: ' + r.worst + ')' : ''))) { pass++; }
+      total++; if (add(r.gfx === 0, 'ثيم ' + THEMES[i][1] + ': تباين الرسم (دواير الخط الزمني)، أقل تباين ' + r.gmin.toFixed(2) + ' (الحد الأدنى 3)، تحت الحد: ' + r.gfx + (r.gfx ? ' (الأضعف: ' + r.gworst + ')' : ''))) { pass++; }
       total++; if (add(r.small === 0, 'ثيم ' + THEMES[i][1] + ': نصوص أصغر من 14px: ' + r.small)) { pass++; }
-      total++; if (add(r.tiny === 0, 'ثيم ' + THEMES[i][1] + ': أزرار أصغر من 44px: ' + r.tiny + ' من ' + r.btns)) { pass++; }
+      total++; if (add(r.tiny === 0, 'ثيم ' + THEMES[i][1] + ': أزرار الأصناف الحقيقية أصغر من 44px: ' + r.tiny + ' من ' + r.btns)) { pass++; }
     }
     if (keep) { root.setAttribute('data-theme', keep); } else { root.removeAttribute('data-theme'); }
     var f = await fps(1000);
-    total++; if (add(f > 0, 'سرعة العرض في متصفح الفحص: حوالي ' + Math.round(f) + ' إطار في الثانية (مش قياس جهاز حقيقي)')) { pass++; }
+    var fi = document.createElement('li'); fi.textContent = 'معلومة بس (مش فحص ومش محسوبة): سرعة العرض في متصفح الفحص حوالي ' + Math.round(f) + ' إطار في الثانية، مش قياس جهاز حقيقي'; ul.appendChild(fi);
     var s = document.getElementById('stSum'); s.textContent = pass === total ? 'كله تمام: ' + pass + ' من ' + total : 'فيه مشاكل: ' + pass + ' من ' + total + ' نجحوا';
+  }
+  if (location.search.indexOf('bad=1') >= 0) {
+    var bad = document.createElement('div'); bad.className = 'st-badsample';
+    bad.innerHTML = '<p style="font-size:10px;color:#5a5a5a">نص غلط عمدًا: صغير وباهت</p><p style="font-size:16px;color:#bbbbbb">نص غلط عمدًا: فاتح</p><svg width="80" height="20" class="o3-timeline"><circle cx="10" cy="10" r="5" fill="#5a5a5a"></circle><circle cx="30" cy="10" r="5" fill="#bbbbbb"></circle></svg>';
+    document.querySelector('.st-fake').appendChild(bad);
+    var bb = document.createElement('button'); bb.type = 'button'; bb.textContent = 'ص'; bb.style.cssText = 'width:30px;height:30px;min-height:0;min-width:0'; document.querySelector('.st-real44').appendChild(bb);
+    var bn = document.createElement('p'); bn.className = 'st-note'; bn.textContent = 'وضع الغلط العمدي شغال (bad=1): لازم يظهر ✖.'; document.querySelector('.st-wrap').insertBefore(bn, document.getElementById('stRun'));
   }
   document.getElementById('stRun').addEventListener('click', run);
   if (location.search.indexOf('auto=1') >= 0) { run(); }
