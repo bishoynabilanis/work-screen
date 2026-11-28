@@ -2,7 +2,8 @@
    Runs the LEGEND block from office3d.js with a tiny fake page. Checks: the button exists with an Arabic label; clicking it opens one sheet with role=dialog, aria-modal and an Arabic aria-label; the sheet has the colour words (blue, yellow, green, red, grey), the badge words (may be late, needs intervention, old data, needs your decision) and the numbers and touch words; every colour dot has a word next to it; ESC, the close button and a tap outside each close it and give focus back to the button; a second click does not open two sheets; no font under 14px; buttons at least 44px; the block has no network, storage, innerHTML, eval or tracking. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
 var src = fs.readFileSync(path.join(__dirname, '..', 'office3d.js'), 'utf8');
-var m = src.match(/\/\* LEGEND-BEGIN[\s\S]*?LEGEND-END \*\//); var bad = [], n = 0; function chk(ok, t) { n++; if (!ok) { bad.push(t); } }
+var m = src.match(/\/\* LEGEND-BEGIN[\s\S]*?LEGEND-END \*\//); var appSrc = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8'); if (process.env.LEGEND_BAD) { appSrc = appSrc.replace("blocked: 'واقف'", "blocked: 'متعطل'"); }
+var bad = [], n = 0; function chk(ok, t) { n++; if (!ok) { bad.push(t); } }
 chk(!!m, 'LEGEND block found'); if (!m) { console.error('FAIL: block not found'); process.exit(1); }
 var code = m[0];
 if (process.env.LEGEND_BAD) { code = code.replace("e.key === 'Escape'", "e.key === 'Nothing'").replace("'أحمر = واقف، ومعاه علامة محتاج تدخل'", "'أحمر = متعطل'").replace("e.key === 'Tab'", "e.key === 'Nope'").replace("'dialog'", "'region'").replace('min-height:48px', 'min-height:30px'); }
@@ -33,6 +34,7 @@ if (sh.length) { var s = sh[0], t = text(s);
   sh = open(); var cb = all(sh[0]).filter(function (x) { return x.tag === 'button'; })[0]; cb.listeners.click[0](); chk(doc.body.children.length === 1 && doc.active === btn, 'the close button closes it');
   sh = open(); var back = doc.body.children.filter(function (c) { return c.id !== 'o3-legend' && c !== btn; })[0]; back.listeners.click[0](); chk(doc.body.children.length === 1, 'a tap outside closes it');
 }
+chk(/blocked: 'واقف'/.test(appSrc) && !/blocked: 'متعطل'/.test(appSrc), 'the org card label for a stopped person is واقف, same as the sheet and the scene');
 var sizes = (code.match(/font-size:\s*(\d+)px|font:[^;"']*?(\d+)px/g) || []).map(function (x) { return +x.match(/(\d+)px/)[1]; }); chk(sizes.length > 0 && Math.min.apply(null, sizes) >= 14, 'no font under 14px');
 chk(/min-height:48px/.test(code), 'close button is at least 44px');
 chk(!/fetch\(|XMLHttpRequest|sendBeacon|localStorage|sessionStorage|innerHTML|eval\(|new Function|WebSocket|\.src\s*=/.test(code), 'no network, storage, innerHTML or eval in the block');
