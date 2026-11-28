@@ -1276,7 +1276,7 @@
           statusLines.push({ mid: m.id, id: aid, name: nm, text: tx, state: stt, ver: vf, next: nx, done: dn, pending: pd, job: jb, result: rs, ms: (m.time || 0) * 1000, ask: ak, options: op });
           changed = true;
         });
-        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 500); saveTL(); try { learnAvg(); } catch (e) {} try { renderLog(); renderCard(); } catch (e) {} try { if (baseFeed) { applyMerged(); } } catch (e) {} try { renderSummary(); } catch (e) {} try { renderDecisions(); } catch (e) {} try { publishLoad(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
+        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 500); saveTL(); try { learnAvg(); } catch (e) {} try { renderLog(); renderCard(); } catch (e) {} try { if (baseFeed) { applyMerged(); } } catch (e) {} try { renderSummary(); } catch (e) {} try { renderDecisions(); } catch (e) {} try { updateBadge(); } catch (e) {} try { publishLoad(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
       })
       .catch(function () {});
   }
@@ -1995,7 +1995,28 @@
     });
     if (decFocus) { var fb2 = null; try { fb2 = pan.querySelector('[data-dk="' + decFocus.replace(/["\\\]\[]/g, '') + '"]'); } catch (e) { fb2 = null; } decFocus = ''; if (fb2) { try { fb2.focus(); } catch (e) {} } }
   }
-  setInterval(function () { try { renderDecisions(); } catch (e) {} }, 60000);
+  setInterval(function () { try { renderDecisions(); } catch (e) {} try { updateBadge(); } catch (e) {} }, 60000);
+  /* IDEA51-BEGIN. App badge, tab title and tab icon. The number is the count that already exists on screen: decisions waiting for him (pendingDecisions) plus jobs that may be late (lateCount). Numbers only: no job names, no text from the feed. navigator.setAppBadge / clearAppBadge are used when the browser has them and ignored when it does not (iPhone Safari outside the home-screen app, desktop Firefox). The tab title becomes "(n) المكتب" and the icon turns red while n is above 0; with n = 0 the title and icon go back to the normal ones. No network, no storage, no tracking. */
+  var BADGE_TITLE0 = 'مكتب الشغل', BADGE_ICON_ALERT = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23070d18%22%2F%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%2220%22%20fill%3D%22%23dc2626%22%2F%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%227%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fsvg%3E', badgeIcon0 = null, badgeLast = -1;
+  function badgeNum(n) { n = Math.floor(Number(n)); return (isFinite(n) && n > 0) ? Math.min(n, 99) : 0; }
+  function badgeSpec(n) { n = badgeNum(n); return { n: n, title: n > 0 ? '(' + n + ') المكتب' : BADGE_TITLE0, alert: n > 0 }; }
+  function badgeCount() { var a = 0, b = 0; try { a = pendingDecisions().length; } catch (e) { a = 0; } try { b = lateCount(); } catch (e) { b = 0; } return badgeNum(a + b); }
+  function updateBadge() {
+    var n = badgeCount(); if (n === badgeLast) { return; } badgeLast = n;
+    var sp = badgeSpec(n);
+    try { document.title = sp.title; } catch (e) { /* ignore */ }
+    try {
+      var ln = document.querySelector('link[rel="icon"]');
+      if (ln) { if (badgeIcon0 === null) { badgeIcon0 = { href: ln.getAttribute('href'), type: ln.getAttribute('type'), sizes: ln.getAttribute('sizes') }; }
+        if (sp.alert) { ln.setAttribute('type', 'image/svg+xml'); ln.removeAttribute('sizes'); ln.setAttribute('href', BADGE_ICON_ALERT); }
+        else { ln.setAttribute('href', badgeIcon0.href); if (badgeIcon0.type) { ln.setAttribute('type', badgeIcon0.type); } if (badgeIcon0.sizes) { ln.setAttribute('sizes', badgeIcon0.sizes); } } }
+    } catch (e) { /* ignore */ }
+    try {
+      if (sp.alert) { if (typeof navigator.setAppBadge === 'function') { var p = navigator.setAppBadge(sp.n); if (p && p.catch) { p.catch(function () { /* ignore */ }); } } }
+      else if (typeof navigator.clearAppBadge === 'function') { var q = navigator.clearAppBadge(); if (q && q.catch) { q.catch(function () { /* ignore */ }); } }
+    } catch (e) { /* ignore */ }
+  }
+  /* IDEA51-END */
 
   var BADGE_COLORS = ['#ff8a65', '#4dd0e1', '#b39ddb', '#81c784', '#ffd54f', '#f48fb1', '#64b5f6', '#a1887f', '#aed581', '#ba68c8', '#4db6ac', '#e57373'];
   function badgeColor(key) { var h = 0, t = String(key || '?'), i; for (i = 0; i < t.length; i++) { h = (h * 31 + t.charCodeAt(i)) >>> 0; } return BADGE_COLORS[h % BADGE_COLORS.length]; }
@@ -2341,6 +2362,6 @@
   bootOrgView();
   restoreTL();
   init();
-  setTimeout(function () { try { renderLog(); renderSummary(); renderDecisions(); } catch (e) { /* optional */ } }, 1500);
+  setTimeout(function () { try { renderLog(); renderSummary(); renderDecisions(); } catch (e) { /* optional */ } try { updateBadge(); } catch (e) { /* optional */ } }, 1500);
   setInterval(function () { try { renderSummary(); renderCard(); } catch (e) { /* optional */ } }, 60000);
 })();
