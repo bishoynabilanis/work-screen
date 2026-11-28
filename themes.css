@@ -90,3 +90,45 @@ html[data-theme="light"] button:not(.on):not(.is-on):not([aria-pressed="true"]):
 html[data-theme="light"][data-theme] button:not(.on):not(.is-on):not([aria-pressed="true"]):not(.o3-alertbar) > span:not(#x):not(#y) { color: #0b1a2e !important; }
 html[data-theme="light"] button.o3-alertbar { background: #991b1b !important; color: #fff !important; }
 html[data-theme="light"] .o3-alertbar * { color: #fff !important; }
+
+/* PASS 3: light chips/buttons/search light, forced states */
+html[data-theme="light"] button:not(.on):not(.is-on):not(.active):not(.is-active):not([aria-pressed="true"]):not(.o3-alertbar):not(.o3-floors-toggle):not(.sheet-close):not(.o3-zone-on) { background: #f6f9ff !important; background-image: none !important; color: #0b1a2e !important; border-color: rgba(20,50,90,.45) !important; }
+html[data-theme="light"] #o3-search input, html[data-theme="light"] input[type="search"], html[data-theme="light"] input[type="text"] { background: #fff !important; color: #0b1a2e !important; border-color: rgba(20,50,90,.45) !important; }
+html[data-theme="light"] input::placeholder { color: #3f5870 !important; }
+html[data-theme="light"] .updated.is-stale .updated-label, html[data-theme="light"] .updated.is-stale .updated-value, html[data-theme="light"] .updated.is-stale .updated-label::before { color: #7a5000 !important; }
+html[data-theme="light"] .offline-banner { background: rgba(179,34,61,.1) !important; border-color: rgba(179,34,61,.6) !important; color: #8f1d36 !important; }
+html[data-theme="light"] .offline-banner * { color: #8f1d36 !important; }
+html[data-theme="gold"] .desk-step { background-color: rgba(255,190,90, 0.12) !important }
+html[data-theme="gold"] ::selection { background-color: rgba(245,185,66, 0.35) !important }
+html[data-theme="gold"] * { scrollbar-color: rgba(245,185,66, 0.45) rgba(255, 255, 255, 0.04) !important }
+html[data-theme="gold"] ::-webkit-scrollbar-thumb { background-color: rgba(245,185,66, 0.4) !important }
+html[data-theme="gold"] .topbar { box-shadow: rgba(245,185,66, 0.25) 0px 1px 0px, rgba(245,185,66, 0.08) 0px 8px 30px !important }
+html[data-theme="gold"] .brand h1 { filter: drop-shadow(rgba(245,185,66, 0.35) 0px 0px 8px) !important }
+html[data-theme="gold"] .updated { box-shadow: rgba(245,185,66, 0.08) 0px 0px 14px inset !important; background-color: rgba(245,185,66, 0.06) !important }
+html[data-theme="gold"] .updated-value { text-shadow: rgba(245,185,66, 0.6) 0px 0px 8px !important }
+html[data-theme="gold"] .office3d { box-shadow: var(--shadow), 0 0 40px rgba(245,185,66,.12), inset 0 0 0 1px rgba(255,255,255,.03) !important }
+html[data-theme="gold"] .o3-chip { background-color: rgba(245,185,66, 0.06) !important; border-top-color: rgba(245,185,66, 0.28) !important; border-right-color: rgba(245,185,66, 0.28) !important; border-bottom-color: rgba(245,185,66, 0.28) !important; border-left-color: rgba(245,185,66, 0.28) !important }
+html[data-theme="gold"] .o3-chip:active { background-color: rgba(245,185,66, 0.25) !important }
+html[data-theme="gold"] .o3-stage::before { background-image: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(2, 6, 18, 0.55) 100%), linear-gradient(rgba(245,185,66, 0.07), transparent 22%, transparent 78%, rgba(244,81,30, 0.09)) !important }
+html[data-theme="gold"] .o3-stage::after { filter: drop-shadow(rgba(245,185,66, 0.8) 0px 0px 4px) !important }
+html[data-theme="gold"] .o3-clock.is-night { border-top-color: rgba(244,81,30, 0.6) !important; border-right-color: rgba(244,81,30, 0.6) !important; border-bottom-color: rgba(244,81,30, 0.6) !important; border-left-color: rgba(244,81,30, 0.6) !important }
+html[data-theme="gold"] .o3-label, html[data-theme="gold"] .o3-zone, html[data-theme="gold"] .o3-status { text-shadow: rgba(245,185,66, 0.5) 0px 0px 6px !important; border-top-color: rgba(245,185,66, 0.55) !important; border-right-color: rgba(245,185,66, 0.55) !important; border-bottom-color: rgba(245,185,66, 0.55) !important; border-left-color: rgba(245,185,66, 0.55) !important; box-shadow: rgba(245,185,66, 0.35) 0px 0px 10px, rgba(245,185,66, 0.12) 0px 0px 8px inset !important }
+html[data-theme="gold"] .o3-log-head b { text-shadow: rgba(245,185,66, 0.55) 0px 0px 10px !important }
+html[data-theme="gold"] .o3-pipe, html[data-theme="gold"] .o3-line { border-top-color: rgba(245,185,66, 0.14) !important; border-right-color: rgba(245,185,66, 0.14) !important; border-bottom-color: rgba(245,185,66, 0.14) !important; border-left-color: rgba(245,185,66, 0.14) !important; box-shadow: rgba(245,185,66, 0.04) 0px 0px 12px inset !important; background-color: rgba(245,185,66, 0.05) !important }
+html[data-theme="gold"] .o3-line.is-recv { border-top-color: rgba(244,81,30, 0.3) !important; border-right-color: rgba(244,81,30, 0.3) !important; border-bottom-color: rgba(244,81,30, 0.3) !important; border-left-color: rgba(244,81,30, 0.3) !important; background-color: rgba(244,81,30, 0.09) !important }
+html[data-theme="gold"] .o3-stage-chip.is-now { box-shadow: rgba(245,185,66, 0.8) 0px 0px 12px !important }
+html[data-theme="gold"] .sheet { box-shadow: 0 -10px 50px rgba(245,185,66,.18), var(--shadow) !important }
+html[data-theme="gold"] .sheet-cell { background-color: rgba(245,185,66, 0.05) !important }
+html[data-theme="gold"] .sheet-close { background-image: linear-gradient(135deg, rgba(245,185,66, 0.9), rgba(244,81,30, 0.9)) !important }
+html[data-theme="gold"] .section-head h2, html[data-theme="gold"] .zone-title { text-shadow: rgba(245,185,66, 0.4) 0px 0px 10px !important }
+html[data-theme="gold"] .o3-bubble { background-image: linear-gradient(135deg, rgb(245,185,66), rgb(167, 139, 250)) !important }/* gold: literals written inline by app.js */
+html[data-theme="gold"] [style*="34,211,238"], html[data-theme="gold"] [style*="34, 211, 238"], html[data-theme="gold"] [style*="22d3ee"], html[data-theme="gold"] [style*="80,200,255"], html[data-theme="gold"] [style*="80, 200, 255"] { border-color: rgba(245,185,66,.55) !important; }
+html[data-theme="gold"] [style*="color:#22d3ee"], html[data-theme="gold"] [style*="color: #22d3ee"] { color: #f5b942 !important; }
+html[data-theme="gold"] [style*="color:#8b5cf6"], html[data-theme="gold"] [style*="color: #8b5cf6"] { color: #ffb08a !important; }
+html[data-theme="gold"] [style*="background:#22d3ee"], html[data-theme="gold"] [style*="background: #22d3ee"] { background: #f5b942 !important; }
+html[data-theme="gold"] [style*="color: rgb(34, 211, 238)"], html[data-theme="gold"] [style*="color:rgb(34,211,238)"] { color: #f5b942 !important; }
+html[data-theme="gold"] [style*="color: rgb(139, 92, 246)"], html[data-theme="gold"] [style*="color:rgb(139,92,246)"] { color: #ffb08a !important; }
+html[data-theme="gold"] [style*="background: rgb(34, 211, 238)"], html[data-theme="gold"] [style*="background-color: rgb(34, 211, 238)"], html[data-theme="gold"] [style*="background:rgb(34,211,238)"] { background: #f5b942 !important; }
+/* gold: low-contrast secondary text on gradient panels */
+html[data-theme="gold"] .room-count, html[data-theme="gold"] .room-roles, html[data-theme="gold"] .desk-title { color: #f0d9b0 !important; }
+html[data-theme="gold"] button.o3-floors-toggle, html[data-theme="gold"] button.on, html[data-theme="light"] button.o3-floors-toggle, html[data-theme="light"] button.on { background: #b83a0e !important; background-image: none !important; color: #fff !important; }
