@@ -5,6 +5,7 @@ var app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
 var m = app.match(/\/\* IDEA45-BEGIN[\s\S]*?IDEA45-END \*\//);
 if (!m) { console.error('FAIL: IDEA45 block not found in app.js'); process.exit(1); }
 var code = m[0];
+if (process.env.LATE_BAD2) { code = code.replace('el > 120', 'el > 720'); }
 if (process.env.LATE_BAD) { code = code.replace("lateAvg[d] = [n,", "lateAvg[d + ' ' + e.text] = [n,"); }
 var store = {}, bad = [];
 var NOW = 1800000000000, MIN = 60000;
@@ -36,6 +37,8 @@ if (!late('w2', 'content', 35)) { bad.push('35 min against 20 avg should be late
 if (late('w3', 'seo', 30)) { bad.push('30 min with no average should not be late (limit 45)'); }
 if (!late('w3', 'seo', 50)) { bad.push('50 min should be late (over 45)'); }
 if (late('w3', 'seo', 800)) { bad.push('stale line over 12h must not count'); }
+if (late('w3', 'seo', 130)) { bad.push('start line older than 2h must not count as late'); }
+if (!late('w3', 'seo', 110)) { bad.push('start line 110 min old should still be late'); }
 ctx.statusLines = [L('w2', 'done', 1), L('w2', 'start', 90)]; if (api.isLate('w2', 'content', NOW)) { bad.push('finished worker must not be late'); }
 ctx.statusLines = [L('w2', 'start', 40), L('w3', 'start', 60), L('w1', 'done', 2)]; if (api.lateCount(NOW) !== 2) { bad.push('late count should be 2, got ' + api.lateCount(NOW)); }
 /* storage written after the late checks still has no text */
