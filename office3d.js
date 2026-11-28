@@ -1664,10 +1664,10 @@
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;align-items:center;margin:6px auto;width:min(560px,calc(100vw - 20px));box-sizing:border-box;padding:0 6px';
 /* LEGEND-BEGIN. Idea 57: the "؟ شرح" button and its bottom sheet. Static Arabic text only: no data, no network, no storage. role=dialog, Arabic aria-label, ESC or the close button or a tap outside closes it. Every colour has a word next to it. */
     var LEGEND_ROWS = [
-      ['الألوان (حلقة الموظف في المشهد ونقطته في الخريطة)', [['#3aa0ff', 'أزرق = شغّال'], ['#f6c453', 'أصفر = مستني'], ['#4ade80', 'أخضر = خلص'], ['#f87171', 'أحمر = متعطل، ومعاه علامة محتاج تدخل'], ['#9aa0aa', 'رمادي = غير معروف، أو آخر تحديث أقدم من 30 دقيقة']]],
-      ['العلامات', [['', '\u26A0 ممكن يتأخر: الشغلة بدأت وعدّى عليها وقت أطول من المعتاد ولسه ما خلصتش.'], ['', 'محتاج تدخل: موظف واقف ومحتاج حد يتدخل.'], ['', 'بيانات قديمة: مفيش تحديث حديث، فالألوان رمادي ومش مؤكدة.'], ['', 'محتاج قرارك: كارت بيستنى قرارك. الرد بيتم برّه الشاشة دي.']]],
-      ['الأرقام', [['', 'الأعداد اللي فوق بتعدّ اللي بعتوا تحديث في آخر 30 دقيقة بس.'], ['', 'ملخص اليوم: أرقام اليوم من اللي الجهاز ده شافه. "لسه مفيش" معناها مفيش رقم اتجمّع، مش صفر.']]],
-      ['اللمس', [['', 'اضغط على موظف أو مكتب تشوف شغله. اسحب لتحريك المشهد وقرّب بإصبعين.'], ['', 'زر "ثبّت" على كارت الموظف بيحطه في شريط المثبّتين. بيتحفظ على موبايلك بس.']]]
+      ['الألوان (حلقة الموظف في المشهد ونقطته في الخريطة)', [['#3aa0ff', 'أزرق = شغّال'], ['#f6c453', 'أصفر = مستني'], ['#4ade80', 'أخضر = خلص'], ['#f87171', 'أحمر = واقف، ومعاه علامة محتاج تدخل'], ['#9aa0aa', 'رمادي = غير معروف، أو شغّال بس ماحدّثش من أكتر من 30 دقيقة، أو كل الحالات قديمة']]],
+      ['العلامات', [['', '\u26A0 ممكن يتأخر: الشغلة بدأت وعدّى عليها وقت أطول من المعتاد ولسه ما خلصتش.'], ['', 'محتاج تدخل: موظف واقف ومحتاج حد يتدخل.'], ['', 'بيانات قديمة: مفيش تحديث حديث، فالألوان رمادي ومش مؤكدة، ما عدا الأحمر.'], ['', 'محتاج قرارك: كارت بيستنى قرارك. الرد بيتم برّه الشاشة دي.']]],
+      ['الأرقام', [['', 'الأعداد اللي فوق بتعدّ اللي بعتوا تحديث في آخر 30 دقيقة بس.'], ['', 'ملخص اليوم: أرقام اليوم من اللي الجهاز ده شافه. "أمس: لسه مفيش" يعني الموبايل ده مالوش سجل لأمس لسه، مش إن أمس كان صفر.']]],
+      ['اللمس', [['', 'اضغط على موظف أو مكتب تشوف شغله. اسحب بإصبع تدوّر المشهد، وبإصبعين قرّب وحرّك.'], ['', 'زر "ثبّت" على كارت الموظف بيحطه في شريط المثبّتين. بيتحفظ على موبايلك بس.']]]
     ];
     var legendEl = null, legendBack = null;
     function legendClose() { if (legendEl) { var f = legendEl.__from; if (legendEl.parentNode) { legendEl.parentNode.removeChild(legendEl); } if (legendBack && legendBack.parentNode) { legendBack.parentNode.removeChild(legendBack); } legendEl = null; legendBack = null; if (f && f.focus) { try { f.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } } }
@@ -1688,7 +1688,7 @@
       });
       var cb = document.createElement('button'); cb.type = 'button'; cb.textContent = 'تمام'; cb.style.cssText = 'min-height:48px;min-width:48px;margin-top:12px;padding:6px 22px;border-radius:999px;border:1px solid #c2410c;background:#c2410c;color:#fff;font:700 15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
       cb.addEventListener('click', legendClose); sh.appendChild(cb);
-      sh.addEventListener('keydown', function (e) { if (e.key === 'Escape') { legendClose(); } });
+      sh.addEventListener('keydown', function (e) { if (e.key === 'Escape') { legendClose(); } else if (e.key === 'Tab') { e.preventDefault(); try { cb.focus({ preventScroll: true }); } catch (x) { /* ignore */ } } });
       legendEl = sh; document.body.appendChild(legendBack); document.body.appendChild(sh);
       try { cb.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
     }
