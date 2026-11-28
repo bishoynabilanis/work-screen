@@ -1194,7 +1194,7 @@
     for (i = 0; i < statusLines.length; i++) { e = statusLines[i]; if (lateKeyOf(e) !== k) { continue; } if (e.state !== 'start') { break; } run = e.ms; }
     if (!run) { return false; }
     var el = ((now || Date.now()) - run) / 60000, a = lateAvg[deptId];
-    if (el > 720 || el < 1) { return false; }
+    if (el > 120 || el < 1) { return false; } /* only start lines newer than 2 hours count, so it never contradicts the working counter */
     return !!((a && a[0] >= LATE_MINN && el >= 5 && el > LATE_X * a[1]) || el > LATE_PEND_MIN);
   }
   function lateCount(now) { try { learnAvg(); } catch (e) { /* optional */ } var seen = {}, n = 0; statusLines.forEach(function (e) { var k = lateKeyOf(e); if (seen[k]) { return; } seen[k] = 1; if (isLate(k, deptOf(k), now)) { n++; } }); return n; }
