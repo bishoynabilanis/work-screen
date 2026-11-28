@@ -1252,15 +1252,44 @@
 
   // ---- Live status lines (ntfy topic, JSON: id, name, text, state start|done). Untrusted: text only, never HTML. ----
   var STATUS_BASE = 'https://ntfy.sh/wsfeed-bishoy-0284a9cccdca36e35f4d30fb';
+  /* POLL58-BEGIN. Idea 58: adaptive polling. One request at a time, the next one is timed only after the last one ends (one setTimeout at a time, no repeating timer). While there is news the wait is 5 s; when quiet it backs off 10, 20, then 30 s; after a failure it waits 15, 30, then 60 s. News, going online, the tab coming back, or a focus resets it at once. While the tab is hidden nothing is scheduled. A request that never answers is counted as a failure after 30 s so the loop cannot freeze. No new network address, no storage, no free text. */
+  var POLL_QUIET = [5000, 10000, 20000, 30000], POLL_FAIL = [15000, 30000, 60000], POLL_WATCHDOG_MS = 30000;
+  function pollDelay(quiet, fail) { if (fail > 0) { return POLL_FAIL[Math.min(fail, 3) - 1]; } return POLL_QUIET[Math.min(quiet, 3)]; }
+  function makePoller(run, env) {
+    var quiet = 0, fail = 0, timer = null, dog = null, busy = false, again = false;
+    function hid() { try { return !!env.hidden(); } catch (e) { return false; } }
+    function stopTimer() { if (timer != null) { env.clear(timer); timer = null; } }
+    function schedule() { stopTimer(); if (hid()) { return; } timer = env.set(go, pollDelay(quiet, fail)); }
+    function go() {
+      timer = null; if (busy || hid()) { return; }
+      busy = true; var fin = false;
+      function done(outcome) {
+        if (fin) { return; } fin = true; busy = false; if (dog != null) { env.clear(dog); dog = null; }
+        if (outcome === 'news') { quiet = 0; fail = 0; } else if (outcome === 'fail') { fail++; } else { fail = 0; quiet++; }
+        if (again) { again = false; quiet = 0; fail = 0; go(); return; }
+        schedule();
+      }
+      dog = env.set(function () { dog = null; done('fail'); }, POLL_WATCHDOG_MS);
+      try { run(done); } catch (e) { done('fail'); }
+    }
+    function kick() { quiet = 0; fail = 0; stopTimer(); if (busy) { again = true; return; } go(); }
+    return { start: kick, kick: kick, state: function () { return { quiet: quiet, fail: fail, busy: busy, waiting: timer != null }; } };
+  }
+  var POLL_ENV = { set: function (f, ms) { return window.setTimeout(f, ms); }, clear: function (id) { window.clearTimeout(id); }, hidden: function () { return document.hidden; } };
+  var feedEtag = '';
+  var feedPoller = makePoller(function (d) { refresh(d); }, POLL_ENV);
+  var statusPoller = makePoller(function (d) { pollStatus(d); }, POLL_ENV);
+  function kickAll() { feedPoller.kick(); statusPoller.kick(); }
+  /* POLL58-END */
   var statusLines = [], statusSeen = {}, statusSince = '12h';
   var TL_KEY = 'ws-timeline-v1';
   function saveTL() { try { localStorage.setItem(TL_KEY, JSON.stringify(statusLines.slice(0, 500).map(function (e) { return { mid: e.mid, id: e.id, name: e.name, text: e.text, state: e.state, job: e.job, ms: e.ms, ask: e.ask || '', options: e.options || [], done: e.done, pending: e.pending, ver: (e.ver === true || e.ver === false) ? e.ver : undefined }; }))); } catch (e) { /* storage full or blocked */ } }
   function restoreTL() { try { var a = JSON.parse(localStorage.getItem(TL_KEY) || '[]'); if (Array.isArray(a)) { a.slice(0, 500).forEach(function (e) { if (e && e.mid && e.ms && e.text) { statusSeen[e.mid] = true; statusSince = e.mid; statusLines.push({ mid: String(e.mid), id: cleanText(e.id, 40), name: cleanText(e.name, 40), text: FREE_TEXT_OK ? (publicText(cleanText(e.text, 160)) || NOJOB) : (jobSafe(e.job, 40) || NOJOB), state: e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'start'), next: '', ver: (e.ver === true ? true : (e.ver === false ? false : null)), done: (isFinite(+e.done) && +e.done >= 0 ? Math.min(9999, Math.floor(+e.done)) : -1), pending: (isFinite(+e.pending) && +e.pending >= 0 ? Math.min(9999, Math.floor(+e.pending)) : -1), job: jobSafe(e.job, 40), result: '', ms: +e.ms, ask: (cleanText(e.ask, 140) === PRIV_PH ? '' : (FREE_TEXT_OK ? cleanText(e.ask, 140) : (cleanText(e.ask, 140) ? 'في قرار مستني' : ''))), options: FREE_TEXT_OK ? cleanOpts(e.options) : [] }); } }); statusLines.sort(function (x, y) { return y.ms - x.ms; }); } } catch (e) { console.warn('restoreTL', String(e)); statusLines = []; } }
   var PRIV_PH = 'نشاط على حساب، التفاصيل مخفية';
   function cleanOpts(a) { var o = []; if (Array.isArray(a)) { a.slice(0, 3).forEach(function (x) { var t = cleanText(typeof x === 'string' ? x : '', 50); if (t && t !== PRIV_PH) { o.push(t); } }); } return o; }
-  function pollStatus() {
+  function pollStatus(done) {
     fetch(STATUS_BASE + '/json?poll=1&since=' + encodeURIComponent(statusSince), { cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.text(); })
       .then(function (txt) {
         var changed = false;
         String(txt || '').split('\n').forEach(function (ln) {
@@ -1277,10 +1306,12 @@
           changed = true;
         });
         if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 500); saveTL(); try { learnAvg(); } catch (e) {} try { renderLog(); renderCard(); } catch (e) {} try { if (baseFeed) { applyMerged(); } } catch (e) {} try { renderSummary(); } catch (e) {} try { renderDecisions(); } catch (e) {} try { renderWaiting(); } catch (e) {} try { updateBadge(); } catch (e) {} try { publishLoad(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
+        return changed ? 'news' : 'quiet';
       })
-      .catch(function () {});
+      .catch(function () { return 'fail'; })
+      .then(function (o) { if (done) { done(o); } });
   }
-  pollStatus(); setInterval(pollStatus, 5000);
+  statusPoller.start();
 
   // ---- Per-agent card: now / next / progress, from the live status stream (text only) ----
   function agentLive(id, name) {
@@ -2387,59 +2418,53 @@
       });
   }
 
-  function refresh() {
-    if (refreshing) {
-      return;
-    }
+  function refresh(done) {
+    if (refreshing) { if (done) { done('quiet'); } return; }
     refreshing = true;
-
-    var controller = null;
-    var timer = 0;
-
-    if (typeof AbortController !== 'undefined') {
-      controller = new AbortController();
-      timer = window.setTimeout(function () {
-        controller.abort();
-      }, REQUEST_TIMEOUT_MS);
+    var outcome = 'fail';
+    function get(cond) {
+      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = controller ? window.setTimeout(function () { controller.abort(); }, REQUEST_TIMEOUT_MS) : 0;
+      var h = { Accept: 'application/json' };
+      if (cond) { h['If-None-Match'] = feedEtag; }
+      return fetch(cacheBusted(FEED_URL), { cache: 'no-store', headers: h, signal: controller ? controller.signal : undefined })
+        .then(function (res) {
+          if (timer) { window.clearTimeout(timer); }
+          if (cond && res.status === 304) { return { notModified: true }; }
+          if (!res.ok) { throw new Error('HTTP ' + res.status); }
+          var servedFromCache = res.headers.get('X-Feed-Cache') === 'hit', etag = res.headers.get('ETag') || '';
+          return res.json().then(function (data) { return { data: data, servedFromCache: servedFromCache, etag: etag }; });
+        }, function (e) { if (timer) { window.clearTimeout(timer); } throw e; });
     }
-
-    fetch(cacheBusted(FEED_URL), {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-      signal: controller ? controller.signal : undefined
-    })
-      .then(function (res) {
-        if (!res.ok) {
-          throw new Error('HTTP ' + res.status);
-        }
-        var servedFromCache = res.headers.get('X-Feed-Cache') === 'hit';
-        return res.json().then(function (data) {
-          return { data: data, servedFromCache: servedFromCache };
-        });
-      })
+    var cond = !!(feedEtag && baseFeed);
+    get(cond)
+      .catch(function (e) { if (cond) { feedEtag = ''; return get(false); } throw e; })
       .then(function (result) {
+        if (result.notModified) { lastSuccessAt = Date.now(); networkFailed = false; updateOffline(); outcome = 'quiet'; return; }
+        var changedTag = !result.etag || result.etag !== feedEtag;
+        feedEtag = result.servedFromCache ? '' : result.etag;
         scrubFeed(result.data); baseFeed = result.data; try { learnAvg(); renderSummary(); renderCard(); } catch (e) { /* optional */ }
         applyMerged();
         lastSuccessAt = Date.now();
         networkFailed = result.servedFromCache;
         updateOffline();
+        outcome = result.servedFromCache ? 'fail' : (changedTag ? 'news' : 'quiet');
       })
       .catch(function () {
         networkFailed = true;
         updateOffline();
+        outcome = 'fail';
       })
       .then(function () {
-        if (timer) {
-          window.clearTimeout(timer);
-        }
         refreshing = false;
+        if (done) { done(outcome); }
       });
   }
 
   function handleOnline() {
     networkFailed = false;
     updateOffline();
-    refresh();
+    kickAll();
   }
 
   function handleOffline() {
@@ -2495,17 +2520,16 @@
     window.addEventListener('offline', handleOffline);
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) {
-        refresh();
+        kickAll();
       }
     });
-    window.addEventListener('pageshow', function () { refresh(); });
-    window.addEventListener('focus', function () { refresh(); });
+    window.addEventListener('pageshow', function () { feedPoller.kick(); });
+    window.addEventListener('focus', function () { feedPoller.kick(); });
     window.addEventListener('load', registerServiceWorker);
 
     updateOffline();
-    refresh();
+    feedPoller.start();
     startLive();
-    window.setInterval(refresh, POLL_MS);
     window.setInterval(tick, TICK_MS);
     renderLastUpdated();
     window.setInterval(renderLastUpdated, 1000);
