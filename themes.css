@@ -149,4 +149,7 @@ html[data-theme="light"] .sheet-state { background: #fff !important; border: 1px
 /* timeline svg text: fill, not color */
 html[data-theme="light"] .o3-timeline svg text { fill: #0b1a2e !important; }
 html[data-theme="light"] .o3-timeline svg text[fill="#b9cce2"] { fill: #3f5870 !important; }
-html[data-theme="light"] .o3-timeline svg line { stroke: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] .o3-timeline svg line { stroke: rgba(20,50,90,.6) !important; }
+html[data-theme="gold"] .o3-timeline svg line { stroke: rgba(255,255,255,.4) !important; }
+/* timeline done dots: 3:1 needed on light */
+html[data-theme="light"] .o3-timeline svg circle[fill="#22d3ee"] { fill: #0e7490 !important; }
