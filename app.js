@@ -115,7 +115,7 @@
         copy(linkNow(), function (ok) {
           m.textContent = ok ? '✓ اللينك اتنسخ' : 'مقدرتش أنسخ، انسخ اللينك من شريط العنوان';
           m.setAttribute('data-ok', ok ? '1' : '0');
-          clearTimeout(tm); tm = setTimeout(function () { m.textContent = ''; }, 3000);
+          clearTimeout(tm); tm = setTimeout(function () { m.textContent = ''; m.removeAttribute('data-ok'); }, 3000);
         });
       });
       host.appendChild(b); host.appendChild(m);
