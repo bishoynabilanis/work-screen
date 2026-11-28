@@ -9,10 +9,10 @@ function chk(ok, t) { n++; if (!ok) { bad.push(t); } }
 chk(!/fetch\(|XMLHttpRequest|sendBeacon|https?:\/\/|localStorage|sessionStorage|cookie|innerHTML|eval\(|document\.write/.test(m[0]), 'deep-link block must have no network, storage, tracking, innerHTML or eval');
 function el(tag) { var e = { tag: tag, children: [], attrs: {}, listeners: {}, style: {}, textContent: '', remove: function () {}, appendChild: function (c) { e.children.push(c); return c; },
   setAttribute: function (k, v) { e.attrs[k] = v; }, getAttribute: function (k) { return e.attrs[k]; }, addEventListener: function (t, f) { e.listeners[t] = f; },
-  focus: function () {}, select: function () {}, setSelectionRange: function () {}, click: function () { if (e.listeners.click) { e.listeners.click(); } } }; return e; }
+  focus: function () {}, select: function () {}, setSelectionRange: function () {}, removeAttribute: function (k) { delete e.attrs[k]; }, click: function () { if (e.listeners.click) { e.listeners.click(); } } }; return e; }
 function world(search, opts) {
   opts = opts || {};
-  var calls = { replace: [], themeSet: [], focus: [], copied: [], exec: 0 }, elems = {}, dcl = [];
+  var calls = { replace: [], themeSet: [], focus: [], copied: [], exec: 0, timers: [] }, elems = {}, dcl = [];
   var host = el('div'), list = el('details'); list.open = true; elems.listView = list;
   var doc = { body: el('body'), createElement: el, getElementById: function (id) { return elems[id] || null; },
     querySelector: function (q) { return q === '.topbar-inner' ? host : null; }, addEventListener: function (t, f) { if (t === 'DOMContentLoaded') { dcl.push(f); } },
@@ -22,7 +22,7 @@ function world(search, opts) {
     __wsTheme: { get: function () { return opts.theme || 'blue'; }, set: function (t) { calls.themeSet.push(t); if (w.__dlNote) { w.__dlNote('theme', t); } } },
     __o3Focus: function (id) { calls.focus.push(id); return true; } };
   var nav = opts.noClip ? {} : { clipboard: { writeText: function (t) { calls.copied.push(t); return Promise.resolve(); } } };
-  var ctx = { window: w, document: doc, navigator: nav, URLSearchParams: URLSearchParams, Promise: Promise, Object: Object, Array: Array, Date: Date, setTimeout: function (f) { return 0; }, clearTimeout: function () {},
+  var ctx = { window: w, document: doc, navigator: nav, URLSearchParams: URLSearchParams, Promise: Promise, Object: Object, Array: Array, Date: Date, setTimeout: function (f) { calls.timers.push(f); return calls.timers.length; }, clearTimeout: function () {},
     setInterval: function (f) { f(); return 1; }, clearInterval: function () {} };
   w.setTimeout = ctx.setTimeout; w.setInterval = ctx.setInterval; w.clearInterval = ctx.clearInterval;
   vm.createContext(ctx); vm.runInContext(m[0], ctx);
@@ -68,5 +68,9 @@ var w6 = world('', { noClip: true }); w6.host.children[0].click();
 chk(w6.calls.exec === 1, 'fallback copy should run when the clipboard is missing');
 var w7 = world('', { noClip: true, noFallbackOk: true }); w7.host.children[0].click();
 chk(w7.host.children[1].textContent.indexOf('مقدرتش') === 0, 'a failed copy should say so');
+var w8 = world('', { noClip: true, noFallbackOk: true }); w8.host.children[0].click();
+chk(w8.host.children[1].attrs['data-ok'] === '0', 'failed copy marks the message');
+w8.calls.timers.forEach(function (f) { f(); });
+chk(w8.host.children[1].textContent === '' && w8.host.children[1].attrs['data-ok'] === undefined, 'after 3 seconds the message text AND its data-ok mark are both gone (no lone "!" left)');
 if (bad.length) { console.error('FAIL ' + bad.length + ' of ' + n + ':\n- ' + bad.join('\n- ')); process.exit(1); }
 console.log('OK ' + n + '/' + n);
