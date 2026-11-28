@@ -132,3 +132,11 @@ html[data-theme="gold"] [style*="background: rgb(34, 211, 238)"], html[data-them
 /* gold: low-contrast secondary text on gradient panels */
 html[data-theme="gold"] .room-count, html[data-theme="gold"] .room-roles, html[data-theme="gold"] .desk-title { color: #f0d9b0 !important; }
 html[data-theme="gold"] button.o3-floors-toggle, html[data-theme="gold"] button.on, html[data-theme="light"] button.o3-floors-toggle, html[data-theme="light"] button.on { background: #b83a0e !important; background-image: none !important; color: #fff !important; }
+/* sheet states, light and gold */
+html[data-theme="light"] .sheet-state[data-state="running"] { color: #a8330a !important; }
+html[data-theme="light"] .sheet-state[data-state="done"] { color: #17734a !important; }
+html[data-theme="light"] .sheet-state[data-state="blocked"] { color: #b3223d !important; }
+html[data-theme="light"] .sheet-state[data-state="waiting"] { color: #3f5870 !important; }
+html[data-theme="light"] .sheet-close, html[data-theme="gold"] .sheet-close { background: #b83a0e !important; background-image: none !important; color: #fff !important; }
+html[data-theme="light"] [style*="color:#b9cce2"], html[data-theme="light"] [style*="color: #b9cce2"], html[data-theme="light"] [style*="color:#8aa3bf"], html[data-theme="light"] [style*="color:#c9d3e6"] { color: #3f5870 !important; }
+html[data-theme="light"] [style*="color: rgb(185, 204, 226)"], html[data-theme="light"] [style*="color: rgb(138, 163, 191)"], html[data-theme="light"] [style*="color: rgb(201, 211, 230)"] { color: #3f5870 !important; }
