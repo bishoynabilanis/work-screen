@@ -55,7 +55,7 @@ function handleFeed(request) {
 
   return fetch(request, { cache: 'no-store' })
     .then(function (response) {
-      if (!response || !response.ok) {
+      if (!response || (!response.ok && response.status !== 304)) {  /* 304 = the page asked with If-None-Match and nothing changed: pass it through */
         throw new Error('feed unavailable');
       }
       var copy = response.clone();
