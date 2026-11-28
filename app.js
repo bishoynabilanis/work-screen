@@ -1399,6 +1399,7 @@
   function swipeGo(dir) {
     var o = swipeOrder(), nx = swipeTarget(o, cardFor, dir); if (nx === cardFor) { return; }
     cardFor = nx; renderCard();
+    try { announce(); } catch (e) { /* optional */ }
     var reduce = false; try { reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { reduce = false; }
     if (reduce || !cardEl) { return; }
     var rtl = false; try { rtl = getComputedStyle(cardEl).direction === 'rtl'; } catch (e) { rtl = false; }
@@ -1428,6 +1429,21 @@
     var dir = keyDir(ev.key, rtl); if (dir) { ev.preventDefault(); swipeGo(dir); }
   });
   /* IDEA54-END */
+  /* IDEA55-BEGIN. Screen-reader announcement. When the open card changes by swipe or arrow key, one hidden polite live region (made once, kept on the page, off screen, not visible text) says the worker and the position, for example "يوسف · مسودات فيسبوك، 3 من 47". Fixed words plus the worker name and two numbers. Page text only, nothing sent or saved. */
+  function srText(name, i, n) { return String(name) + '، ' + (i + 1) + ' من ' + n; }
+  var srEl = null;
+  function announce() {
+    if (!cardEl || !cardFor) { return; }
+    var o = swipeOrder(), i = o.indexOf(cardFor); if (i < 0) { return; }
+    var b = cardEl.querySelector('b'), nm = b ? b.textContent : '';
+    if (!srEl) {
+      srEl = document.createElement('div'); srEl.setAttribute('role', 'status'); srEl.setAttribute('aria-live', 'polite'); srEl.setAttribute('aria-atomic', 'true'); srEl.setAttribute('data-sr-position', '1');
+      srEl.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0';
+      document.body.appendChild(srEl);
+    }
+    srEl.textContent = srText(nm, i, o.length);
+  }
+  /* IDEA55-END */
   function showCard(id) {
     var host = document.getElementById('office3d'); if (!host) { return false; }
     if (!cardEl) { cardEl = make('div', 'o3-agentcard'); cardEl.style.cssText = 'position:absolute;z-index:30;top:160px;inset-inline-start:12px;width:min(300px,86%);padding:12px 14px;border-radius:14px;background:rgba(8,14,30,.92);color:#fff;border:1px solid rgba(80,200,230,.45);backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,0,0,.5)'; host.appendChild(cardEl); try { swipeBind(cardEl); } catch (e) { /* optional */ } }
