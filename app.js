@@ -1290,6 +1290,29 @@
   }
   var cardEl = null, cardFor = null;
   function closeCard() { if (cardEl) { cardEl.remove(); cardEl = null; cardFor = null; } } window.__closeCard = closeCard; document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { closeCard(); } });
+  /* IDEA53-BEGIN. Swipe between workers on the open worker card. One finger: sideways moves to the previous or next worker, down closes the card, touch-action none on the card, small dots under the card show where you are. Order = manager first, then the feed staff list. In a right-to-left page the next worker is to the left, so swiping right (content moves right) shows the next one; in left-to-right swiping left does. 40px minimum, and the move must be mostly sideways or mostly down, so scrolling and taps are not stolen. Only worker ids are used, nothing is stored, no text, no network. */
+  var SWIPE_MIN = 40, DOTS_MAX = 7;
+  function swipeDir(dx, dy, rtl) {
+    dx = Number(dx); dy = Number(dy);
+    if (!isFinite(dx) || !isFinite(dy)) { return ''; }
+    var ax = Math.abs(dx), ay = Math.abs(dy);
+    if (ay >= SWIPE_MIN && ay > ax) { return dy > 0 ? 'close' : ''; }
+    if (ax >= SWIPE_MIN && ax > ay) { return (dx > 0) === !!rtl ? 'next' : 'prev'; }
+    return '';
+  }
+  function swipeTarget(order, cur, dir) {
+    var i = order.indexOf(cur);
+    if (i < 0) { return cur; }
+    if (dir === 'next') { return order[Math.min(order.length - 1, i + 1)]; }
+    if (dir === 'prev') { return order[Math.max(0, i - 1)]; }
+    return cur;
+  }
+  function dotWindow(n, i) {
+    n = Math.max(0, Math.floor(n)); i = Math.max(0, Math.min(n - 1, Math.floor(i)));
+    var count = Math.min(n, DOTS_MAX), start = Math.max(0, Math.min(n - count, i - Math.floor(count / 2)));
+    return { start: start, count: count, active: i - start };
+  }
+  /* IDEA53-END */
   /* IDEA45-BEGIN. Early warning "may be late". Local numbers only, keyed by department id. Never stores job names or text. */
   var LATE_KEY = 'ws_avg_v1', LATE_T_KEY = 'ws_avg_t', LATE_PEND_MIN = 45, LATE_X = 1.5, LATE_MINN = 3, lateAvg = {}, lateT = 0;
   function deptOf(id) { var s = (baseFeed && baseFeed.staff || []).filter(function (p) { return String(p.id) === String(id); })[0], d = s && s.dept; return (typeof d === 'string' && /^[a-z0-9_-]{1,20}$/i.test(d)) ? d : 'all'; }
@@ -1361,10 +1384,44 @@
       var pt = make('div', ''); pt.style.cssText = 'font-size:14px;color:#b9cce2;margin-top:3px'; pt.textContent = pc + '% خلص النهاردة'; cardEl.appendChild(pt);
     } else { row('اتعمل / فاضل', 'لسه ما بعتش الأرقام'); }
     if (lv && lv.ms) { var tt = make('div', ''); tt.style.cssText = 'font-size:14px;color:#b9cce2;margin-top:6px'; try { tt.textContent = 'آخر تحديث ' + new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Dubai' }).format(new Date(lv.ms)); } catch (e) {} cardEl.appendChild(tt); }
+    try { swipeDots(); } catch (e) { /* optional */ }
+  }
+  /* IDEA53 wiring */
+  function swipeOrder() { var o = ['__manager__']; ((baseFeed && baseFeed.staff) || []).forEach(function (p) { var id = String(p.id); if (o.indexOf(id) < 0) { o.push(id); } }); return o; }
+  function swipeDots() {
+    if (!cardEl || !cardFor) { return; }
+    var o = swipeOrder(), i = o.indexOf(cardFor); if (i < 0) { return; }
+    var w = dotWindow(o.length, i), row = make('div', ''); row.setAttribute('data-swipe-dots', '1'); row.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;font-size:14px;color:#b9cce2';
+    var k, d; for (k = 0; k < w.count; k++) { d = make('span', ''); d.setAttribute('aria-hidden', 'true'); d.style.cssText = 'width:' + (k === w.active ? 10 : 7) + 'px;height:' + (k === w.active ? 10 : 7) + 'px;border-radius:50%;background:' + (k === w.active ? '#22d3ee' : 'rgba(255,255,255,.35)'); row.appendChild(d); }
+    var cnt = make('span', ''); cnt.textContent = (i + 1) + ' / ' + o.length; cnt.setAttribute('dir', 'ltr'); cnt.style.marginInlineStart = '8px'; row.appendChild(cnt);
+    cardEl.appendChild(row);
+  }
+  function swipeGo(dir) {
+    var o = swipeOrder(), nx = swipeTarget(o, cardFor, dir); if (nx === cardFor) { return; }
+    cardFor = nx; renderCard();
+    var reduce = false; try { reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { reduce = false; }
+    if (reduce || !cardEl) { return; }
+    var rtl = false; try { rtl = getComputedStyle(cardEl).direction === 'rtl'; } catch (e) { rtl = false; }
+    var from = ((dir === 'next') === rtl) ? -36 : 36; /* the new card slides in from the side it came from */
+    cardEl.style.transition = 'none'; cardEl.style.transform = 'translateX(' + from + 'px)'; cardEl.style.opacity = '0.4';
+    void cardEl.offsetWidth;
+    cardEl.style.transition = 'transform 200ms ease, opacity 200ms ease'; cardEl.style.transform = ''; cardEl.style.opacity = '';
+  }
+  function swipeBind(el) {
+    el.style.touchAction = 'none'; /* the card handles every drag itself: with pan-y the browser takes over a vertical drag and cancels the pointer before 40px, so swipe-down could never be read (checked in Chrome). The card is small; the rest of the page still scrolls. */
+    var sx = 0, sy = 0, down = false;
+    el.addEventListener('pointerdown', function (ev) { if (ev.target && ev.target.closest && ev.target.closest('button')) { down = false; return; } down = true; sx = ev.clientX; sy = ev.clientY; try { ev.stopPropagation(); el.setPointerCapture(ev.pointerId); } catch (e) { /* optional */ } }); /* keep the 3D scene from taking the drag */
+    el.addEventListener('pointercancel', function () { down = false; });
+    el.addEventListener('pointerup', function (ev) {
+      if (!down) { return; } down = false;
+      var rtl = false; try { rtl = getComputedStyle(el).direction === 'rtl'; } catch (e) { rtl = false; }
+      var dir = swipeDir(ev.clientX - sx, ev.clientY - sy, rtl);
+      if (dir === 'close') { closeCard(); } else if (dir) { swipeGo(dir); }
+    });
   }
   function showCard(id) {
     var host = document.getElementById('office3d'); if (!host) { return false; }
-    if (!cardEl) { cardEl = make('div', 'o3-agentcard'); cardEl.style.cssText = 'position:absolute;z-index:30;top:160px;inset-inline-start:12px;width:min(300px,86%);padding:12px 14px;border-radius:14px;background:rgba(8,14,30,.92);color:#fff;border:1px solid rgba(80,200,230,.45);backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,0,0,.5)'; host.appendChild(cardEl); }
+    if (!cardEl) { cardEl = make('div', 'o3-agentcard'); cardEl.style.cssText = 'position:absolute;z-index:30;top:160px;inset-inline-start:12px;width:min(300px,86%);padding:12px 14px;border-radius:14px;background:rgba(8,14,30,.92);color:#fff;border:1px solid rgba(80,200,230,.45);backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,0,0,.5)'; host.appendChild(cardEl); try { swipeBind(cardEl); } catch (e) { /* optional */ } }
     cardFor = String(id); renderCard(); return true;
   }
 
