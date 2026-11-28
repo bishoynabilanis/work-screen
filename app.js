@@ -1288,8 +1288,9 @@
   var PRIV_PH = 'نشاط على حساب، التفاصيل مخفية';
   function cleanOpts(a) { var o = []; if (Array.isArray(a)) { a.slice(0, 3).forEach(function (x) { var t = cleanText(typeof x === 'string' ? x : '', 50); if (t && t !== PRIV_PH) { o.push(t); } }); } return o; }
   function pollStatus(done) {
-    fetch(STATUS_BASE + '/json?poll=1&since=' + encodeURIComponent(statusSince), { cache: 'no-store' })
-      .then(function (r) { if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.text(); })
+    var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null, tmo = ctl ? window.setTimeout(function () { ctl.abort(); }, 25000) : 0;  /* aborts a hung request just before the 30 s watchdog, so an old request can never overlap the next one */
+    fetch(STATUS_BASE + '/json?poll=1&since=' + encodeURIComponent(statusSince), { cache: 'no-store', signal: ctl ? ctl.signal : undefined })
+      .then(function (r) { if (tmo) { window.clearTimeout(tmo); } if (!r.ok) { throw new Error('HTTP ' + r.status); } return r.text(); }, function (e) { if (tmo) { window.clearTimeout(tmo); } throw e; })
       .then(function (txt) {
         var changed = false;
         String(txt || '').split('\n').forEach(function (ln) {
