@@ -48,6 +48,90 @@
   } catch (e) { /* ignore silently */ }
 })(window, document, navigator);
 /* IDEA49-END */
+/* IDEA50-BEGIN. Deep-link view state. The page reads ?focus=&theme=&view= once on load and applies only values from fixed whitelists (focus: all, manager or a department id; theme: blue, gold, light; view: office, list, org, handoffs). Anything else is ignored and never written to the page. When the user changes focus, theme or view the address bar is updated with history.replaceState (no reload, no new history entry). A "copy this view link" button puts the current link on the clipboard. Local only: no network, no storage, no tracking. */
+(function (win, doc, nav) {
+  'use strict';
+  var BAD = !!win.__WSDL_BAD;
+  var FOCUS = ['all', 'manager', 'content', 'trend', 'video', 'jessica', 'seo', 'tools', 'mail', 'qa'];
+  var THEMES = ['blue', 'gold', 'light'];
+  var VIEWS = ['office', 'list', 'org', 'handoffs'];
+  var LISTS = { focus: FOCUS, theme: THEMES, view: VIEWS };
+  var KEYS = ['focus', 'theme', 'view'];
+  function okVal(k, v) { return typeof v === 'string' && LISTS[k].indexOf(v) >= 0; }
+  function parse(search) {
+    var out = {}, q;
+    try { q = new win.URLSearchParams(search); } catch (e) { return out; }
+    KEYS.forEach(function (k) { var v = q.get(k); if (BAD ? v : okVal(k, v)) { out[k] = v; } });
+    return out;
+  }
+  function build(st) {
+    var p = [];
+    KEYS.forEach(function (k) { if (st && okVal(k, st[k])) { p.push(k + '=' + st[k]); } });
+    return p.length ? '?' + p.join('&') : '';
+  }
+  win.__dl = { parse: parse, build: build, FOCUS: FOCUS, THEMES: THEMES, VIEWS: VIEWS };
+  if (!doc || !doc.addEventListener || !win.location) { return; }
+  var state = {};
+  function push() {
+    try { if (win.history && win.history.replaceState) { win.history.replaceState(null, '', win.location.pathname + build(state) + (win.location.hash || '')); } } catch (e) { /* ignore */ }
+  }
+  function note(k, v) { if (okVal(k, v)) { state[k] = v; push(); } }
+  win.__dlNote = note;
+  function lv() { return doc.getElementById('listView'); }
+  function linkNow() {
+    var l = lv(), th = 'blue';
+    try { if (win.__wsTheme) { th = win.__wsTheme.get(); } } catch (e) { /* ignore */ }
+    var st = { focus: state.focus, theme: th, view: state.view || (l && l.open ? 'list' : 'office') };
+    return win.location.origin + win.location.pathname + build(st);
+  }
+  function copy(t, done) {
+    function fb() { var ok = false; try { var ta = doc.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0;top:0;font-size:16px'; doc.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, 9999); ok = doc.execCommand('copy'); ta.remove(); } catch (e) { ok = false; } done(ok); }
+    try { if (nav && nav.clipboard && nav.clipboard.writeText) { nav.clipboard.writeText(t).then(function () { done(true); }, fb); } else { fb(); } } catch (e) { fb(); }
+  }
+  function scrollTo(id) { var el = doc.getElementById(id); if (el && el.scrollIntoView) { el.scrollIntoView({ block: 'start' }); } }
+  function applyView(v) {
+    var l = lv();
+    if (v === 'office') { if (l) { l.open = false; } } else if (v === 'list') { if (l) { l.open = true; } setTimeout(function () { scrollTo('listView'); }, 600); }
+    else if (v === 'org') { var n = 0, t = setInterval(function () { n++; if (doc.getElementById('orgView') || n > 20) { clearInterval(t); scrollTo('orgView'); } }, 400); }
+    else if (v === 'handoffs') { setTimeout(function () { scrollTo('handoffsHeading'); }, 1200); }
+  }
+  function applyFocus(id) {
+    var n = 0, t = setInterval(function () {
+      n++;
+      var ok = false; try { ok = !!(win.__o3Focus && win.__o3Focus(id)); } catch (e) { ok = false; }
+      if (ok || n > 100) { clearInterval(t); }
+      if (ok) { setTimeout(function () { try { win.__o3Focus(id); } catch (e) { /* ignore */ } }, 3500); }
+    }, 600);
+  }
+  doc.addEventListener('DOMContentLoaded', function () {
+    var host = doc.querySelector('.topbar-inner');
+    if (host && !doc.getElementById('ws-link-btn')) {
+      var b = doc.createElement('button');
+      b.type = 'button'; b.id = 'ws-link-btn'; b.textContent = 'انسخ لينك العرض';
+      b.setAttribute('aria-label', 'انسخ لينك العرض الحالي');
+      var m = doc.createElement('span'); m.id = 'ws-link-msg'; m.setAttribute('role', 'status'); m.setAttribute('aria-live', 'polite');
+      var tm = 0;
+      b.addEventListener('click', function () {
+        copy(linkNow(), function (ok) {
+          m.textContent = ok ? '✓ اللينك اتنسخ' : 'مقدرتش أنسخ، انسخ اللينك من شريط العنوان';
+          m.setAttribute('data-ok', ok ? '1' : '0');
+          clearTimeout(tm); tm = setTimeout(function () { m.textContent = ''; m.removeAttribute('data-ok'); }, 3000);
+        });
+      });
+      host.appendChild(b); host.appendChild(m);
+    }
+    var l = lv();
+    if (l) { l.addEventListener('toggle', function () { note('view', l.open ? 'list' : 'office'); }); }
+    var st = parse(win.location.search);
+    if (st.theme) { state.theme = st.theme; }
+    if (st.view) { state.view = st.view; }
+    if (st.focus) { state.focus = st.focus; }
+    if (st.theme && win.__wsTheme) { try { win.__wsTheme.set(st.theme); } catch (e) { /* ignore */ } }
+    if (st.view) { applyView(st.view); }
+    if (st.focus) { applyFocus(st.focus); }
+  });
+})(window, document, navigator);
+/* IDEA50-END */
 (function () {
   'use strict';
 
