@@ -1662,13 +1662,45 @@
     var stage = host.querySelector('.o3-stage') || host, MX0 = -5.5, MX1 = 28.5, MZ0 = -7.5, MZ1 = 24.5, W = 136, H = Math.round(W * (MZ1 - MZ0) / (MX1 - MX0));
     var wrap = document.createElement('div'); wrap.className = 'o3-minimap'; wrap.setAttribute('dir', 'rtl');
     wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;align-items:center;margin:6px auto;width:min(560px,calc(100vw - 20px));box-sizing:border-box;padding:0 6px';
-    var tg = document.createElement('button'); tg.type = 'button'; tg.style.cssText = 'min-height:48px;min-width:48px;padding:4px 14px;border-radius:999px;background:rgba(7,13,24,.9);border:1px solid #22d3ee;color:#fff;font:700 14px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+/* LEGEND-BEGIN. Idea 57: the "؟ شرح" button and its bottom sheet. Static Arabic text only: no data, no network, no storage. role=dialog, Arabic aria-label, ESC or the close button or a tap outside closes it. Every colour has a word next to it. */
+    var LEGEND_ROWS = [
+      ['الألوان (حلقة الموظف في المشهد ونقطته في الخريطة)', [['#3aa0ff', 'أزرق = شغّال'], ['#f6c453', 'أصفر = مستني'], ['#4ade80', 'أخضر = خلص'], ['#f87171', 'أحمر = متعطل، ومعاه علامة محتاج تدخل'], ['#9aa0aa', 'رمادي = غير معروف، أو آخر تحديث أقدم من 30 دقيقة']]],
+      ['العلامات', [['', '\u26A0 ممكن يتأخر: الشغلة بدأت وعدّى عليها وقت أطول من المعتاد ولسه ما خلصتش.'], ['', 'محتاج تدخل: موظف واقف ومحتاج حد يتدخل.'], ['', 'بيانات قديمة: مفيش تحديث حديث، فالألوان رمادي ومش مؤكدة.'], ['', 'محتاج قرارك: كارت بيستنى قرارك. الرد بيتم برّه الشاشة دي.']]],
+      ['الأرقام', [['', 'الأعداد اللي فوق بتعدّ اللي بعتوا تحديث في آخر 30 دقيقة بس.'], ['', 'ملخص اليوم: أرقام اليوم من اللي الجهاز ده شافه. "لسه مفيش" معناها مفيش رقم اتجمّع، مش صفر.']]],
+      ['اللمس', [['', 'اضغط على موظف أو مكتب تشوف شغله. اسحب لتحريك المشهد وقرّب بإصبعين.'], ['', 'زر "ثبّت" على كارت الموظف بيحطه في شريط المثبّتين. بيتحفظ على موبايلك بس.']]]
+    ];
+    var legendEl = null, legendBack = null;
+    function legendClose() { if (legendEl) { var f = legendEl.__from; if (legendEl.parentNode) { legendEl.parentNode.removeChild(legendEl); } if (legendBack && legendBack.parentNode) { legendBack.parentNode.removeChild(legendBack); } legendEl = null; legendBack = null; if (f && f.focus) { try { f.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } } }
+    function legendOpen(from) {
+      if (legendEl) { return; }
+      legendBack = document.createElement('div'); legendBack.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.55);z-index:9998';
+      legendBack.addEventListener('click', legendClose);
+      var sh = document.createElement('div'); sh.id = 'o3-legend'; sh.setAttribute('dir', 'rtl'); sh.setAttribute('role', 'dialog'); sh.setAttribute('aria-modal', 'true'); sh.setAttribute('aria-label', 'شرح الألوان والعلامات'); sh.__from = from || null;
+      sh.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:80vh;overflow-y:auto;box-sizing:border-box;padding:14px 16px 18px;background:#070d18;color:#fff;border-top:2px solid #f4511e;border-radius:18px 18px 0 0;font:500 15px/1.8 "Noto Kufi Arabic",sans-serif;z-index:9999';
+      var h = document.createElement('div'); h.textContent = 'شرح الألوان والعلامات'; h.style.cssText = 'font-size:17px;font-weight:800;margin-bottom:6px'; sh.appendChild(h);
+      LEGEND_ROWS.forEach(function (g) {
+        var t = document.createElement('div'); t.textContent = g[0]; t.style.cssText = 'color:#22d3ee;font-weight:700;margin:10px 0 2px'; sh.appendChild(t);
+        g[1].forEach(function (r) {
+          var row = document.createElement('div'); row.style.cssText = 'display:flex;gap:8px;align-items:flex-start;padding:2px 0';
+          if (r[0]) { var d = document.createElement('span'); d.setAttribute('aria-hidden', 'true'); d.style.cssText = 'flex:0 0 14px;width:14px;height:14px;margin-top:8px;border-radius:50%;border:1px solid #fff;background:' + r[0]; row.appendChild(d); }
+          var x = document.createElement('span'); x.textContent = r[1]; row.appendChild(x); sh.appendChild(row);
+        });
+      });
+      var cb = document.createElement('button'); cb.type = 'button'; cb.textContent = 'تمام'; cb.style.cssText = 'min-height:48px;min-width:48px;margin-top:12px;padding:6px 22px;border-radius:999px;border:1px solid #c2410c;background:#c2410c;color:#fff;font:700 15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+      cb.addEventListener('click', legendClose); sh.appendChild(cb);
+      sh.addEventListener('keydown', function (e) { if (e.key === 'Escape') { legendClose(); } });
+      legendEl = sh; document.body.appendChild(legendBack); document.body.appendChild(sh);
+      try { cb.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    }
+    var makeLegendBtn = function (css) { var b = document.createElement('button'); b.type = 'button'; b.id = 'o3-legendbtn'; b.textContent = '\u061F شرح'; b.setAttribute('aria-label', 'شرح الألوان والعلامات'); b.style.cssText = css; b.addEventListener('click', function () { legendOpen(b); }); return b; };
+    /* LEGEND-END */
+        var tg = document.createElement('button'); tg.type = 'button'; tg.style.cssText = 'min-height:48px;min-width:48px;padding:4px 14px;border-radius:999px;background:rgba(7,13,24,.9);border:1px solid #22d3ee;color:#fff;font:700 14px "Noto Kufi Arabic",sans-serif;cursor:pointer';
     var cv = document.createElement('canvas'); cv.tabIndex = 0; cv.setAttribute('role', 'img');
     cv.setAttribute('aria-label', 'خريطة المكتب. اضغط على مكان أو استخدم الأسهم عشان الكاميرا تروح هناك');
     cv.style.cssText = 'width:' + W + 'px;height:' + H + 'px;border-radius:10px;background:#070d18;border:1px solid rgba(34,211,238,.6);touch-action:none;cursor:pointer';
     var dpr = Math.min(3, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr;
     var tb = document.createElement('button'); tb.type = 'button'; tb.id = 'o3-tourbtn'; tb.textContent = 'الجولة'; tb.style.cssText = tg.style.cssText; tb.addEventListener('click', function () { if (window.__o3StartTour) { window.__o3StartTour(); } });
-    var brow = document.createElement('div'); brow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center'; var rb = document.createElement('button'); rb.type = 'button'; rb.id = 'o3-resetbtn'; rb.textContent = 'المنظر العام'; rb.setAttribute('aria-label', 'رجوع للمنظر العام للمكتب'); rb.style.cssText = tg.style.cssText; rb.addEventListener('click', function () { resetView(); }); brow.appendChild(tg); brow.appendChild(tb); brow.appendChild(rb); wrap.appendChild(brow); var gh = document.createElement('div'); gh.id = 'o3-gesturehint'; gh.textContent = 'اضغط مرتين بسرعة على المشهد أو اضغط زر المنظر العام عشان ترجع للمنظر الكامل'; gh.style.cssText = 'font-size:14px;line-height:1.5;color:#c9d3e6;text-align:center;padding:2px 8px'; wrap.appendChild(gh); cv.title = 'اضغط مرتين بسرعة للرجوع للمنظر الكامل';
+    var brow = document.createElement('div'); brow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;justify-content:center'; var rb = document.createElement('button'); rb.type = 'button'; rb.id = 'o3-resetbtn'; rb.textContent = 'المنظر العام'; rb.setAttribute('aria-label', 'رجوع للمنظر العام للمكتب'); rb.style.cssText = tg.style.cssText; rb.addEventListener('click', function () { resetView(); }); brow.appendChild(tg); brow.appendChild(tb); brow.appendChild(rb); brow.appendChild(makeLegendBtn(tg.style.cssText)); wrap.appendChild(brow); var gh = document.createElement('div'); gh.id = 'o3-gesturehint'; gh.textContent = 'اضغط مرتين بسرعة على المشهد أو اضغط زر المنظر العام عشان ترجع للمنظر الكامل'; gh.style.cssText = 'font-size:14px;line-height:1.5;color:#c9d3e6;text-align:center;padding:2px 8px'; wrap.appendChild(gh); cv.title = 'اضغط مرتين بسرعة للرجوع للمنظر الكامل';
     var capEl = document.createElement('div'); capEl.style.cssText = 'font-size:14px;line-height:1.7;color:#b9cce2;text-align:center;display:none'; wrap.appendChild(capEl);
     var mrow = document.createElement('div'); mrow.style.cssText = 'display:none;gap:12px;align-items:flex-start;justify-content:center;flex-wrap:wrap'; mrow.appendChild(cv);
     var lg = document.createElement('div'); lg.setAttribute('dir', 'rtl'); lg.style.cssText = 'font-size:14px;line-height:1.7;color:#e6eef8;flex:1 1 170px;min-width:0;max-width:300px;text-align:right';
