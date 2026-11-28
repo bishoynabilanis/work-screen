@@ -16,3 +16,4 @@ html:not([data-theme]) .sheet-close { background: #c2410c !important; background
 .offline-banner, .handoff-item, .handoff-time, .desk-doing, .o3-floor-cap { font-size: 14px !important; }
 .o3-floors button, .o3-cams button { min-height: 44px; min-width: 44px; }
 .o3-sound { width: 44px; height: 44px; }
+.o3-floors-toggle { min-height: 44px; min-width: 44px; }
