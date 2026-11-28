@@ -1464,6 +1464,59 @@
     box.appendChild(txt);
   }
   /* IDEA46-END */
+  /* IDEA47-BEGIN. Read the summary aloud with the device voice (speechSynthesis, ar-EG then ar-SA). Free, no keys, nothing leaves the device. The spoken text is built only from numbers and fixed words and categories, never job names or text. */
+  var lastSum = null, speakPrev = null, speakAt = 0;
+  function speakOk() { return typeof window !== 'undefined' && window.speechSynthesis && typeof window.SpeechSynthesisUtterance === 'function'; }
+  function speakText(sm, mix) {
+    var t = 'ملخص الشغل. ' + sm.working + ' شغالين. ' + sm.done + ' خلصوا. ';
+    if (sm.late) { t += sm.late + ' ممكن يتأخروا. '; }
+    if (sm.stuck) { t += sm.stuck + ' واقفين. '; }
+    if (mix && mix.total) {
+      t += 'خلص النهارده ' + mix.total + '. ';
+      MIX_CATS.forEach(function (c) { if (mix.n[c[0]]) { t += c[1] + ' ' + mix.n[c[0]] + '. '; } });
+    }
+    return t;
+  }
+  function speakLang() {
+    var vs = [], pick = null;
+    try { vs = window.speechSynthesis.getVoices() || []; } catch (e) { vs = []; }
+    function norm(v) { return String(v.lang || '').replace('_', '-').toLowerCase(); }
+    vs.forEach(function (v) { if (!pick && norm(v) === 'ar-eg') { pick = { lang: 'ar-EG', voice: v }; } });
+    if (!pick) { vs.forEach(function (v) { if (!pick && norm(v) === 'ar-sa') { pick = { lang: 'ar-SA', voice: v }; } }); }
+    return pick || { lang: 'ar-SA', voice: null };
+  }
+  function speakNow() {
+    if (!speakOk() || !lastSum) { return false; }
+    var u = new window.SpeechSynthesisUtterance(speakText(lastSum, mixCounts())), l = speakLang();
+    u.lang = l.lang; if (l.voice) { u.voice = l.voice; }
+    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); speakAt = Date.now();
+    return true;
+  }
+  function speakAuto() { try { return localStorage.getItem('ws_speak_auto') === '1'; } catch (e) { return false; } }
+  function speakAlertCheck(sm, now) {
+    var go = false;
+    if (speakPrev && speakAuto() && ((sm.late > speakPrev.late) || (sm.stuck > speakPrev.stuck)) && ((now || Date.now()) - speakAt > 120000)) { go = true; }
+    speakPrev = { late: sm.late, stuck: sm.stuck };
+    return go;
+  }
+  function renderSpeak() {
+    var host = document.getElementById('o3-summary'); if (!host || !speakOk()) { return; }
+    var row = document.getElementById('o3-speak');
+    if (!row) {
+      row = document.createElement('div'); row.id = 'o3-speak';
+      row.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:6px auto;max-width:calc(100vw - 16px);direction:rtl';
+      var st = 'min-height:44px;min-width:44px;padding:6px 14px;border-radius:999px;border:1px solid #22d3ee;background:#070d18;color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer';
+      var b1 = document.createElement('button'); b1.type = 'button'; b1.id = 'o3-speak-now'; b1.style.cssText = st; b1.textContent = '\uD83D\uDD0A اقرأ الملخص';
+      b1.addEventListener('click', function () { speakNow(); });
+      var b2 = document.createElement('button'); b2.type = 'button'; b2.id = 'o3-speak-auto'; b2.style.cssText = st;
+      function lab() { var on = speakAuto(); b2.textContent = on ? 'قراءة التنبيه: شغالة' : 'قراءة التنبيه: مقفولة'; b2.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+      b2.addEventListener('click', function () { try { localStorage.setItem('ws_speak_auto', speakAuto() ? '0' : '1'); } catch (e) { /* optional */ } lab(); });
+      lab(); row.appendChild(b1); row.appendChild(b2);
+      host.parentNode.insertBefore(row, host.nextSibling);
+    }
+    if (lastSum && speakAlertCheck(lastSum)) { speakNow(); }
+  }
+  /* IDEA47-END */
   function renderSummary() {
     var bar = document.getElementById('o3-summary');
     if (!bar) {
@@ -1478,6 +1531,7 @@
     Object.keys(latest).forEach(function (id) { var e = latest[id]; if (e.ms < cutoff) { return; } if (e.state === 'done') { done++; if (e.ver === true) { vOk++; } else if (e.ver === false) { vNo++; } } else if (e.state === 'blocked') { stuck++; } else { working++; } if (e.job) { jobs[e.job] = 1; } if (e.pending > 0) { pend += e.pending; } });
     try { lateN = lateCount(); } catch (e) { lateN = 0; }
     var nj = Object.keys(jobs).length;
+    lastSum = { working: working, done: done, stuck: stuck, late: lateN };
     function build(short) {
       var parts = [['\u25CF ' + working + (short || working === 1 ? ' شغال' : ' شغالين'), '#f4511e'], ['\u2713 ' + done + (short || done === 1 ? ' خلص' : ' خلصوا'), '#22d3ee']];
       if (vOk) { parts.push(['\u2611 ' + vOk + (vOk === 1 ? ' اتراجع' : ' اتراجعوا'), '#22d3ee']); }
@@ -1498,6 +1552,7 @@
     if (tooWide()) { build(true); }
     if (tooWide()) { bar.style.flexWrap = 'wrap'; bar.style.whiteSpace = 'normal'; bar.style.borderRadius = '18px'; bar.style.gap = '4px 10px'; }
     try { renderMix(); } catch (e) { /* optional */ }
+    try { renderSpeak(); } catch (e) { /* optional */ }
   }
 
 
