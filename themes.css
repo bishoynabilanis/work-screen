@@ -140,3 +140,9 @@ html[data-theme="light"] .sheet-state[data-state="waiting"] { color: #3f5870 !im
 html[data-theme="light"] .sheet-close, html[data-theme="gold"] .sheet-close { background: #b83a0e !important; background-image: none !important; color: #fff !important; }
 html[data-theme="light"] [style*="color:#b9cce2"], html[data-theme="light"] [style*="color: #b9cce2"], html[data-theme="light"] [style*="color:#8aa3bf"], html[data-theme="light"] [style*="color:#c9d3e6"] { color: #3f5870 !important; }
 html[data-theme="light"] [style*="color: rgb(185, 204, 226)"], html[data-theme="light"] [style*="color: rgb(138, 163, 191)"], html[data-theme="light"] [style*="color: rgb(201, 211, 230)"] { color: #3f5870 !important; }
+/* bottom sheet in light: light surface, dark text */
+html[data-theme="light"] .sheet { background: #f6f9ff !important; background-image: none !important; color: #0b1a2e !important; border-color: rgba(20,50,90,.45) !important; }
+html[data-theme="light"] .sheet-cell { background: #e6eefb !important; border: 1px solid rgba(20,50,90,.35) !important; }
+html[data-theme="light"] .sheet h2, html[data-theme="light"] .sheet-title, html[data-theme="light"] .sheet dd, html[data-theme="light"] .sheet-id { color: #0b1a2e !important; }
+html[data-theme="light"] .sheet dt, html[data-theme="light"] .sheet .eyebrow { color: #3f5870 !important; }
+html[data-theme="light"] .sheet-state { background: #fff !important; border: 1px solid currentColor !important; }
