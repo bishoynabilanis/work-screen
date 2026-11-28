@@ -1,3 +1,53 @@
+/* IDEA49-BEGIN. Battery and heat saving. (1) While the tab is hidden or the screen is locked, every repeating timer is stopped; when the tab is visible again each one runs once straight away (this is the one immediate refresh) and then resumes. (2) If the device reports a battery under 20% and not charging, low-power mode switches on by itself (low 3D quality, about 30 frames a second, CSS animations off) and switches off when charging or above 20%. getBattery is missing on iPhone: ignored silently. No network, no storage, no tracking. */
+(function (win, doc, nav) {
+  'use strict';
+  var BAD = !!win.__WSPOWER_BAD;
+  var realSet = win.setInterval.bind(win), realClear = win.clearInterval.bind(win);
+  var reg = {}, nextId = 1000000, hidden = !!doc.hidden;
+  function arm(id) { var t = reg[id]; if (!t || t.real != null) { return; } t.real = realSet(function () { try { t.fn.apply(win, t.args); } catch (e) { /* keep the other timers alive */ } }, t.ms); }
+  win.setInterval = function (fn, ms) {
+    if (typeof fn !== 'function') { return realSet.apply(win, arguments); }
+    var id = nextId++; reg[id] = { fn: fn, ms: ms, args: Array.prototype.slice.call(arguments, 2), real: null };
+    if (!hidden) { arm(id); }
+    return id;
+  };
+  win.clearInterval = function (id) {
+    var t = reg[id];
+    if (!t) { return realClear(id); }
+    if (t.real != null) { realClear(t.real); }
+    delete reg[id];
+  };
+  function onVis() {
+    var h = !!doc.hidden;
+    if (h === hidden) { return; }
+    hidden = h;
+    win.WSPower.paused = h;
+    Object.keys(reg).forEach(function (k) {
+      var t = reg[k]; if (!t) { return; }
+      if (h) { if (!BAD && t.real != null) { realClear(t.real); t.real = null; } }
+      else { if (t.real == null) { arm(k); } try { t.fn.apply(win, t.args); } catch (e) { /* optional */ } }
+    });
+  }
+  var lowStyle = null;
+  function setLow(on) {
+    on = !!on; if (win.WSPower.low === on) { return; }
+    win.WSPower.low = on;
+    try { doc.documentElement.classList.toggle('ws-lowpower', on); } catch (e) { /* optional */ }
+    if (on && !lowStyle && doc.head) { lowStyle = doc.createElement('style'); lowStyle.textContent = 'html.ws-lowpower *,html.ws-lowpower *::before,html.ws-lowpower *::after{animation:none !important;transition:none !important}'; doc.head.appendChild(lowStyle); }
+    if (win.Office3D && typeof win.Office3D.setLowPower === 'function') { try { win.Office3D.setLowPower(on); } catch (e) { /* optional */ } }
+  }
+  win.WSPower = { low: false, paused: hidden, count: function () { return Object.keys(reg).length; } };
+  doc.addEventListener('visibilitychange', onVis);
+  try {
+    if (nav && typeof nav.getBattery === 'function') {
+      nav.getBattery().then(function (b) {
+        function chk() { setLow(typeof b.level === 'number' && b.level < 0.2 && b.charging === false); }
+        chk(); b.addEventListener('levelchange', chk); b.addEventListener('chargingchange', chk);
+      }).catch(function () { /* ignore silently */ });
+    }
+  } catch (e) { /* ignore silently */ }
+})(window, document, navigator);
+/* IDEA49-END */
 (function () {
   'use strict';
 
