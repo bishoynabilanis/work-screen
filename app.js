@@ -1681,6 +1681,42 @@
     });
   }
   /* IDEA57-END */
+  /* IDEA58-BEGIN. Three project cards (shop, content, Jessica). Numbers come only from the fixed-key "metrics" object in feed.json: metrics.shop.orders, metrics.content.posts, metrics.content.videos, metrics.jessica.done, each as { n: today, prev: yesterday }. Only whole numbers from 0 to 99999 are accepted; anything else (text, negative, fraction, missing, unknown key) is dropped and the card says "غير متاح". The trend (▲ أكتر / ▼ أقل / = زي أمس) shows only when BOTH numbers are valid. Shop numbers are coarse counts only and Jessica is one anonymous total: no names, ids, amounts or text are read from the feed. Nothing sent or saved. */
+  var METRIC_DEFS = [['shop', 'المتجر', [['orders', 'طلبات النهارده']]], ['content', 'المحتوى', [['posts', 'بوستات'], ['videos', 'فيديوهات']]], ['jessica', 'جيسيكا', [['done', 'مهام خلصت']]]];
+  function metricInt(v) { return (typeof v === 'number' && isFinite(v) && v >= 0 && v <= 99999 && Math.floor(v) === v) ? v : null; }
+  function metricRows(metrics) {
+    var m = (metrics && typeof metrics === 'object') ? metrics : {};
+    return METRIC_DEFS.map(function (c) {
+      var g = (m[c[0]] && typeof m[c[0]] === 'object') ? m[c[0]] : {};
+      return { key: c[0], title: c[1], items: c[2].map(function (it) {
+        var v = (g[it[0]] && typeof g[it[0]] === 'object') ? g[it[0]] : {}, a = metricInt(v.n), b = metricInt(v.prev);
+        return { key: it[0], label: it[1], n: a, prev: b, trend: (a === null || b === null) ? null : (a > b ? 'up' : (a < b ? 'down' : 'same')) };
+      }) };
+    });
+  }
+  function renderMetrics() {
+    var host = document.getElementById('o3-summary'); if (!host) { return; }
+    var box = document.getElementById('o3-metrics');
+    if (!box) {
+      box = document.createElement('div'); box.id = 'o3-metrics'; box.setAttribute('dir', 'rtl');
+      box.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:6px auto;width:calc(100vw - 16px);max-width:560px;box-sizing:border-box;color:#fff;font-size:14px;line-height:1.6';
+      var anchor = document.getElementById('o3-daycmp') || document.getElementById('o3-mix') || host; anchor.parentNode.insertBefore(box, anchor.nextSibling);
+    }
+    box.textContent = '';
+    metricRows(baseFeed && baseFeed.metrics).forEach(function (c) {
+      var card = document.createElement('div'); card.setAttribute('data-metric', c.key);
+      card.style.cssText = 'flex:1 1 160px;min-width:0;box-sizing:border-box;padding:8px 12px;border-radius:14px;background:rgba(7,13,24,.82);border:1px solid rgba(34,211,238,.45)';
+      var h = document.createElement('div'); h.style.cssText = 'font-weight:700;font-size:15px;margin-bottom:2px'; h.textContent = c.title; card.appendChild(h);
+      c.items.forEach(function (it) {
+        var r = document.createElement('div');
+        var tr = it.trend === 'up' ? ' ▲ أكتر' : (it.trend === 'down' ? ' ▼ أقل' : (it.trend === 'same' ? ' = زي أمس' : ''));
+        r.textContent = it.label + ': ' + (it.n === null ? 'غير متاح' : it.n + tr + (it.prev === null ? '' : ' (أمس ' + it.prev + ')'));
+        card.appendChild(r);
+      });
+      box.appendChild(card);
+    });
+  }
+  /* IDEA58-END */
   function renderMix() {
     var host = document.getElementById('o3-summary'); if (!host) { return; }
     var box = document.getElementById('o3-mix'), m = mixCounts();
@@ -1822,7 +1858,7 @@
     function tooWide() { return bar.scrollWidth > bar.clientWidth + 1 || bar.getBoundingClientRect().width > lim; }
     if (tooWide()) { build(true); }
     if (tooWide()) { bar.style.flexWrap = 'wrap'; bar.style.whiteSpace = 'normal'; bar.style.borderRadius = '18px'; bar.style.gap = '4px 10px'; }
-    try { renderMix(); } catch (e) { /* optional */ } try { renderDayCmp(); } catch (e) { /* optional */ }
+    try { renderMix(); } catch (e) { /* optional */ } try { renderDayCmp(); } catch (e) { /* optional */ } try { renderMetrics(); } catch (e) { /* optional */ }
     try { renderSpeak(); } catch (e) { /* optional */ }
     try { renderA2hs(); } catch (e) { /* optional */ }
   }
