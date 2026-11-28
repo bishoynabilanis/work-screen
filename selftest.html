@@ -77,7 +77,7 @@
       var cs = getComputedStyle(e); n++;
       if (parseFloat(cs.fontSize) < 14) { small++; }
       var isSvg = e.namespaceURI === 'http://www.w3.org/2000/svg', fg = parse(isSvg ? cs.fill : cs.color), bg = bgOf(e, th), L1 = lum(fg), L2 = lum(bg), cr = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
-      if (cr < minCr) { minCr = cr; worst = (e.className || e.tagName.toLowerCase()) + ' / ' + cs.color + ' / ' + Math.round(bg.r) + ',' + Math.round(bg.g) + ',' + Math.round(bg.b); }
+      if (cr < minCr) { minCr = cr; worst = (e.getAttribute('class') || e.tagName.toLowerCase()) + ' / ' + (isSvg ? cs.fill : cs.color) + ' / ' + Math.round(bg.r) + ',' + Math.round(bg.g) + ',' + Math.round(bg.b); }
       if (cr < 4.5) { low++; }
     }
     var btns = document.querySelectorAll('.st-real44 button');
@@ -109,7 +109,7 @@
   }
   if (location.search.indexOf('bad=1') >= 0) {
     var bad = document.createElement('div'); bad.className = 'st-badsample';
-    bad.innerHTML = '<p style="font-size:10px;color:#5a5a5a">نص غلط عمدًا: صغير وباهت</p><p style="font-size:16px;color:#bbbbbb">نص غلط عمدًا: فاتح</p><svg width="80" height="20" class="o3-timeline"><circle cx="10" cy="10" r="5" fill="#5a5a5a"></circle><circle cx="30" cy="10" r="5" fill="#bbbbbb"></circle></svg>';
+    bad.innerHTML = '<p style="font-size:10px;color:#5a5a5a">نص غلط عمدًا: صغير وباهت</p><p style="font-size:16px;color:#bbbbbb">نص غلط عمدًا: فاتح</p><svg width="160" height="40" class="o3-timeline"><text x="150" y="34" text-anchor="end" fill="#5a5a5a" font-size="14">نص SVG غلط عمدًا</text><text x="150" y="14" text-anchor="end" fill="#bbbbbb" font-size="14">نص SVG غلط عمدًا</text><circle cx="10" cy="10" r="5" fill="#5a5a5a"></circle><circle cx="30" cy="10" r="5" fill="#bbbbbb"></circle></svg>';
     document.querySelector('.st-fake').appendChild(bad);
     var bb = document.createElement('button'); bb.type = 'button'; bb.textContent = 'ص'; bb.style.cssText = 'width:30px;height:30px;min-height:0;min-width:0'; document.querySelector('.st-real44').appendChild(bb);
     var bn = document.createElement('p'); bn.className = 'st-note'; bn.textContent = 'وضع الغلط العمدي شغال (bad=1): لازم يظهر ✖.'; document.querySelector('.st-wrap').insertBefore(bn, document.getElementById('stRun'));
