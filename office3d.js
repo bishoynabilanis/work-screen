@@ -383,6 +383,8 @@
   var errs = [];
   function noteErr(e, where) { errs.push(where + ': ' + (e && e.message ? e.message : e)); window.__o3err = errs.slice(0, 3).join(' | '); }
   var chipSig = '';
+  var focusFns = {};
+  window.__o3Focus = function (id) { var f = focusFns[id]; if (typeof f !== 'function') { return false; } var ready = (id === 'all' || id === 'manager') ? Object.keys(zoneInfo).length > 0 : !!zoneInfo[id]; if (!ready) { return false; } f(); return true; };
 
   function stateKey(s) {
     s = String(s || '').toLowerCase();
@@ -541,16 +543,17 @@
     if (sig === chipSig || !chipsEl) { return; }
     chipSig = sig;
     while (chipsEl.firstChild) { chipsEl.removeChild(chipsEl.firstChild); }
-    function chip(label, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'o3-chip'; b.textContent = label; b.addEventListener('click', fn); chipsEl.appendChild(b); }
-    chip('آخر التسليمات', function () { var h = document.getElementById('handoffsHeading'); if (h) { h.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
-    chip('الكل', function () { setFloor(0, true); flyTo(new THREE.Vector3(12.5, 0, 9), 1); });
-    chip('المديرة', function () { if (floorSel && floorSel !== 4) { setFloor(4, true); } flyTo(new THREE.Vector3(11.5, 0, -3.6), 3.2); });
+    focusFns = {};
+    function chip(label, fn, id, kind) { var b = document.createElement('button'); b.type = 'button'; b.className = 'o3-chip'; b.textContent = label; b.addEventListener('click', function (ev) { fn(ev); if (id && window.__dlNote) { window.__dlNote(kind || 'focus', id); } }); if (id && !kind) { focusFns[id] = fn; } chipsEl.appendChild(b); }
+    chip('آخر التسليمات', function () { var h = document.getElementById('handoffsHeading'); if (h) { h.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, 'handoffs', 'view');
+    chip('الكل', function () { setFloor(0, true); flyTo(new THREE.Vector3(12.5, 0, 9), 1); }, 'all');
+    chip('المديرة', function () { if (floorSel && floorSel !== 4) { setFloor(4, true); } flyTo(new THREE.Vector3(11.5, 0, -3.6), 3.2); }, 'manager');
     depts.forEach(function (d) {
       if (!BLOCKS[d.id]) { return; }
       chip(String(d.name || d.id).replace(/^قسم /, ''), function () {
         if (floorSel && FLOOR[d.id] && floorSel !== FLOOR[d.id]) { setFloor(FLOOR[d.id], true); }
         var z = zoneInfo[d.id]; if (z) { flyTo(new THREE.Vector3(z.cx, 0, z.cz), d.id === 'qa' ? 1.7 : 2.4); }
-      });
+      }, d.id);
     });
   }
 
