@@ -15,6 +15,7 @@
     var t = ORDER[(ORDER.indexOf(get()) + 1) % ORDER.length];
     try { localStorage.setItem(KEY, t); } catch (e) {}
     apply(t);
+    if (window.__dlNote) { window.__dlNote('theme', t); }
   }
   apply(get());
   document.addEventListener('DOMContentLoaded', function () {
@@ -26,5 +27,5 @@
     apply(get());
   });
   document.addEventListener('keydown', function (e) { if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 't' || e.key === 'T')) { e.preventDefault(); next(); } });
-  window.__wsTheme = { get: get, set: function (t) { if (ORDER.indexOf(t) >= 0) { try { localStorage.setItem(KEY, t); } catch (e) {} apply(t); } } };
+  window.__wsTheme = { get: get, set: function (t) { if (ORDER.indexOf(t) >= 0) { try { localStorage.setItem(KEY, t); } catch (e) {} apply(t); if (window.__dlNote) { window.__dlNote('theme', t); } } } };
 })();
