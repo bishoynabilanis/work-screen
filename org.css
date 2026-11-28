@@ -469,3 +469,8 @@
 .org-side .org-level-head { margin-bottom: 4px; }
 .org-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .op-min { min-width: 0; }
+
+/* IDEA52: never reported (grey) and no update for 2+ hours (amber). The words are the second cue besides colour. */
+.op-dot[data-state="stale"] { background: #fbbf24; }
+.op-state[data-state="stale"] { color: #fbbf24; border-color: rgba(251, 191, 36, 0.45); }
+.op-state[data-state="none"] { color: #cbd5e1; border-color: rgba(203, 213, 225, 0.35); }
