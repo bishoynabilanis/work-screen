@@ -5,7 +5,7 @@ var app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8'), sw = fs
 var m = app.match(/\/\* POLL58-BEGIN[\s\S]*?POLL58-END \*\//); var bad = [], n = 0; function chk(ok, t) { n++; if (!ok) { bad.push(t); } }
 chk(!!m, 'POLL58 block found'); if (!m) { console.error('FAIL: block not found'); process.exit(1); }
 var code = m[0];
-if (process.env.POLL_BAD) { code = code.replace('POLL_QUIET = [5000, 10000, 20000, 30000]', 'POLL_QUIET = [5000, 5000, 5000, 5000]').replace('if (busy) { again = true; return; } go();', 'go();').replace('if (busy || hid()) { return; }', 'if (hid()) { return; }').replace('POLL_WATCHDOG_MS = 30000', 'POLL_WATCHDOG_MS = 3000000'); app = app.replace('If-None-Match', 'X-None').replace("res.status === 304", 'false'); sw = sw.replace('response.status !== 304', 'false'); }
+if (process.env.POLL_BAD) { code = code.replace('POLL_QUIET = [5000, 10000, 20000, 30000]', 'POLL_QUIET = [5000, 5000, 5000, 5000]').replace('if (busy) { again = true; return; } go();', 'go();').replace('if (busy || hid()) { return; }', 'if (hid()) { return; }').replace('POLL_WATCHDOG_MS = 30000', 'POLL_WATCHDOG_MS = 3000000'); app = app.replace('ctl.abort()', 'void 0').replace('If-None-Match', 'X-None').replace("res.status === 304", 'false'); sw = sw.replace('response.status !== 304', 'false'); }
 var now = 0, q = [], seq = 0, hidden = false;
 function setT(f, ms) { var id = ++seq; q.push({ id: id, at: now + ms, f: f }); return id; } function clrT(id) { q = q.filter(function (t) { return t.id !== id; }); }
 function advance(ms) { var end = now + ms; for (;;) { q.sort(function (a, b) { return a.at - b.at; }); var t = q[0]; if (!t || t.at > end) { break; } q.shift(); now = t.at; t.f(); } now = end; }
@@ -36,6 +36,7 @@ chk(!/setInterval\(refresh|setInterval\(pollStatus|setInterval\(\s*function\s*\(
 chk(!/setInterval/.test(code), 'no setInterval in the poll block');
 chk(/h\['If-None-Match'\] = feedEtag/.test(app) && /res\.status === 304/.test(app), 'the feed request sends If-None-Match and accepts a 304');
 chk(/if \(cond\) \{ feedEtag = ''; return get\(false\); \}/.test(app), 'a failed conditional request is retried without it (old service worker case)');
+chk(/ctl\.abort\(\)\s*\}, 25000\)/.test(app) && /signal: ctl \? ctl\.signal/.test(app), 'the status request is aborted after 25 s (before the 30 s watchdog), so a hung request cannot overlap the next one');
 chk(/response\.status !== 304/.test(sw), 'the service worker lets a 304 through');
 chk(/online[\s\S]{0,80}kickAll\(\)|updateOffline\(\);\s*kickAll\(\);/.test(app) && /document\.hidden\) \{\s*kickAll\(\)/.test(app), 'going online and the tab becoming visible reset both polls');
 if (bad.length) { console.error('FAIL ' + bad.length + ' of ' + n + ':\n- ' + bad.join('\n- ')); process.exit(1); }
