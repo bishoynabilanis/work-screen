@@ -1653,12 +1653,12 @@
     });
     return { n: out, total: total };
   }
-  /* IDEA57-BEGIN. Today vs yesterday. For each of the five fixed groups (محتوى, تطوير, بحث, نشر, صيانة) it counts jobs finished today and yesterday (calendar days, this phone's clock) from the status lines and shows the numbers with a word and a sign (▲ أكتر, ▼ أقل, = زي أمس). Yesterday only counts when the saved lines reach back to the start of yesterday; otherwise it shows "أمس: لسه مفيش" and no arrow, never a made-up "less". Groups with 0 today and 0 yesterday are left out; the strip is hidden when nothing is left. Numbers and fixed words only. Nothing sent or saved. */
+  /* IDEA57-BEGIN. Today vs yesterday. For each of the five fixed groups (محتوى, تطوير, بحث, نشر, صيانة) it counts jobs finished today and yesterday (calendar days, this phone's clock) from the status lines and shows the numbers with a word and a sign (▲ أكتر, ▼ أقل, = زي أمس). Yesterday only counts when the saved lines reach back to the start of yesterday AND hold at least one line from inside yesterday (a gap, for example a page opened after a day away, means unknown); otherwise it shows "أمس: لسه مفيش" and no arrow, never a made-up "less". Groups with 0 today and 0 yesterday are left out; the strip is hidden when nothing is left. Numbers and fixed words only. Nothing sent or saved. */
   function dayCompare(lines, now, catFn, cats) {
     var d0 = new Date(now); d0.setHours(0, 0, 0, 0); var t0 = d0.getTime(), y0 = t0 - 86400000;
-    var oldest = Infinity, t = {}, y = {};
-    (lines || []).forEach(function (e) { if (e && e.ms > 0 && e.ms < oldest) { oldest = e.ms; } if (!e || e.state !== 'done' || !(e.ms >= y0) || e.ms > now + 60000) { return; } var c = catFn(e.id || e.name || '?'); if (!c) { return; } if (e.ms >= t0) { t[c] = (t[c] || 0) + 1; } else { y[c] = (y[c] || 0) + 1; } });
-    var known = oldest <= y0, out = [];
+    var oldest = Infinity, anyY = false, t = {}, y = {};
+    (lines || []).forEach(function (e) { if (e && e.ms > 0 && e.ms < oldest) { oldest = e.ms; } if (e && e.ms >= y0 && e.ms < t0) { anyY = true; } if (!e || e.state !== 'done' || !(e.ms >= y0) || e.ms > now + 60000) { return; } var c = catFn(e.id || e.name || '?'); if (!c) { return; } if (e.ms >= t0) { t[c] = (t[c] || 0) + 1; } else { y[c] = (y[c] || 0) + 1; } });
+    var known = oldest <= y0 && anyY, out = [];
     cats.forEach(function (c) { var a = t[c[0]] || 0, b = known ? (y[c[0]] || 0) : null; if (!a && !b) { return; } out.push({ key: c[0], label: c[1], today: a, yest: b, trend: b === null ? null : (a > b ? 'up' : (a < b ? 'down' : 'same')) }); });
     return out;
   }
