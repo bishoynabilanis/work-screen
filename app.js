@@ -1653,6 +1653,34 @@
     });
     return { n: out, total: total };
   }
+  /* IDEA57-BEGIN. Today vs yesterday. For each of the five fixed groups (محتوى, تطوير, بحث, نشر, صيانة) it counts jobs finished today and yesterday (calendar days, this phone's clock) from the status lines and shows the numbers with a word and a sign (▲ أكتر, ▼ أقل, = زي أمس). Yesterday only counts when the saved lines reach back to the start of yesterday; otherwise it shows "أمس: لسه مفيش" and no arrow, never a made-up "less". Groups with 0 today and 0 yesterday are left out; the strip is hidden when nothing is left. Numbers and fixed words only. Nothing sent or saved. */
+  function dayCompare(lines, now, catFn, cats) {
+    var d0 = new Date(now); d0.setHours(0, 0, 0, 0); var t0 = d0.getTime(), y0 = t0 - 86400000;
+    var oldest = Infinity, t = {}, y = {};
+    (lines || []).forEach(function (e) { if (e && e.ms > 0 && e.ms < oldest) { oldest = e.ms; } if (!e || e.state !== 'done' || !(e.ms >= y0) || e.ms > now + 60000) { return; } var c = catFn(e.id || e.name || '?'); if (!c) { return; } if (e.ms >= t0) { t[c] = (t[c] || 0) + 1; } else { y[c] = (y[c] || 0) + 1; } });
+    var known = oldest <= y0, out = [];
+    cats.forEach(function (c) { var a = t[c[0]] || 0, b = known ? (y[c[0]] || 0) : null; if (!a && !b) { return; } out.push({ key: c[0], label: c[1], today: a, yest: b, trend: b === null ? null : (a > b ? 'up' : (a < b ? 'down' : 'same')) }); });
+    return out;
+  }
+  function renderDayCmp() {
+    var host = document.getElementById('o3-summary'); if (!host) { return; }
+    var box = document.getElementById('o3-daycmp'), list = dayCompare(statusLines, Date.now(), function (k) { return MIX_CAT_OF[deptOf(k)]; }, MIX_CATS);
+    if (!list.length) { if (box) { box.remove(); } return; }
+    if (!box) {
+      box = document.createElement('div'); box.id = 'o3-daycmp'; box.setAttribute('dir', 'rtl');
+      box.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px 8px;justify-content:center;padding:6px 10px;margin:6px auto;width:fit-content;max-width:calc(100vw - 16px);box-sizing:border-box;border-radius:18px;background:rgba(7,13,24,.82);border:1px solid rgba(34,211,238,.45);color:#fff;font-size:14px;font-weight:700;line-height:1.5';
+      var anchor = document.getElementById('o3-mix') || host; anchor.parentNode.insertBefore(box, anchor.nextSibling);
+    }
+    box.textContent = '';
+    var hd = document.createElement('div'); hd.style.cssText = 'width:100%;text-align:center;color:#b9cce2;font-weight:600'; hd.textContent = 'النهارده مقابل أمس (اللي خلص)'; box.appendChild(hd);
+    list.forEach(function (c) {
+      var chip = document.createElement('span'); chip.style.cssText = 'padding:2px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.25);white-space:nowrap';
+      var tr = c.trend === 'up' ? ' ▲ أكتر' : (c.trend === 'down' ? ' ▼ أقل' : (c.trend === 'same' ? ' = زي أمس' : ''));
+      chip.textContent = c.label + ' ' + c.today + ' · أمس: ' + (c.yest === null ? 'لسه مفيش' : c.yest) + tr;
+      box.appendChild(chip);
+    });
+  }
+  /* IDEA57-END */
   function renderMix() {
     var host = document.getElementById('o3-summary'); if (!host) { return; }
     var box = document.getElementById('o3-mix'), m = mixCounts();
@@ -1794,7 +1822,7 @@
     function tooWide() { return bar.scrollWidth > bar.clientWidth + 1 || bar.getBoundingClientRect().width > lim; }
     if (tooWide()) { build(true); }
     if (tooWide()) { bar.style.flexWrap = 'wrap'; bar.style.whiteSpace = 'normal'; bar.style.borderRadius = '18px'; bar.style.gap = '4px 10px'; }
-    try { renderMix(); } catch (e) { /* optional */ }
+    try { renderMix(); } catch (e) { /* optional */ } try { renderDayCmp(); } catch (e) { /* optional */ }
     try { renderSpeak(); } catch (e) { /* optional */ }
     try { renderA2hs(); } catch (e) { /* optional */ }
   }
@@ -2052,13 +2080,14 @@
     if (!btn) {
       btn = document.createElement('button'); btn.id = 'o3-wait'; btn.type = 'button'; btn.setAttribute('dir', 'rtl');
       btn.style.cssText = 'display:block;margin:4px auto;padding:6px 14px;min-height:44px;border-radius:999px;background:#070d18;border:1px solid #8b5cf6;color:#fff;font:700 15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
-      btn.addEventListener('click', function () { waitOpen = !waitOpen; renderWaiting(); });
+      btn.addEventListener('click', function () { waitOpen = !waitOpen; renderWaiting(); if (!waitOpen) { try { btn.focus(); } catch (e) { /* optional */ } } });
       var after = document.getElementById('o3-dec') || sum; after.parentNode.insertBefore(btn, after.nextSibling);
     }
     btn.textContent = 'مستنيينك: ' + list.length + (waitOpen ? ' ▴' : ' ▾');
     btn.setAttribute('aria-expanded', waitOpen ? 'true' : 'false');
     if (!waitOpen) { if (pan) { pan.remove(); } return; }
     if (!pan) { pan = document.createElement('div'); pan.id = 'o3-waitpanel'; pan.setAttribute('dir', 'rtl'); pan.style.cssText = 'margin:4px auto 8px;width:min(560px,calc(100vw - 20px));box-sizing:border-box;padding:8px 10px;border-radius:14px;background:rgba(7,13,24,.96);border:1px solid rgba(139,92,246,.7);color:#fff;font-size:15px;line-height:1.6'; btn.parentNode.insertBefore(pan, btn.nextSibling); }
+    var fIdx = -1; try { fIdx = Array.prototype.indexOf.call(pan.children, document.activeElement); } catch (e) { fIdx = -1; } /* keep keyboard focus on the same row after the refresh */
     pan.textContent = '';
     list.forEach(function (w, li) {
       var r = document.createElement('button'); r.type = 'button'; r.setAttribute('dir', 'rtl');
@@ -2068,6 +2097,8 @@
       r.addEventListener('click', function () { try { if (w.id && window.__openSheet) { window.__openSheet(w.id); } } catch (e) { /* optional */ } });
       pan.appendChild(r);
     });
+    if (fIdx >= 0 && pan.children.length) { try { pan.children[Math.min(fIdx, pan.children.length - 1)].focus(); } catch (e) { /* optional */ } }
+    if (!pan.getAttribute('data-esc')) { pan.setAttribute('data-esc', '1'); pan.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { waitOpen = false; renderWaiting(); try { btn.focus(); } catch (e) { /* optional */ } } }); }
   }
   /* IDEA56-END */
   function renderDecisions() {
