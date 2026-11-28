@@ -1,0 +1,19 @@
+/* item 43: public screen text minimum 14px and 4.5:1 contrast in the default blue theme */
+.desk-title, .op-role, .op-text, .op-state, .op-name, .op-next, .room-count, .room-roles, .org-level-num, .org-dept-count, .org-group-name,
+.zone-tag, .room-tag, .section-note, .updated-label, .updated-value, .o3-chip, .o3-fs-btn, .o3-empty, .o3-jobtog button, summary,
+#handoffEmpty { font-size: 14px !important; }
+.o3-jobtog button { font-size: 14px !important; min-height: 44px; }
+.o3-chip, .o3-fs-btn { min-height: 44px; }
+html:not([data-theme]) .desk-title, html:not([data-theme]) .room-roles, html:not([data-theme]) .room-count, html:not([data-theme]) .org-dept-count { color: #dbe7f5 !important; }
+html:not([data-theme]) .zone-tag { color: #ffd2c2 !important; }
+html:not([data-theme]) .o3-floors button.on, html:not([data-theme]) .o3-cams button.on { background: #c2410c !important; background-image: none !important; color: #fff !important; }
+html:not([data-theme]) #o3-summary span[style*="139, 92, 246"], html:not([data-theme]) #o3-summary span[style*="8b5cf6"] { color: #b9a4fb !important; }
+.o3-log-head span, footer.foot, .foot * { font-size: 14px !important; }
+.desk-name, .op-meta, .op-meta span, .o3-floors-toggle { font-size: 14px !important; }
+html:not([data-theme]) .o3-floors-toggle { background: #c2410c !important; background-image: none !important; color: #fff !important; }
+.eyebrow, .sheet-title, .sheet-state, .sheet-cell dt, .sheet-cell dd { font-size: 14px !important; }
+html:not([data-theme]) .sheet-close { background: #c2410c !important; background-image: none !important; color: #fff !important; }
+.offline-banner, .handoff-item, .handoff-time, .desk-doing, .o3-floor-cap { font-size: 14px !important; }
+.o3-floors button, .o3-cams button { min-height: 44px; min-width: 44px; }
+.o3-sound { width: 44px; height: 44px; }
+.o3-floors-toggle { min-height: 44px; min-width: 44px; }
