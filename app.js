@@ -1681,11 +1681,13 @@
     });
   }
   /* IDEA57-END */
-  /* IDEA58-BEGIN. Three project cards (shop, content, Jessica). Numbers come only from the fixed-key "metrics" object in feed.json: metrics.shop.orders, metrics.content.posts, metrics.content.videos, metrics.jessica.done, each as { n: today, prev: yesterday }. Only whole numbers from 0 to 99999 are accepted; anything else (text, negative, fraction, missing, unknown key) is dropped and the card says "غير متاح". The trend (▲ أكتر / ▼ أقل / = زي أمس) shows only when BOTH numbers are valid. Shop numbers are coarse counts only and Jessica is one anonymous total: no names, ids, amounts or text are read from the feed. Nothing sent or saved. */
+  /* IDEA58-BEGIN. Three project cards (shop, content, Jessica). Numbers come only from the fixed-key "metrics" object in feed.json: metrics.shop.orders, metrics.content.posts, metrics.content.videos, metrics.jessica.done, each as { n: today, prev: yesterday }. The object must also carry \"asOf\": a strict YYYY-MM-DD date that equals today's date in Dubai; otherwise every row says \"غير متاح\" (no stale \"النهارده\" number). Only whole numbers from 0 to 99999 are accepted; anything else (text, negative, fraction, missing, unknown key) is dropped and the card says "غير متاح". The trend (▲ أكتر / ▼ أقل / = زي أمس) shows only when BOTH numbers are valid. Shop numbers are coarse counts only and Jessica is one anonymous total: no names, ids, amounts or text are read from the feed. Nothing sent or saved. */
   var METRIC_DEFS = [['shop', 'المتجر', [['orders', 'طلبات النهارده']]], ['content', 'المحتوى', [['posts', 'بوستات'], ['videos', 'فيديوهات']]], ['jessica', 'جيسيكا', [['done', 'مهام خلصت']]]];
   function metricInt(v) { return (typeof v === 'number' && isFinite(v) && v >= 0 && v <= 99999 && Math.floor(v) === v) ? v : null; }
-  function metricRows(metrics) {
-    var m = (metrics && typeof metrics === 'object') ? metrics : {};
+  function metricDay(now) { var d = new Date(now); try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dubai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); } catch (e) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); } }
+  function metricFresh(asOf, now) { if (typeof asOf !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(asOf)) { return false; } return asOf === metricDay(now); }
+  function metricRows(metrics, now) {
+    var m = (metrics && typeof metrics === 'object' && metricFresh(metrics.asOf, now === undefined ? Date.now() : now)) ? metrics : {}; /* a missing, bad or old asOf date means unavailable, never a stale "today" */
     return METRIC_DEFS.map(function (c) {
       var g = (m[c[0]] && typeof m[c[0]] === 'object') ? m[c[0]] : {};
       return { key: c[0], title: c[1], items: c[2].map(function (it) {
@@ -1703,7 +1705,7 @@
       var anchor = document.getElementById('o3-daycmp') || document.getElementById('o3-mix') || host; anchor.parentNode.insertBefore(box, anchor.nextSibling);
     }
     box.textContent = '';
-    metricRows(baseFeed && baseFeed.metrics).forEach(function (c) {
+    metricRows(baseFeed && baseFeed.metrics, Date.now()).forEach(function (c) {
       var card = document.createElement('div'); card.setAttribute('data-metric', c.key);
       card.style.cssText = 'flex:1 1 160px;min-width:0;box-sizing:border-box;padding:8px 12px;border-radius:14px;background:rgba(7,13,24,.82);border:1px solid rgba(34,211,238,.45)';
       var h = document.createElement('div'); h.style.cssText = 'font-weight:700;font-size:15px;margin-bottom:2px'; h.textContent = c.title; card.appendChild(h);
