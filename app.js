@@ -1276,7 +1276,7 @@
           statusLines.push({ mid: m.id, id: aid, name: nm, text: tx, state: stt, ver: vf, next: nx, done: dn, pending: pd, job: jb, result: rs, ms: (m.time || 0) * 1000, ask: ak, options: op });
           changed = true;
         });
-        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 500); saveTL(); try { learnAvg(); } catch (e) {} try { renderLog(); renderCard(); } catch (e) {} try { if (baseFeed) { applyMerged(); } } catch (e) {} try { renderSummary(); } catch (e) {} try { renderDecisions(); } catch (e) {} try { updateBadge(); } catch (e) {} try { publishLoad(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
+        if (changed) { statusLines.sort(function (a, b) { return b.ms - a.ms; }); statusLines = statusLines.slice(0, 500); saveTL(); try { learnAvg(); } catch (e) {} try { renderLog(); renderCard(); } catch (e) {} try { if (baseFeed) { applyMerged(); } } catch (e) {} try { renderSummary(); } catch (e) {} try { renderDecisions(); } catch (e) {} try { renderWaiting(); } catch (e) {} try { updateBadge(); } catch (e) {} try { publishLoad(); } catch (e) {} try { if (window.OrgView && window.OrgView.update) { window.OrgView.update(statusLines); } } catch (e) {} }
       })
       .catch(function () {});
   }
@@ -2035,6 +2035,41 @@
     function fb() { try { var ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0;top:0;font-size:16px'; document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, 9999); var ok = document.execCommand('copy'); ta.remove(); done(ok); } catch (e) { done(false); } }
     try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).then(function () { done(true); }, fb); } else { fb(); } } catch (e) { fb(); }
   }
+  /* IDEA56-BEGIN. "Waiting for Bishoy" shelf. One list of the workers whose newest status line is a decision question or a stop ("واقف"), looking back 7 days (the old decisions list forgets after 1 day). Oldest wait first, so the forgotten one is at the top. Each row: worker name, the fixed job name, the kind word (قرار or واقف) and how long it has waited. Tap a row to open that worker's card. Only the public job name is shown, never free text. Hidden when nothing waits. No network, no new storage. */
+  var WAIT_DAYS = 7;
+  function waitingList(lines, now) {
+    var latest = {}, out = [], cut = now - WAIT_DAYS * 86400000;
+    (lines || []).forEach(function (e) { var k = e && (e.id || e.name); if (k && !latest[k]) { latest[k] = e; } });
+    Object.keys(latest).forEach(function (k) { var e = latest[k]; if (e.ms >= cut && e.ms <= now + 60000 && (e.ask || e.state === 'blocked')) { out.push({ id: e.id || '', name: e.name || e.id || 'موظف', job: e.text || '', kind: e.ask ? 'decision' : 'stopped', ms: e.ms }); } });
+    return out.sort(function (a, b) { return a.ms - b.ms; });
+  }
+  var waitOpen = false;
+  function renderWaiting() {
+    var sum = document.getElementById('o3-summary'); if (!sum) { return; }
+    var list = waitingList(statusLines, Date.now());
+    var btn = document.getElementById('o3-wait'), pan = document.getElementById('o3-waitpanel');
+    if (!list.length) { if (btn) { btn.remove(); } if (pan) { pan.remove(); } waitOpen = false; return; }
+    if (!btn) {
+      btn = document.createElement('button'); btn.id = 'o3-wait'; btn.type = 'button'; btn.setAttribute('dir', 'rtl');
+      btn.style.cssText = 'display:block;margin:4px auto;padding:6px 14px;min-height:44px;border-radius:999px;background:#070d18;border:1px solid #8b5cf6;color:#fff;font:700 15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+      btn.addEventListener('click', function () { waitOpen = !waitOpen; renderWaiting(); });
+      var after = document.getElementById('o3-dec') || sum; after.parentNode.insertBefore(btn, after.nextSibling);
+    }
+    btn.textContent = 'مستنيينك: ' + list.length + (waitOpen ? ' ▴' : ' ▾');
+    btn.setAttribute('aria-expanded', waitOpen ? 'true' : 'false');
+    if (!waitOpen) { if (pan) { pan.remove(); } return; }
+    if (!pan) { pan = document.createElement('div'); pan.id = 'o3-waitpanel'; pan.setAttribute('dir', 'rtl'); pan.style.cssText = 'margin:4px auto 8px;width:min(560px,calc(100vw - 20px));box-sizing:border-box;padding:8px 10px;border-radius:14px;background:rgba(7,13,24,.96);border:1px solid rgba(139,92,246,.7);color:#fff;font-size:15px;line-height:1.6'; btn.parentNode.insertBefore(pan, btn.nextSibling); }
+    pan.textContent = '';
+    list.forEach(function (w, li) {
+      var r = document.createElement('button'); r.type = 'button'; r.setAttribute('dir', 'rtl');
+      r.style.cssText = 'display:block;width:100%;text-align:start;margin:' + (li ? '4px' : '0') + ' 0 0;padding:8px 10px;min-height:44px;border-radius:10px;background:#0d1626;border:1px solid rgba(255,255,255,.25);color:#fff;font:15px "Noto Kufi Arabic",sans-serif;cursor:pointer';
+      var kind = w.kind === 'decision' ? '? قرار' : '■ واقف';
+      r.textContent = w.name + (w.job && w.job !== NOJOB ? ' · ' + w.job : '') + ' · ' + kind + ' ' + decAge(w.ms);
+      r.addEventListener('click', function () { try { if (w.id && window.__openSheet) { window.__openSheet(w.id); } } catch (e) { /* optional */ } });
+      pan.appendChild(r);
+    });
+  }
+  /* IDEA56-END */
   function renderDecisions() {
     var sum = document.getElementById('o3-summary'); if (!sum) { return; }
     var list = pendingDecisions();
@@ -2077,7 +2112,7 @@
     });
     if (decFocus) { var fb2 = null; try { fb2 = pan.querySelector('[data-dk="' + decFocus.replace(/["\\\]\[]/g, '') + '"]'); } catch (e) { fb2 = null; } decFocus = ''; if (fb2) { try { fb2.focus(); } catch (e) {} } }
   }
-  setInterval(function () { try { renderDecisions(); } catch (e) {} try { updateBadge(); } catch (e) {} }, 60000);
+  setInterval(function () { try { renderDecisions(); } catch (e) {} try { renderWaiting(); } catch (e) {} try { updateBadge(); } catch (e) {} }, 60000);
   /* IDEA51-BEGIN. App badge, tab title and tab icon. The number is the count that already exists on screen: decisions waiting for him (pendingDecisions) plus jobs that may be late (lateCount). Numbers only: no job names, no text from the feed. navigator.setAppBadge / clearAppBadge are used when the browser has them and ignored when it does not (iPhone Safari outside the home-screen app, desktop Firefox). The tab title becomes "(n) المكتب" and the icon turns red while n is above 0; with n = 0 the title and icon go back to the normal ones. No network, no storage, no tracking. */
   var BADGE_TITLE0 = 'مكتب الشغل', BADGE_ICON_ALERT = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23070d18%22%2F%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%2220%22%20fill%3D%22%23dc2626%22%2F%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2232%22%20r%3D%227%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fsvg%3E', badgeIcon0 = null, badgeLast = -1;
   function badgeNum(n) { n = Math.floor(Number(n)); return (isFinite(n) && n > 0) ? Math.min(n, 99) : 0; }
@@ -2444,6 +2479,6 @@
   bootOrgView();
   restoreTL();
   init();
-  setTimeout(function () { try { renderLog(); renderSummary(); renderDecisions(); } catch (e) { /* optional */ } try { updateBadge(); } catch (e) { /* optional */ } }, 1500);
+  setTimeout(function () { try { renderLog(); renderSummary(); renderDecisions(); renderWaiting(); } catch (e) { /* optional */ } try { updateBadge(); } catch (e) { /* optional */ } }, 1500);
   setInterval(function () { try { renderSummary(); renderCard(); } catch (e) { /* optional */ } }, 60000);
 })();
