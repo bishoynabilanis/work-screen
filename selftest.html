@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>فحص ذاتي - مكتب الشغل</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="themes.css">
+  <link rel="stylesheet" href="a11y.css">
+  <style>
+    body { padding: 16px; font-family: inherit; }
+    .st-wrap { max-width: 760px; margin: 0 auto; }
+    .st-h { font-size: 22px; margin: 0 0 6px; }
+    .st-note { font-size: 14px; margin: 0 0 14px; }
+    .st-fake { border: 1px solid rgba(34,211,238,.35); border-radius: 12px; padding: 12px; margin: 0 0 14px; background: rgba(255,255,255,.04); }
+    .st-fake > * { margin: 6px 0; }
+    .st-run { min-height: 44px; min-width: 44px; padding: 8px 18px; font-size: 16px; border-radius: 999px; cursor: pointer; }
+    .st-res { list-style: none; padding: 0; margin: 14px 0 0; }
+    .st-res li { font-size: 14px; padding: 10px 12px; margin: 6px 0; border-radius: 10px; border: 1px solid rgba(127,155,184,.5); }
+    .st-ok::before { content: "\2713  "; font-weight: 800; }
+    .st-bad::before { content: "\2716  "; font-weight: 800; }
+    .st-sum { font-size: 18px; font-weight: 800; margin-top: 14px; }
+  </style>
+</head>
+<body>
+<div class="st-wrap">
+  <h1 class="st-h">فحص ذاتي لمكتب الشغل</h1>
+  <p class="st-note">صفحة تجربة منفصلة. بيانات تجريبية بس، مفيش أسماء حقيقية، ومفيش اتصال بأي حاجة. مش بتكتب في أي مكان.</p>
+  <section class="st-fake" aria-label="عينة تجريبية">
+    <h2 class="desk-title">مكتب تجريبي ١</h2>
+    <p class="room-roles">دور تجريبي: منسق (بيانات وهمية)</p>
+    <span class="room-count">٣ شغلانات</span>
+    <span class="zone-tag">منطقة تجريبية</span>
+    <button type="button" class="st-run">زر تجريبي ١</button> <button type="button" class="st-run">زر تجريبي ٢</button>
+    <p class="op-text">شغلانة تجريبية: خلّص ✓</p>
+    <span class="op-state">خلص</span>
+    <p class="section-note">ملاحظة تجريبية قصيرة</p>
+  </section>
+  <button type="button" id="stRun" class="st-run">شغّل الفحص</button>
+  <ul id="stRes" class="st-res" aria-live="polite"></ul>
+  <p id="stSum" class="st-sum"></p>
+  <p class="st-note">سرعة العرض (FPS) هنا من متصفح الفحص، ومش بتمثل جهاز حقيقي ولا الآيفون. لو الفحص اشتغل على رسم برمجي (بدون كارت شاشة) الرقم بيطلع أقل من الحقيقي.</p>
+</div>
+<script>
+(function () {
+  var THEMES = [['blue', 'أزرق مستقبلي'], ['gold', 'ذهبي دافي'], ['light', 'فاتح هادي']];
+  var BASE = { blue: [7, 13, 24], gold: [19, 13, 6], light: [237, 243, 254] };
+  var root = document.documentElement;
+  function parse(c) { var m = String(c).match(/[\d.]+/g); if (!m || m.length < 3) { return null; } return { r: +m[0], g: +m[1], b: +m[2], a: m.length > 3 ? +m[3] : 1 }; }
+  function lum(c) { function f(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); } return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); }
+  function bgOf(el, th) {
+    var layers = [], e = el;
+    while (e && e.nodeType === 1) { var cs0 = getComputedStyle(e), c = parse(cs0.backgroundColor), gm = cs0.backgroundImage !== 'none' && cs0.backgroundImage.match(/rgba?\([^)]*\)/); if (gm) { c = parse(gm[0]); } if (c && c.a > 0.01) { layers.push(c); if (c.a >= 0.99) { break; } } e = e.parentElement; }
+    var b = BASE[th], bg = { r: b[0], g: b[1], b: b[2] };
+    for (var i = layers.length - 1; i >= 0; i--) { var l = layers[i]; bg = { r: l.r * l.a + bg.r * (1 - l.a), g: l.g * l.a + bg.g * (1 - l.a), b: l.b * l.a + bg.b * (1 - l.a) }; }
+    return bg;
+  }
+  function checkTheme(th) {
+    if (th === 'blue') { root.removeAttribute('data-theme'); } else { root.setAttribute('data-theme', th); }
+    var small = 0, low = 0, minCr = 99, n = 0, tiny = 0, worst = '';
+    var nodes = document.querySelectorAll('.st-wrap *');
+    for (var i = 0; i < nodes.length; i++) {
+      var e = nodes[i], own = false;
+      for (var k = 0; k < e.childNodes.length; k++) { if (e.childNodes[k].nodeType === 3 && e.childNodes[k].textContent.trim()) { own = true; } }
+      if (!own) { continue; }
+      var cs = getComputedStyle(e); n++;
+      if (parseFloat(cs.fontSize) < 14) { small++; }
+      var fg = parse(cs.color), bg = bgOf(e, th), L1 = lum(fg), L2 = lum(bg), cr = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+      if (cr < minCr) { minCr = cr; worst = (e.className || e.tagName.toLowerCase()) + ' / ' + cs.color + ' / ' + Math.round(bg.r) + ',' + Math.round(bg.g) + ',' + Math.round(bg.b); }
+      if (cr < 4.5) { low++; }
+    }
+    var btns = document.querySelectorAll('.st-wrap button');
+    for (var j = 0; j < btns.length; j++) { var r = btns[j].getBoundingClientRect(); if (r.width < 44 || r.height < 44) { tiny++; } }
+    return { worst: worst, n: n, small: small, low: low, min: minCr, tiny: tiny, btns: btns.length };
+  }
+  function fps(ms) {
+    return new Promise(function (res) {
+      var f = 0, t0 = performance.now();
+      function tick(t) { f++; if (t - t0 >= ms) { res(f * 1000 / (t - t0)); } else { requestAnimationFrame(tick); } }
+      requestAnimationFrame(tick);
+    });
+  }
+  function add(ok, txt) { var li = document.createElement('li'); li.className = ok ? 'st-ok' : 'st-bad'; li.textContent = txt; document.getElementById('stRes').appendChild(li); return ok; }
+  async function run() {
+    var ul = document.getElementById('stRes'); ul.textContent = ''; document.getElementById('stSum').textContent = '';
+    var keep = root.getAttribute('data-theme'), pass = 0, total = 0;
+    for (var i = 0; i < THEMES.length; i++) {
+      var th = THEMES[i][0], r = checkTheme(th);
+      total++; if (add(r.low === 0 && r.n > 0, 'ثيم ' + THEMES[i][1] + ': ' + r.n + ' نص، أقل تباين ' + r.min.toFixed(2) + ' من 4.5، تحت الحد: ' + r.low + (r.low ? ' (الأضعف: ' + r.worst + ')' : ''))) { pass++; }
+      total++; if (add(r.small === 0, 'ثيم ' + THEMES[i][1] + ': نصوص أصغر من 14px: ' + r.small)) { pass++; }
+      total++; if (add(r.tiny === 0, 'ثيم ' + THEMES[i][1] + ': أزرار أصغر من 44px: ' + r.tiny + ' من ' + r.btns)) { pass++; }
+    }
+    if (keep) { root.setAttribute('data-theme', keep); } else { root.removeAttribute('data-theme'); }
+    var f = await fps(1000);
+    total++; if (add(f > 0, 'سرعة العرض في متصفح الفحص: حوالي ' + Math.round(f) + ' إطار في الثانية (مش قياس جهاز حقيقي)')) { pass++; }
+    var s = document.getElementById('stSum'); s.textContent = pass === total ? 'كله تمام: ' + pass + ' من ' + total : 'فيه مشاكل: ' + pass + ' من ' + total + ' نجحوا';
+  }
+  document.getElementById('stRun').addEventListener('click', run);
+  if (location.search.indexOf('auto=1') >= 0) { run(); }
+})();
+</script>
+</body>
+</html>
