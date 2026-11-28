@@ -474,3 +474,16 @@
 .op-dot[data-state="stale"] { background: #fbbf24; }
 .op-state[data-state="stale"] { color: #fbbf24; border-color: rgba(251, 191, 36, 0.45); }
 .op-state[data-state="none"] { color: #cbd5e1; border-color: rgba(203, 213, 225, 0.35); }
+
+/* IDEA52: pinned workers bar and pin buttons. Words carry the state, colour is the second cue. */
+.pin-bar { position: sticky; top: 0; z-index: 60; display: flex; gap: 8px; padding: 6px 10px; overflow-x: auto; background: #070d18; border-bottom: 1px solid rgba(34, 211, 238, 0.45); direction: rtl; }
+.pin-item { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 14px; border-radius: 999px; border: 1px solid rgba(203, 213, 225, 0.4); background: rgba(10, 18, 38, 0.9); color: #e5e7eb; font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer; }
+.pin-item .pin-name { font-weight: 700; }
+.pin-item[data-state="running"] .pin-state { color: #7fd6a0; }
+.pin-item[data-state="done"] .pin-state { color: #38bdf8; }
+.pin-item[data-state="stale"] .pin-state { color: #fbbf24; }
+.pin-item[data-state="none"] .pin-state { color: #cbd5e1; }
+.op-pin { min-height: 44px; min-width: 44px; margin-top: 8px; padding: 4px 14px; border-radius: 999px; border: 1px solid rgba(34, 211, 238, 0.5); background: transparent; color: #22d3ee; font: inherit; font-size: 14px; cursor: pointer; }
+.op-pin.pinned { background: rgba(34, 211, 238, 0.16); color: #e5e7eb; }
+.op-chip-pin { min-height: 44px; cursor: pointer; }
+.op-chip-pin.pinned::after { content: '\2605'; color: #22d3ee; margin-inline-start: 4px; }
