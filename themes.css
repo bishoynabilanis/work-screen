@@ -55,6 +55,7 @@ html[data-theme="light"] div#o3-daypan { background: #f6f9ff !important; backgro
 html[data-theme="light"] div#o3-summary { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
 html[data-theme="light"] div.o3-cams { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
 html[data-theme="light"] div.o3-chips { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
+html[data-theme="light"] div.o3-clock:not(.is-night) { background: #f6f9ff !important; background-image: none !important; color: #0b1a2e !important; border-color: rgba(20,50,90,.35) !important; }
 html[data-theme="light"] div.o3-clock.is-night { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
 html[data-theme="light"] div.op { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }
 html[data-theme="light"] div.op-chip { background: #f6f9ff !important; background-image: none !important; border-color: rgba(20,50,90,.35) !important; }

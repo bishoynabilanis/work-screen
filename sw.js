@@ -1,6 +1,6 @@
 'use strict';
 
-var CACHE_NAME = 'office-scene-v10';
+var CACHE_NAME = 'office-scene-v11';
 var SHELL = ['./', './index.html', './style.css', './themes.css', './a11y.css', './theme.js', './app.js', './office3d.js', './7-three.min.js', './4-kufi-regular.woff', './5-kufi-bold.woff', './6-mono.woff', './manifest.json'];
 
 self.addEventListener('install', function (event) {
