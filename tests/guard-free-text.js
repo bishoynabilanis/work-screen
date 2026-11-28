@@ -11,6 +11,8 @@ var feed = JSON.parse(fs.readFileSync(path.join(root, 'feed.json'), 'utf8'));
 var banned = ['text', 'step', 'last', 'doing', 'next', 'msg', 'ask', 'options'];
 (feed.staff || []).forEach(function (s) { banned.forEach(function (k) { if (k in s) { bad.push('feed.json staff ' + s.id + ' has field ' + k); } }); });
 banned.forEach(function (k) { if (feed.assistant && k in feed.assistant) { bad.push('feed.json assistant has field ' + k); } });
+(feed.staff || []).forEach(function (s) { if ('verified' in s && typeof s.verified !== 'boolean') { bad.push('feed.json staff ' + s.id + ' verified must be true or false only'); } });
+if (!/b\.verified === true \|\| b\.verified === 'yes'/.test(app)) { bad.push('app.js verified flag must accept only yes/no values'); }
 var sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 if (/SHELL\s*=\s*\[[^\]]*feed\.json/.test(sw)) { bad.push('sw.js pre-caches feed.json'); }
 if (/cache\.put\(key, copy\)/.test(sw)) { bad.push('sw.js stores feed.json responses'); }
