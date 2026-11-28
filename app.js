@@ -1517,6 +1517,33 @@
     if (lastSum && speakAlertCheck(lastSum)) { speakNow(); }
   }
   /* IDEA47-END */
+  /* IDEA48-BEGIN. One-time "add to home screen" hint, only on iPhone/iPad Safari when the page is not already opened from the home screen. Dismissal is remembered on this device only (ws_a2hs_seen). No network, no tracking. */
+  function a2hsNeeded(env) {
+    var ios = /iPhone|iPad|iPod/.test(env.ua || '') || (env.platform === 'MacIntel' && env.touch > 1);
+    if (!ios) { return false; }
+    if (env.standalone || env.navStandalone) { return false; }
+    if (env.seen) { return false; }
+    return true;
+  }
+  function a2hsEnv() {
+    var mq = false, ns = false, seen = false;
+    try { mq = !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches); } catch (e) { mq = false; }
+    try { ns = navigator.standalone === true; } catch (e) { ns = false; }
+    try { seen = localStorage.getItem('ws_a2hs_seen') === '1'; } catch (e) { seen = false; }
+    return { ua: navigator.userAgent, platform: navigator.platform, touch: navigator.maxTouchPoints || 0, standalone: mq, navStandalone: ns, seen: seen };
+  }
+  function renderA2hs() {
+    if (document.getElementById('o3-a2hs') || !a2hsNeeded(a2hsEnv())) { return; }
+    var row = document.createElement('div'); row.id = 'o3-a2hs'; row.setAttribute('role', 'note');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:6px auto;padding:6px 12px;width:fit-content;max-width:calc(100vw - 16px);box-sizing:border-box;border-radius:18px;background:#070d18;border:1px solid #22d3ee;color:#fff;font-size:14px;font-weight:700;line-height:1.5;direction:rtl';
+    var t = document.createElement('span'); t.textContent = 'شارك ← إضافة للشاشة الرئيسية';
+    var b = document.createElement('button'); b.type = 'button'; b.id = 'o3-a2hs-x'; b.textContent = 'تمام';
+    b.style.cssText = 'min-height:44px;min-width:44px;padding:6px 14px;border-radius:999px;border:1px solid #22d3ee;background:#070d18;color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer';
+    b.addEventListener('click', function () { try { localStorage.setItem('ws_a2hs_seen', '1'); } catch (e) { /* optional */ } if (row.parentNode) { row.parentNode.removeChild(row); } });
+    row.appendChild(t); row.appendChild(b);
+    document.body.insertBefore(row, document.body.firstChild);
+  }
+  /* IDEA48-END */
   function renderSummary() {
     var bar = document.getElementById('o3-summary');
     if (!bar) {
@@ -1553,6 +1580,7 @@
     if (tooWide()) { bar.style.flexWrap = 'wrap'; bar.style.whiteSpace = 'normal'; bar.style.borderRadius = '18px'; bar.style.gap = '4px 10px'; }
     try { renderMix(); } catch (e) { /* optional */ }
     try { renderSpeak(); } catch (e) { /* optional */ }
+    try { renderA2hs(); } catch (e) { /* optional */ }
   }
 
 
