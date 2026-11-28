@@ -1419,6 +1419,15 @@
       if (dir === 'close') { closeCard(); } else if (dir) { swipeGo(dir); }
     });
   }
+  /* IDEA54-BEGIN. Keyboard twin of the swipe: with a worker card open, ArrowRight/ArrowLeft move to the next/previous worker by the same direction rule as the swipe (right-to-left page: right = next, left = previous; left-to-right: the reverse). Escape already closes the card. Ignored while typing in a field, with Ctrl/Alt/Meta/Shift held, or with no card open. No network, no storage. */
+  function keyDir(key, rtl) { if (key === 'ArrowRight') { return rtl ? 'next' : 'prev'; } if (key === 'ArrowLeft') { return rtl ? 'prev' : 'next'; } return null; }
+  function keyIgnored(ev) { var t = ev.target, tag = t && t.tagName ? String(t.tagName).toLowerCase() : ''; return !!(ev.ctrlKey || ev.altKey || ev.metaKey || ev.shiftKey || tag === 'input' || tag === 'textarea' || tag === 'select' || (t && t.isContentEditable)); }
+  document.addEventListener('keydown', function (ev) {
+    if (!cardEl || !cardFor || keyIgnored(ev)) { return; }
+    var rtl = false; try { rtl = getComputedStyle(cardEl).direction === 'rtl'; } catch (e) { rtl = false; }
+    var dir = keyDir(ev.key, rtl); if (dir) { ev.preventDefault(); swipeGo(dir); }
+  });
+  /* IDEA54-END */
   function showCard(id) {
     var host = document.getElementById('office3d'); if (!host) { return false; }
     if (!cardEl) { cardEl = make('div', 'o3-agentcard'); cardEl.style.cssText = 'position:absolute;z-index:30;top:160px;inset-inline-start:12px;width:min(300px,86%);padding:12px 14px;border-radius:14px;background:rgba(8,14,30,.92);color:#fff;border:1px solid rgba(80,200,230,.45);backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,0,0,.5)'; host.appendChild(cardEl); try { swipeBind(cardEl); } catch (e) { /* optional */ } }
