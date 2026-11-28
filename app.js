@@ -1194,7 +1194,7 @@
     for (i = 0; i < statusLines.length; i++) { e = statusLines[i]; if (lateKeyOf(e) !== k) { continue; } if (e.state !== 'start') { break; } run = e.ms; }
     if (!run) { return false; }
     var el = ((now || Date.now()) - run) / 60000, a = lateAvg[deptId];
-    if (el > 120 || el < 1) { return false; } /* only start lines newer than 2 hours count, so it never contradicts the working counter */
+    if (el > 120 || el < 1) { return false; } /* only start lines newer than 2 hours count */
     return !!((a && a[0] >= LATE_MINN && el >= 5 && el > LATE_X * a[1]) || el > LATE_PEND_MIN);
   }
   function lateCount(now) { try { learnAvg(); } catch (e) { /* optional */ } var seen = {}, n = 0; statusLines.forEach(function (e) { var k = lateKeyOf(e); if (seen[k]) { return; } seen[k] = 1; if (isLate(k, deptOf(k), now)) { n++; } }); return n; }
@@ -1424,6 +1424,46 @@
     });
   }
 
+  /* IDEA46-BEGIN. Task mix donut. Fixed categories only. The ONE mapping table from department id to category is MIX_CAT_OF. Counts and percentages only, no job names or text. */
+  var MIX_CAT_OF = { content: 'content', trend: 'research', seo: 'research', video: 'publishing', mail: 'publishing', jessica: 'development', tools: 'development', qa: 'maintenance' };
+  var MIX_CATS = [['content', 'محتوى', '#f4511e'], ['development', 'تطوير', '#22d3ee'], ['research', 'بحث', '#8b5cf6'], ['publishing', 'نشر', '#fbbf24'], ['maintenance', 'صيانة', '#9aa8bd']];
+  function mixCounts(now) {
+    var d0 = new Date(now || Date.now()); d0.setHours(0, 0, 0, 0);
+    var out = { content: 0, development: 0, research: 0, publishing: 0, maintenance: 0 }, total = 0;
+    statusLines.forEach(function (e) {
+      if (e.state !== 'done' || !(e.ms >= d0.getTime())) { return; }
+      var c = MIX_CAT_OF[deptOf(e.id || e.name || '?')];
+      if (c) { out[c]++; total++; }
+    });
+    return { n: out, total: total };
+  }
+  function renderMix() {
+    var host = document.getElementById('o3-summary'); if (!host) { return; }
+    var box = document.getElementById('o3-mix'), m = mixCounts();
+    if (!m.total) { if (box) { box.remove(); } return; }
+    if (!box) {
+      box = document.createElement('div'); box.id = 'o3-mix';
+      box.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px 14px;margin:6px auto;width:fit-content;max-width:calc(100vw - 16px);box-sizing:border-box;justify-content:center;border-radius:18px;background:rgba(7,13,24,.82);border:1px solid rgba(139,92,246,.55);color:#fff;font-size:14px;font-weight:700;line-height:1.5;direction:rtl;flex-wrap:wrap';
+      host.parentNode.insertBefore(box, host.nextSibling);
+    }
+    box.textContent = '';
+    var NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), off = 0, info = [];
+    svg.setAttribute('viewBox', '0 0 36 36'); svg.setAttribute('width', '64'); svg.setAttribute('height', '64'); svg.setAttribute('role', 'img');
+    var ring = document.createElementNS(NS, 'circle'); ring.setAttribute('cx', '18'); ring.setAttribute('cy', '18'); ring.setAttribute('r', '15.9155'); ring.setAttribute('fill', 'none'); ring.setAttribute('stroke', '#1b2a44'); ring.setAttribute('stroke-width', '5'); svg.appendChild(ring);
+    MIX_CATS.forEach(function (c) {
+      var n = m.n[c[0]]; if (!n) { return; }
+      var pct = Math.round(n * 100 / m.total), len = n * 100 / m.total;
+      var cir = document.createElementNS(NS, 'circle'); cir.setAttribute('cx', '18'); cir.setAttribute('cy', '18'); cir.setAttribute('r', '15.9155'); cir.setAttribute('fill', 'none'); cir.setAttribute('stroke', c[2]); cir.setAttribute('stroke-width', '5');
+      cir.setAttribute('stroke-dasharray', Math.max(0, len - 1.2) + ' ' + (100 - Math.max(0, len - 1.2))); cir.setAttribute('stroke-dashoffset', String(-off)); cir.setAttribute('transform', 'rotate(-90 18 18)');
+      svg.appendChild(cir); off += len; info.push([c[1], n, pct, c[2]]);
+    });
+    svg.setAttribute('aria-label', 'توزيع الشغل النهارده: ' + info.map(function (i) { return i[0] + ' ' + i[1]; }).join('، '));
+    box.appendChild(svg);
+    var txt = document.createElement('div'); var h = document.createElement('div'); h.textContent = 'خلص النهارده: ' + m.total; txt.appendChild(h);
+    info.forEach(function (i) { var r = document.createElement('div'); r.className = 'o3-mixrow'; var dot = document.createElement('span'); dot.textContent = '\u25CF '; dot.style.color = i[3]; var t = document.createElement('span'); t.textContent = i[0] + ' ' + i[1] + ' (' + i[2] + '%)'; r.appendChild(dot); r.appendChild(t); txt.appendChild(r); });
+    box.appendChild(txt);
+  }
+  /* IDEA46-END */
   function renderSummary() {
     var bar = document.getElementById('o3-summary');
     if (!bar) {
@@ -1457,6 +1497,7 @@
     function tooWide() { return bar.scrollWidth > bar.clientWidth + 1 || bar.getBoundingClientRect().width > lim; }
     if (tooWide()) { build(true); }
     if (tooWide()) { bar.style.flexWrap = 'wrap'; bar.style.whiteSpace = 'normal'; bar.style.borderRadius = '18px'; bar.style.gap = '4px 10px'; }
+    try { renderMix(); } catch (e) { /* optional */ }
   }
 
 
