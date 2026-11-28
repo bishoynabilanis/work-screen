@@ -5,7 +5,7 @@ var d = path.join(__dirname, '..');
 var js = fs.readFileSync(path.join(d, 'org.js'), 'utf8'), css = fs.readFileSync(path.join(d, 'org.css'), 'utf8');
 var m = js.match(/\/\* IDEA52-BEGIN[\s\S]*?IDEA52-END \*\//); if (!m) { console.error('FAIL: IDEA52 block missing'); process.exit(1); }
 var code = m[0];
-if (process.env.PINS_BAD) { code = code.replace("allowed[x] === true && ", "").replace("cur.length < PIN_MAX", "true"); css = css.replace('min-height: 44px; min-width: 44px', 'min-height: 30px; min-width: 30px'); }
+if (process.env.PINS_BAD) { code = code.replace("allowed[x] === true && ", "").replace("cur.length < PIN_MAX", "true"); js = js.replace('pinBar.scrollLeft = keepL', ''); css = css.replace('min-height: 44px; min-width: 44px', 'min-height: 30px; min-width: 30px'); }
 var bad = [], n = 0; function chk(ok, t) { n++; if (!ok) { bad.push(t); } }
 var ctx = { Array: Array, JSON: JSON }; vm.createContext(ctx); vm.runInContext(code + '\nthis.clean = pinClean; this.tog = pinToggle;', ctx);
 var allowed = {}; ['yasser', 'ibrahim', 'hany', 'kamel', 'saif', 'muse', 'ideas', 'salwa', 'karim', 'noha', 'rasha'].forEach(function (i) { allowed[i] = true; });
@@ -27,5 +27,9 @@ chk(!/fetch\(|XMLHttpRequest|sendBeacon|https?:\/\/|innerHTML|eval\(|cookie|sess
 chk(/localStorage\.setItem\(PIN_KEY, JSON\.stringify\(pins\)\)/.test(js) && (js.match(/localStorage\.setItem/g) || []).length === 1, 'only the id list is stored');
 chk(/\.op-pin \{[^}]*min-height: 44px; min-width: 44px/.test(css) && /\.pin-item \{[^}]*min-height: 44px/.test(css) && /\.pin-item \{[^}]*font-size: 14px/.test(css) && /\.op-pin \{[^}]*font-size: 14px/.test(css), 'pin buttons are 44px tall and 14px text');
 chk(/\.pin-bar \{[^}]*position: sticky/.test(css) && !/\.pin-bar \{[^}]*position: fixed/.test(css), 'bar is sticky, not fixed over the content');
+var wl = js.slice(js.indexOf('function paintPins'), js.indexOf('function pinMake'));
+chk(/keepL = pinBar\.scrollLeft/.test(wl) && wl.indexOf('keepL = pinBar.scrollLeft') < wl.indexOf("pinBar.textContent = ''"), 'scroll position is read before the bar is emptied');
+chk(/pinBar\.scrollLeft = keepL/.test(wl) && wl.indexOf("pinBar.textContent = ''") < wl.indexOf('pinBar.scrollLeft = keepL'), 'scroll position is put back after the rebuild');
+chk(/keepId = ae\.getAttribute\('data-pin'\)/.test(wl) && /keepId === id\) \{ try \{ it\.focus\(\)/.test(wl), 'the focused pin is remembered and focused again');
 if (bad.length) { console.error('FAIL ' + bad.length + ' of ' + n + ':\n- ' + bad.join('\n- ')); process.exit(1); }
 console.log('pins ok: ' + n + ' of ' + n + ' checks');
