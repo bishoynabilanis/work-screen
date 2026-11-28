@@ -146,3 +146,7 @@ html[data-theme="light"] .sheet-cell { background: #e6eefb !important; border: 1
 html[data-theme="light"] .sheet h2, html[data-theme="light"] .sheet-title, html[data-theme="light"] .sheet dd, html[data-theme="light"] .sheet-id { color: #0b1a2e !important; }
 html[data-theme="light"] .sheet dt, html[data-theme="light"] .sheet .eyebrow { color: #3f5870 !important; }
 html[data-theme="light"] .sheet-state { background: #fff !important; border: 1px solid currentColor !important; }
+/* timeline svg text: fill, not color */
+html[data-theme="light"] .o3-timeline svg text { fill: #0b1a2e !important; }
+html[data-theme="light"] .o3-timeline svg text[fill="#b9cce2"] { fill: #3f5870 !important; }
+html[data-theme="light"] .o3-timeline svg line { stroke: rgba(20,50,90,.35) !important; }
