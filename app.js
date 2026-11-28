@@ -1120,7 +1120,7 @@
   var STATUS_BASE = 'https://ntfy.sh/wsfeed-bishoy-0284a9cccdca36e35f4d30fb';
   var statusLines = [], statusSeen = {}, statusSince = '12h';
   var TL_KEY = 'ws-timeline-v1';
-  function saveTL() { try { localStorage.setItem(TL_KEY, JSON.stringify(statusLines.slice(0, 500).map(function (e) { return { mid: e.mid, id: e.id, name: e.name, text: e.text, state: e.state, job: e.job, ms: e.ms, ask: e.ask || '', options: e.options || [], done: e.done, pending: e.pending, ver: e.ver === true ? true : (e.ver === false ? false : null) }; }))); } catch (e) { /* storage full or blocked */ } }
+  function saveTL() { try { localStorage.setItem(TL_KEY, JSON.stringify(statusLines.slice(0, 500).map(function (e) { return { mid: e.mid, id: e.id, name: e.name, text: e.text, state: e.state, job: e.job, ms: e.ms, ask: e.ask || '', options: e.options || [], done: e.done, pending: e.pending, ver: (e.ver === true || e.ver === false) ? e.ver : undefined }; }))); } catch (e) { /* storage full or blocked */ } }
   function restoreTL() { try { var a = JSON.parse(localStorage.getItem(TL_KEY) || '[]'); if (Array.isArray(a)) { a.slice(0, 500).forEach(function (e) { if (e && e.mid && e.ms && e.text) { statusSeen[e.mid] = true; statusSince = e.mid; statusLines.push({ mid: String(e.mid), id: cleanText(e.id, 40), name: cleanText(e.name, 40), text: FREE_TEXT_OK ? (publicText(cleanText(e.text, 160)) || NOJOB) : (jobSafe(e.job, 40) || NOJOB), state: e.state === 'done' ? 'done' : (e.state === 'blocked' ? 'blocked' : 'start'), next: '', ver: (e.ver === true ? true : (e.ver === false ? false : null)), done: (isFinite(+e.done) && +e.done >= 0 ? Math.min(9999, Math.floor(+e.done)) : -1), pending: (isFinite(+e.pending) && +e.pending >= 0 ? Math.min(9999, Math.floor(+e.pending)) : -1), job: jobSafe(e.job, 40), result: '', ms: +e.ms, ask: (cleanText(e.ask, 140) === PRIV_PH ? '' : (FREE_TEXT_OK ? cleanText(e.ask, 140) : (cleanText(e.ask, 140) ? 'في قرار مستني' : ''))), options: FREE_TEXT_OK ? cleanOpts(e.options) : [] }); } }); statusLines.sort(function (x, y) { return y.ms - x.ms; }); } } catch (e) { console.warn('restoreTL', String(e)); statusLines = []; } }
   var PRIV_PH = 'نشاط على حساب، التفاصيل مخفية';
   function cleanOpts(a) { var o = []; if (Array.isArray(a)) { a.slice(0, 3).forEach(function (x) { var t = cleanText(typeof x === 'string' ? x : '', 50); if (t && t !== PRIV_PH) { o.push(t); } }); } return o; }
@@ -1394,8 +1394,8 @@
     var nj = Object.keys(jobs).length;
     function build(short) {
       var parts = [['\u25CF ' + working + (short || working === 1 ? ' شغال' : ' شغالين'), '#f4511e'], ['\u2713 ' + done + (short || done === 1 ? ' خلص' : ' خلصوا'), '#22d3ee']];
-      if (vOk) { parts.push(['\u2714 ' + vOk + (vOk === 1 ? ' اتراجع' : ' اتراجعوا'), '#22d3ee']); }
-      if (vNo) { parts.push(['\u25D4 ' + vNo + (short ? ' مش متراجع' : (vNo === 1 ? ' لسه مش متراجع' : ' لسه مش متراجعين')), '#fbbf24']); }
+      if (vOk) { parts.push(['\u2611 ' + vOk + (vOk === 1 ? ' اتراجع' : ' اتراجعوا'), '#22d3ee']); }
+      if (vNo) { parts.push(['\u25D4 ' + vNo + ' مستني مراجعة', '#fbbf24']); }
       if (stuck) { parts.push(['\u25A0 ' + stuck + (stuck === 1 ? ' واقف' : ' واقفين'), '#f87171']); }
       parts.push([(nj === 1 ? '1 شغلانة' : arN(nj, A_JOB)), '#8b5cf6']);
       if (pend && !short) { parts.push([pend + ' معلّق', '#9aa8bd']); }
